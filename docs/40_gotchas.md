@@ -350,6 +350,31 @@ PLACE_SEED = 4
 > **★ 「引数を 1 つも付けずに提出物が再現する」を不変条件にする。**
 > 手で打つ値が 1 つでも残っていると、それは**いつか打ち忘れる値**。
 
+### 4-0c. ★ 生成物に**その機械の置き方**を焼き付けない
+
+`mkringoscnet.py` が由来コメントに `os.path.relpath(gds, cfg.ROOT)` を
+書いていた。RING_OSC の GDS が APRtools へ移ったので、生成される
+`RING_OSC.spice` にこう入った:
+
+```
+*   FILL2 の個数だけ ../../91_OpenPDK/TR-1um_APRtools/macro/ringosc/RING_OSC.gds から数えた
+```
+
+**設計と APRtools をどこに置いているかが、コミットされるファイルに残る。**
+他の人の作業ツリーでは嘘になるし、毎回 diff が出る。
+
+対処: `config_base.disp(path)` を使う。設計の中なら相対、APRtools の中なら
+`$APRTOOLS/...`、PDK の中なら `$TR1UM_PDK/...`、どれでもなければ basename。
+
+```
+*   セル   : $APRTOOLS/stdcell/v59_4/simulation/*.spice
+*   FILL2 の個数だけ $APRTOOLS/macro/ringosc/RING_OSC.gds から数えた
+```
+
+同じ形の残り: `gen_chip_tb_*.py` の `.include`（**絶対パス**。U24）。
+
+> **★ 「どこに置いたか」はログに出してよいが、生成物に書くなら記号で書く。**
+
 ### 4-0b. ★ 名前の写像漏れは「幾何は正しいのに検査だけ落ちる」形で出る
 
 同日、`route.py` の最後の 1 段だけが落ちた:

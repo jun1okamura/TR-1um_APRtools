@@ -64,7 +64,9 @@ import config as cfg                                    # noqa: E402
 
 import klayout.db as db                                     # noqa: E402
 
-SIM_DIR = os.path.join(cfg.ROOT, "lef", "simulation")
+# ★ セル単体の .spice は **STDCELL の正本**から取る（設計の `lef/` の
+#   写しではない）。`mklvsnet.py` が同じ取りこぼしをしていた。
+SIM_DIR = os.path.join(cfg.stdcell_dir(), "simulation")
 OUT_PATH = os.path.join(cfg.CHIP, "simulation", "RING_OSC.spice")
 
 N_STAGE = 95              # 1 リングのインバータ段数（回路図 x1[0:94]）
@@ -169,9 +171,9 @@ def main():
         "* scripts/pnr/mkringoscnet.py が生成。手で編集しないこと。",
         "*",
         "*   回路図 : TR-1um_Async_I2C/ring_osc/RING_OSC.sch / INV3D.sch",
-        f"*   セル   : {os.path.relpath(SIM_DIR, cfg.ROOT)}/*.spice"
+        f"*   セル   : {cfg.disp(SIM_DIR)}/*.spice"
         "（INV3D だけ回路図から直接）",
-        f"*   FILL2 の個数だけ {os.path.relpath(cfg.RING_OSC_GDS, cfg.ROOT)} から数えた",
+        f"*   FILL2 の個数だけ {cfg.disp(cfg.RING_OSC_GDS)} から数えた",
         "*",
         f"* 1 リング {N_STAGE} 段 + AND 1 段 = {N_STAGE + 1} 段の奇数閉ループが 2 本。",
         "* 速い方は INV_X1、遅い方は INV3D（同じ 2T だがレイアウトが違う）。",

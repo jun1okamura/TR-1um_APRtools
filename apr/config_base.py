@@ -51,6 +51,31 @@ def getenv(name, default=None, cast=None):
     return cast(v) if cast else v
 
 
+def disp(path, root=None):
+    """ログや生成ファイルに**書き残してよい形**のパス。
+
+    `os.path.relpath(x, cfg.ROOT)` を直に使うと、設計の外にあるものが
+    `../../91_OpenPDK/TR-1um_APRtools/...` になる。**その機械の置き方が
+    生成物に焼き付く**ので、リポジトリをまたぐものは `$APRTOOLS/...` と
+    書く（2026-09-15、`RING_OSC.spice` の由来コメントで実際に出た）。
+    """
+    p = os.path.abspath(path)
+    root = os.path.abspath(root or (_NS.get("ROOT") if _NS else ROOT))
+    for base, tag in ((root, None), (APR_ROOT, "$APRTOOLS")):
+        try:
+            rel = os.path.relpath(p, base)
+        except ValueError:                      # 別ドライブ（Windows）
+            continue
+        if not rel.startswith(".."):
+            return rel if tag is None else f"{tag}/{rel}"
+    env = os.environ.get("TR1UM_PDK")
+    if env:
+        rel = os.path.relpath(p, os.path.abspath(env))
+        if not rel.startswith(".."):
+            return f"$TR1UM_PDK/{rel}"
+    return os.path.basename(p)
+
+
 def _g(key, default=None):
     """設計の名前空間から値を取る（finalize 後に有効）。"""
     if _NS is None:
