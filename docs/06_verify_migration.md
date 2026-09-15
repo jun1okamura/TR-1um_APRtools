@@ -282,6 +282,7 @@ python3 ../../../scripts/pnr/check_batch14.py batch14.log
 | `spice_batch14_expected.json` | md5 一致（判定条件は不変） |
 | `tb_batch14.spice` | 差は `.include` の絶対パスのみ |
 | `ngspice -b tb_batch14.spice` | **All 14 checks PASSED**（解析 164.3 s、x86_64 / ngspice 42） |
+| `ngspice -b tb_ringosc.spice` | **6.44992 / 1.79020 MHz** — これまでの記録どおり |
 
 946 行の差は全て `VDD` -> `vdd` / `GND` -> `vss`。**素子は 1 個も動いていない。**
 コアの `.SUBCKT` は `i2c_slave_async_nrow_fm vdd … rst_n vss`、チップのパッドは
@@ -306,6 +307,28 @@ python3 ../../../scripts/pnr/check_batch14.py batch14.log
 `.measure` の時刻がプラットフォーム依存で揺れていないことも同時に分かった。
 §7 で挙げた「設計機でも同じ結果になるか」は、**ngspice については確認済み**。
 残るのは配置配線の md5（`PYTHONHASHSEED=0` で抑えている非決定性）。
+
+### RING_OSC も移行前と同じ（設計機、2026-09-15）
+
+`tb_ringosc.spice`（`.tran 100p 12u 0 500p`、RING_OSC 入りの `<top>_sim.spice`）:
+
+| | 実測 | これまでの記録 |
+|---|---:|---:|
+| `OUT`（`INV_X1` × 95） | **6.44992 MHz** | 6.450 MHz |
+| `OUTD`（`INV3D` × 95） | **1.79020 MHz** | 1.790 MHz |
+| 比 | **3.603** | 3.60 |
+
+**同じ論理・同じ W/L のセルが 3.6 倍違う**のは拡散容量だけの差で、
+これが出るのは抽出ネットリストだけ（`docs/31_verify_ngspice.md` §1）。
+移行後もその 3.6 倍がそのまま再現したので、**抽出が拾っている
+`AS/AD/PS/PD` が移行で壊れていない**ことの裏付けになる。
+
+振幅は `vmax 5.047 V` / `vmin -46 mV`。**電源レール外への行き過ぎ**は
+出力パッドの ESD 構造と 10 pF 負荷による普通のリンギングで、
+`OSS_ESD_5V_DIO` のダイオードがクランプする範囲内。
+
+解析 180 秒（設計機）。`ENB = P15 = rst_n` なので、**この TB は
+RING_OSC 入りの `_sim.spice` を使う**（14 項目回帰の方は `--no-ringosc`）。
 
 ### この段で見つかって直したもの（移行の取りこぼし 4 件目）
 
