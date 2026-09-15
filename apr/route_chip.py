@@ -121,9 +121,9 @@ PLAN = os.path.join(cfg.CHIP, "signal_routing_plan.json")
 
 M1_LAYER = (13, 0)
 M2_LAYER = (20, 0)
-M1_WIRE_W = 1.8
-M2_WIRE_W = 3.4
-VIA_PAD = 3.4
+M1_WIRE_W = rules.M1_TRUNK_WIDTH
+M2_WIRE_W = rules.M2_WIRE_WIDTH
+VIA_PAD = rules.VIA_PAD
 
 # ---- リングの半径割り当て（ファイル先頭の表のとおり）---------------------
 # --- I2C 移植 (15): レーン 0 を RING_OSC の外へ -----------------------------
@@ -289,8 +289,8 @@ VIA_STACK_MARGIN = 3.5
 R_NOM = 866.0            # 区間計算用の名目半径（レーン帯のまん中あたり）
 PERI = 8 * R_NOM
 
-V1_CUT = 1.4
-MIN_VIA_SPACE = 1.5
+V1_CUT = rules.V1_CUT
+MIN_VIA_SPACE = rules.V1_SPACE_MIN
 
 
 # --------------------------------------------------------------------------

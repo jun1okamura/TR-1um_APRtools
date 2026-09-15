@@ -89,6 +89,7 @@ _HERE = _os.path.dirname(_os.path.abspath(__file__))
 _sys.path.insert(0, _HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as _cfg  # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 # ---------------------------------------------------------------------------
 import json
 import sys
@@ -106,8 +107,8 @@ M1_LAYER = (13, 0)
 M2_LAYER = (20, 0)
 V1_LAYER = (19, 0)
 
-M1_TRUNK_WIDTH = 1.8
-M1_PAD_SIZE = 3.4
+M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
+M1_PAD_SIZE = rules.VIA_PAD
 PAD_HALF = M1_PAD_SIZE / 2.0
 TRACK_PITCH = 5.4  # v17 (design_notes 47/48): must match
                     # route_channels.py's TRACK_PITCH exactly --
@@ -115,9 +116,9 @@ TRACK_PITCH = 5.4  # v17 (design_notes 47/48): must match
                     # try_fix_vertical's track relocation) only makes
                     # sense against the SAME pitch the input GDS was
                     # actually routed with.
-TRACK0_OFFSET = 2.0
-M2_MIN_GAP = 2.0
-M1_MIN_GAP = 1.4  # v18 (design_notes 47/48): M1 min-space DRC rule
+TRACK0_OFFSET = rules.TRACK0_OFFSET
+M2_MIN_GAP = rules.M2_SPACE_MIN
+M1_MIN_GAP = rules.M1_SPACE_MIN  # v18 (design_notes 47/48): M1 min-space DRC rule
                    # (matches drc_check.py's check((13,0), 1.8,
                    # 1.4, 'M1')). via_pad_clear was calling
                    # clear_excluding with margin=0.0 (literal-overlap-

@@ -63,6 +63,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 import lef_parser                                           # noqa: E402
 
 SRC_CELL = "REG8x16"
@@ -72,10 +73,10 @@ M1LBL, M1PIN = (48, 0), (48, 1)
 M2LBL, M2PIN = (49, 0), (49, 1)
 BOUND = (235, 0)
 
-PAD = 3.4                  # via_1 の既定パッド（M1/M2 とも）
+PAD = rules.VIA_PAD        # via_1 の既定パッド（M1/M2 とも）
 HALF = PAD / 2.0
-GRID = 5.4                 # サイト／トラックピッチ
-M2_GAP = 2.0
+GRID = rules.SITE_W        # サイト／トラックピッチ
+M2_GAP = rules.M2_SPACE_MIN
 
 # --- 中継の配置 ------------------------------------------------------------
 VIA_X = 938.3              # マクロ右のピン引き出し V1 列（全ピン共通の x）

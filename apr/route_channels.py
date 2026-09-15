@@ -168,10 +168,10 @@ M1_LAYER = (13, 0)
 M2_LAYER = (20, 0)
 V1_LAYER = (19, 0)
 
-M1_TRUNK_WIDTH = 1.8
-M1_PAD_SIZE = 3.4        # via_1 default pad size (Wmin), matches the old raw-box pad
+M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
+M1_PAD_SIZE = rules.VIA_PAD   # via_1 の M1/M2 パッド
 PAD_HALF = M1_PAD_SIZE / 2.0
-M2_MIN_GAP = 2.0
+M2_MIN_GAP = rules.M2_SPACE_MIN
 
 # --- TD4 移植 (18): トラックピッチを設定可能にする -------------------------
 # チャネルの高さは**そのままトラック本数 × ピッチ**。実測でコア高 1721.9 µm

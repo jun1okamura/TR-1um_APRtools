@@ -44,6 +44,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 
 import klayout.db as db                                     # noqa: E402
 
@@ -52,7 +53,7 @@ OUT_GDS = cfg.CHIP_LOGO_OUT_GDS
 BITMAP = cfg.LOGO_BITMAP          # APRtools の art/ を config 経由で
 
 M2_LAYER = (20, 0)
-M2_WMIN, M2_SMIN = 3.0, 2.0
+M2_WMIN, M2_SMIN = rules.M2_WIDTH_MIN, rules.M2_SPACE_MIN
 PITCH = M2_WMIN + M2_SMIN        # 5.0 µm
 DOT = M2_WMIN                    # 3.0 µm
 LOGO_CELL = "OPENSUSI_LOGO"

@@ -21,6 +21,7 @@ _HERE = _os.path.dirname(_os.path.abspath(__file__))
 _sys.path.insert(0, _HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as _cfg  # noqa: E402
+import rules  # noqa: E402  プロセス定数・レイヤ番号の単一ソース
 # ---------------------------------------------------------------------------
 import sys
 import klayout.db as db
@@ -57,17 +58,17 @@ def check(layer, minw, mins, label):
     print(f"{label}: width viol={w.count()} space viol={s.count()}")
 
 
-check((13, 0), 1.8, 1.4, 'M1')
-check((20, 0), 3.0, 2.0, 'M2')
+check(rules.M1, rules.M1_WIDTH_MIN, rules.M1_SPACE_MIN, 'M1')
+check(rules.M2, rules.M2_WIDTH_MIN, rules.M2_SPACE_MIN, 'M2')
 
-m1 = db.Region(top.begin_shapes_rec(idx((13, 0)))).merged()
-m2 = db.Region(top.begin_shapes_rec(idx((20, 0)))).merged()
-gc = db.Region(top.begin_shapes_rec(idx((8, 1)))).merged()
-v1 = db.Region(top.begin_shapes_rec(idx((19, 0))))
+m1 = db.Region(top.begin_shapes_rec(idx(rules.M1))).merged()
+m2 = db.Region(top.begin_shapes_rec(idx(rules.M2))).merged()
+gc = db.Region(top.begin_shapes_rec(idx(rules.GC))).merged()
+v1 = db.Region(top.begin_shapes_rec(idx(rules.V1)))
 
-print('V1 space viol:', v1.space_check(int(round(1.5 / dbu))).count())
-print('V1 enclosed by M1<1.0 viol:', v1.enclosed_check(m1, int(round(1.0 / dbu))).count())
-print('V1 enclosed by M2<1.0 viol:', v1.enclosed_check(m2, int(round(1.0 / dbu))).count())
+print('V1 space viol:', v1.space_check(int(round(rules.V1_SPACE_MIN / dbu))).count())
+print('V1 enclosed by M1<1.0 viol:', v1.enclosed_check(m1, int(round(rules.V1_ENC_M1 / dbu))).count())
+print('V1 enclosed by M2<1.0 viol:', v1.enclosed_check(m2, int(round(rules.V1_ENC_M2 / dbu))).count())
 print('V1-GC space<1.2 viol:', v1.separation_check(gc, int(round(1.2 / dbu))).count())
 
 # V1 のカットは 1.4 角ちょうど（V1.W1: bbox_max > 1.4）。
@@ -78,5 +79,6 @@ print('V1-GC space<1.2 viol:', v1.separation_check(gc, int(round(1.2 / dbu))).co
 # ※ フレーム単体にも 1.4 を超える V1 が 17 個ある（ボンドパッド下など）。
 #   チップで数えるときはその 17 個がベースライン。
 _big = [p for p in v1.merged().each()
-        if p.bbox().width() * dbu > 1.4001 or p.bbox().height() * dbu > 1.4001]
+        if p.bbox().width() * dbu > rules.V1_CUT + 1e-4
+        or p.bbox().height() * dbu > rules.V1_CUT + 1e-4]
 print(f'V1 cut > 1.4 viol: {len(_big)}')

@@ -40,6 +40,7 @@
 | `env-knob` | warn | `os.environ` で `APR_*` を直読み → `config_base.getenv()` へ |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない |
 | `file-table` | NG | `apr/*.py` と `apr/README.md` の分類表が食い違っている |
+| `drc-const` | NG | `M1_*` / `M2_*` / `V1_*` … に**数値リテラル**を代入している → `rules.py` を引く |
 """
 from __future__ import annotations
 
@@ -64,6 +65,17 @@ MOVED_SOFT = ("lef",)
 #     merge_muxdffrb_rslatch  <APRtools>/out/*.v
 #   読み手が居ないので誰も気づかない（決定 21）。設計側は `cfg.*` で取る。
 DESIGN_ONLY_DIRS = ("out", "layout", "src", "lef", "hdl", "ngspice", "reference")
+
+# ★ プロセス定数を写した名前。**値は `rules.py` からしか取らない**（決定 11）。
+#   以前は 8 ファイルが同じ値を持っていて、`drc_check_cells.py` の 3 つだけが
+#   **緩い方へずれていた**（M1 幅 1.4 / M2 幅 1.8 / V1 間隔 1.4。U4）。
+#   「いま全部合っている」ことは、次に誰かが写すのを止めない。
+# ★ `WN_` は入れない。`macro/regfile/mkspice.py` の `WN_TLAT` は
+#   **N ウェルではなく NMOS のチャネル幅**（W of N）で、名前だけが衝突する。
+#   名前の形だけで決めると、こういう別物を巻き込む。
+DRC_NAME = re.compile(
+    r"^(M1|M2|V1|GC|CO)_(W|S|WIDTH|SPACE|MIN|MAX|GAP|CUT|ENC|PAD|PITCH"
+    r"|OFFSET|TRUNK|WIRE|SIZE)")
 
 # 外部ツールの環境変数。これは `getenv()`（`APR_` 前置）の対象ではない。
 EXTERNAL_ENV = {
@@ -188,6 +200,24 @@ def check_file(path):
     _inner_div = set()
     for nd in ast.walk(tree):
         # --- escape-apr / moved-dir / baked-path / env-* ---
+        # --- drc-const ---
+        if isinstance(nd, ast.Assign) and nd in tree.body \
+                and os.path.basename(path) != "rules.py":   # 正本は対象外
+            tg = nd.targets[0]
+            pairs = []
+            if isinstance(tg, ast.Name):
+                pairs = [(tg.id, nd.value)]
+            elif isinstance(tg, ast.Tuple) and isinstance(nd.value, ast.Tuple) \
+                    and len(tg.elts) == len(nd.value.elts):
+                pairs = [(e.id, v) for e, v in zip(tg.elts, nd.value.elts)
+                         if isinstance(e, ast.Name)]
+            for _nm, _v in pairs:
+                if DRC_NAME.match(_nm) and isinstance(_v, ast.Constant) \
+                        and isinstance(_v.value, (int, float)) \
+                        and not isinstance(_v.value, bool):
+                    add("NG", "drc-const", nd, f"{_nm} = {_v.value}",
+                        "プロセス定数を写している。`rules.py` を引く（決定 11）")
+
         # (b') pathlib 形: <APRtools の根> / "out" / ...
         #   `a / "out" / "x.v"` は BinOp が入れ子になるので、**外側 1 つだけ**
         #   報告する（内側も拾うと 1 行が 2 件になる）。

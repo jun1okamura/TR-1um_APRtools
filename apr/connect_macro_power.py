@@ -60,6 +60,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 import config as _cfg                                   # noqa: E402
 
 import klayout.db as db                                     # noqa: E402
@@ -69,9 +70,9 @@ from cells import tr_1um                                    # noqa: E402
 
 M1_LAYER = (13, 0)
 M2_LAYER = (20, 0)
-M1_MIN_GAP = 1.4
-M2_MIN_GAP = 2.0
-PAD = 3.4                     # via_1 の M1/M2 パッド（= M2 ポートの幅）
+M1_MIN_GAP = rules.M1_SPACE_MIN
+M2_MIN_GAP = rules.M2_SPACE_MIN
+PAD = rules.VIA_PAD           # via_1 の M1/M2 パッド（= M2 ポートの幅）
 # TAP セル内での電源柱の x（route_channels.py と同じ値）
 TAP_GND_X_LOCAL = (1.0, 4.4)
 TAP_VDD_X_LOCAL = (6.4, 9.8)

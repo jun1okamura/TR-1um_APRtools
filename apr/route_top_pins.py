@@ -58,6 +58,7 @@ _HERE = _os.path.dirname(_os.path.abspath(__file__))
 _sys.path.insert(0, _HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as _cfg  # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 # ---------------------------------------------------------------------------
 import json
 import sys
@@ -80,14 +81,14 @@ M2PIN_LAYER = (49, 1)
 TXM1_LAYER = (48, 0)
 TXM2_LAYER = (49, 0)
 
-M1_TRUNK_WIDTH = 1.8
-M1_PAD_SIZE = 3.4
+M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
+M1_PAD_SIZE = rules.VIA_PAD
 PAD_HALF = M1_PAD_SIZE / 2.0
 TRACK_PITCH = 5.4  # this session: was 4.0 (v6) -- must match the v7
                     # recipe's TRACK_PITCH (design_notes 47/48)
-TRACK0_OFFSET = 2.0
-M1_MIN_GAP = 1.4   # matches drc_check.py's M1 space rule
-M2_MIN_GAP = 2.0    # matches drc_check.py's M2 space rule
+TRACK0_OFFSET = rules.TRACK0_OFFSET
+M1_MIN_GAP = rules.M1_SPACE_MIN
+M2_MIN_GAP = rules.M2_SPACE_MIN
 
 EXTEND_UM = 0.0  # this session (user instruction, STEP6): pin marker
                   # sits exactly AT the BBOX edge -- was 10.0 (v6, 10um

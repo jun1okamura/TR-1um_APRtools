@@ -7,8 +7,12 @@ it -- which is exactly how BUF_X2's internal M1 spacing violation survived: a
 stale `FOREIGN BUF_X1` in the LEF meant the layout carried BUF_X1's geometry
 while the netlist said BUF_X2.
 
-Rules match scripts/drc_check.py (M1/M2 width and space, V1 space and
-enclosure).  Run it after ANY change to lef/TR-1um_STDCELL.gds.
+**値もレイヤも `rules.py` から取る**（M1/M2 の幅と間隔、V1 の間隔と囲み）。
+STDCELL の GDS を触ったら必ず回す。
+
+★ `rules.py` に**あるのにここが実装していない**規則がある: `M1.SW`（幅 10 µm
+  以上の M1 に接する M1 は間隔 2.0）/ `M1.W3`・`M2.W3`（最大幅 45）/ `V1.W1`
+  （カット寸法）/ `V1.GA`。サインオフは `drc_pdk.py` で行うこと。
 
   usage:  apr/drc_check_cells.py [--gds lef/TR-1um_STDCELL.gds] [CELL ...]
 """
@@ -22,11 +26,19 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg  # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 
-M1, M2, V1 = (13, 0), (20, 0), (19, 0)
-M1_W, M1_S = 1.4, 1.4
-M2_W, M2_S = 1.8, 2.0
-V1_S, V1_ENC = 1.4, 1.0
+M1, M2, V1 = rules.M1, rules.M2, rules.V1
+# ★ 以前ここだけ値が違っていた（U4）。M1 幅 1.4 / M2 幅 1.8 / V1 間隔 1.4 と
+#   書いてあり、**3 つとも正しい値より緩かった**。しかも
+#   「Rules match drc_check.py」と docstring に書いてあるのに一致していない。
+#   緩い値の出どころは**隣の値**だった — M1 幅に M1 の*間隔* 1.4、M2 幅に
+#   M1 の*幅* 1.8、V1 間隔に V1 の*カット寸法* 1.4。表を 1 列ずらして写した形。
+#   正しい値に直して 3 つの GDS（v59_4 の PNR / STDCELL、v64_8 の STDCELL）で
+#   回し直し、**結果は全部 DRC クリーンのまま**だった（潜在バグで、実害は無かった）。
+M1_W, M1_S = rules.M1_WIDTH_MIN, rules.M1_SPACE_MIN
+M2_W, M2_S = rules.M2_WIDTH_MIN, rules.M2_SPACE_MIN
+V1_S, V1_ENC = rules.V1_SPACE_MIN, rules.V1_ENC_M1
 
 
 def check_cell(ly, cell, dbu):

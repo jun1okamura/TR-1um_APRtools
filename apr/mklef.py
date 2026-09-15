@@ -23,12 +23,18 @@ try:
 except ImportError:
     sys.exit("pip install gdstk --break-system-packages")
 
-M1, V1, M2 = (13, 0), (19, 0), (20, 0)
-PINL, LBL, BOUND, NWELL = (49, 1), (48, 1), (235, 0), (140, 0)
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rules  # noqa: E402  プロセス定数・レイヤ番号の単一ソース
+
+M1, V1, M2 = rules.M1, rules.V1, rules.M2
+PINL, LBL, BOUND, NWELL = (rules.M2_PIN, rules.M1_PIN, rules.PRBOUNDARY, rules.WN)
 EPS = 1e-3
 
-ROW_H, SITE_W = 59.4, 5.4          # 標準セル行高 / 配置グリッド（ポリピッチ）
-M2_PITCH, M2_OFFSET, M2_W = 5.4, 2.7, 3.4   # M2 配線トラック（GDS 実測）
+# ★ `ROW_H` だけは `rules.py` に無い（世代で変わるので `config.ROW_HEIGHT_UM`）。
+#   ここは STDCELL を作る側の道具なので、あえて config を引かず直書きのまま。
+ROW_H, SITE_W = 59.4, rules.SITE_W  # 標準セル行高 / 配置グリッド（ポリピッチ）
+M2_PITCH, M2_OFFSET, M2_W = (rules.TRACK_PITCH, rules.M2_TRACK_OFFSET,
+                             rules.M2_WIRE_WIDTH)   # M2 配線トラック
 DBU = 1000                          # LEF DATABASE MICRONS
 
 # 標準セル行（59.4）に乗せずマクロ／アレイとして扱うもの
