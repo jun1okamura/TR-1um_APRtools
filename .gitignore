@@ -1,0 +1,19 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# エディタ / OS
+.DS_Store
+*.swp
+*~
+
+# ここは「道具」だけを置く場所。設計の生成物は置かない。
+# （誤って設計ディレクトリの中身をコピーしたときに気づけるよう明示する）
+layout/
+out/
+*.gds.gz
+*.log
+*.raw
+*.raw.csv
+*.lvsdb
+*.drcdb
