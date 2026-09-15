@@ -410,3 +410,4 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | ~~U29 の一部~~ | **`apr/from_sclk_spi/` 9 本を `apr/` へ統合**（2026-09-15）。セルライブラリを指していた `cfg.ROOT/lef/…` は `cfg.stdcell_file()` へ。`moved-dir` の warn が 4 件減って 27 件に | `docs/50_char.md` |
 | U33 | `cell_char.json` でトランジスタ数が拾えないセルが 12 個（`stdcell/v59_4/extracted/` に `.extracted` が無い）。`DEC16` / `REGBUF4` / `REGBUF8` / `TAP2S` / `TLAT*`。`gate_count.py` の等価ゲート換算が効かない | 2026-09-15 |
 | U34 | 論理関数が定義されていないセルが 17 個（`gen_liberty.py` の `FUNCS` に無い）。マクロと latch は意図どおりだが、`DEL1` / `ADDBUF` / `REGBUF` は合成に出したいなら足す | 2026-09-15 |
+| U35 | **生成物に個人のパスが残っている**。ドキュメント・コメント・実行パスは仮名化／削除した（`~/HogeHoge/OpenPDK` と `$TR1UM_PDK`）が、**回した記録**までは書き換えていない。I2C `out/i2c_slave_async.synlog` と `reference/v10/*.cir`、TD4 `out/*.synlog` 5 本、SCLK_SPI の xschem 由来 `*.cir` / `*.spice`（`** sch_path:` 見出し）と `ngspice/tb_chip_spi*.spice` の `.include`（= U24）。生成器は直したので**作り直せば消える**。公開前に「見出し行を落とす」か「作り直す」かを決める | 2026-09-15 |
