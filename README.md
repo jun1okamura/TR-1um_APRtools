@@ -24,6 +24,7 @@ TR-1um（OpenSUSI / IP62、1 µm CMOS・M1/M2 の 2 層配線）向けの**自�
 図形は 1 つも動いていない。
 → [`docs/06_verify_migration.md`](docs/06_verify_migration.md)（I2C）
 ／ [`docs/08_migration_td4.md`](docs/08_migration_td4.md)（TD4）
+／ [`docs/09_rebuild_sclk_spi.md`](docs/09_rebuild_sclk_spi.md)（SCLK_SPI は**作り直し**）
 ／ [`docs/30_verify_drc_lvs.md`](docs/30_verify_drc_lvs.md) §0
 
 **引数も再現用の環境変数も要らない。** 再現に効く値（`PAD_WEIGHT` /
@@ -106,7 +107,8 @@ python3 $APRTOOLS/apr/route.py
 | [`docs/05_migration_log.md`](docs/05_migration_log.md) | **データ移動の記録** — 何を移し、何を移さなかったか |
 | [`docs/06_verify_migration.md`](docs/06_verify_migration.md) | **移行の検証** — md5 一致の手順と結果 |
 | [`pdk/README.md`](pdk/README.md) | **PDK は参照しコピーしない** — 対象一覧 |
-| [`docs/08_migration_td4.md`](docs/08_migration_td4.md) | **TD4 の移行** — コアは再現。チップは U30 待ち |
+| [`docs/08_migration_td4.md`](docs/08_migration_td4.md) | **TD4 の移行** — コアもチップも幾何一致 |
+| [`docs/09_rebuild_sclk_spi.md`](docs/09_rebuild_sclk_spi.md) | **SCLK_SPI の作り直し** — 59.4 版で合成から。DRC 0 / LVS 一致 / ngspice 12 項目 PASS |
 | [`docs/07_frame_issue.md`](docs/07_frame_issue.md) | **フレーム GDS の問題（U19 / U22）** — 同名ファイル 2 つと `OSS_DRV` のずれ、および決定 |
 | [`pdk/PR-TR-1um-OSS_DRV.md`](pdk/PR-TR-1um-OSS_DRV.md) | **PDK への PR 本文**（`fix/oss-drv-gio-frame`・push 済み、CI 確認中） |
 | [`pdk/pending-upstream/README.md`](pdk/pending-upstream/README.md) | 上流 PR 待ちのデータ（マージされたら消す） |

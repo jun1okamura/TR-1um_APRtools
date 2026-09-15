@@ -3,6 +3,42 @@
 対象: `syn/`、`apr/`（`dedup_gates.py` / `merge_muxdffrb_rslatch.py` / `insert_bufth.py` /
 `insert_row_buffers.py` / `gen_liberty.py` / `syn_report.py` / `cmp_cells.py`）
 
+## 0. `syn/syn.sh` は `config.py` で動く（2026-09-15）
+
+```sh
+cd <設計>
+export APRTOOLS=... ; export PYTHONPATH=$APRTOOLS/apr
+sh $APRTOOLS/syn/syn.sh          # 引数も環境変数も要らない
+```
+
+以前は I2C の値（RTL の場所・トップ名・abc 制約・BUFTH の網・V10 の参照
+ネットリスト・周期）が `syn.sh` に直書きで、**TD4 でも SCLK_SPI でも
+回らなかった**（U36）。いまは全部 `config.py` から取り、**与えられた段だけ
+回る**。
+
+| config.py | 効く段 |
+|---|---|
+| `SYN_RTL` / `SYN_TOP` / `SYN_LIB` / `SYN_CONSTR` | 2 |
+| `SYN_CELLS_V` / `SYN_CELLS_GEN` / `SYN_CELLS_IN_SYNTH` / `SYN_CELLS_ARGS` | 0・1・5 |
+| `SYN_BLACKBOX` | 2 |
+| `SYN_TB_RTL` / `SYN_TB_NET` / `SYN_TB_INCDIR`（**リスト**） | 1・5 |
+| `BUFTH_NETS` | 6 |
+| `SYN_REF_NETLIST` | 8 |
+| `STA_CLK_PORT` / `STA_PERIOD_NS` / `STA_FALSE_PATH_FROM` | 9 |
+| `SYN_OUT_DIR` / `NET_PATH` | 出力 |
+
+`SYN_CELLS_IN_SYNTH` は **RTL がセルを直接インスタンス化している設計だけ**
+（I2C の NOR2 クロス結合 SR ラッチ）。SPI / TD4 は素の RTL なので `False`。
+`SYN_CELLS_GEN` を `True` にすると `char/mkcellverilog.py` で起こす。
+**手書きのセルモデルはライブラリから静かにずれる** — SCLK_SPI の
+`hdl/cells_sim.v` には `INV_X2` が無く、ABC が選んだ瞬間にゲート TB が
+コンパイルできなくなった（U38）。
+
+> **★ TD4 は対象外。** トップが 4 つあり、`td4_mem` をブラックボックスで
+> 合成してから `mem_wrap.py` で実物の `REG8x16` に差し替える段が要る。
+> TD4 は `scripts/syn.sh` のまま（再合成すると U31 でネットリストが変わる
+> ので、再現には触らない）。STA だけは `syn/sta/sta.sh` で回せる。
+
 ## 1. 段構成
 
 | 段 | 内容 | 出力 |
@@ -164,35 +200,43 @@ sh $APRTOOLS/syn/sta/sta.sh <netlist> <top> <period_ns> $APRTOOLS/syn/sta/path.t
 > 畳む前は NOR2 のクロス結合が生のループで残っていて、OpenSTA が
 > combinational loop としてアークを 1 本**勝手に**切る。
 
-### SCLK_SPI を 59.4 版で合成した結果（2026-09-15）
+### SCLK_SPI を 59.4 版で合成した結果（2026-09-15・確定）
 
 RTL は `hdl/spi_slave_sclk.v`（118 行）。**旧 64.8 版とは別物になる**ので
-GDS の比較はしない（U32）。
+GDS の比較はしない（U32）。`sh $APRTOOLS/syn/syn.sh` を引数なしで回した結果:
 
 | | |
 |---|---|
-| 合成 | yosys 0.33 + `stdcell/v59_4/tr1um_typ_5v0_25c.lib` |
-| セル | 49 個 → **34 個**（`merge_muxdffrb_rslatch.py` で MUX2+DFFRB を 15 組 畳んだ） |
-| 面積 | **124,455 µm²**（畳む前後で不変。MUXDFFRB = MUX2 + DFFRB） |
-| 内訳 | MUXDFFRB 15 / DFFRB 5 / MUX2 1 / AND2_X1 3 / NAND2 2 / NOR4 2 / INV_X1 2 / XOR2 2 / OR3 1 / XNOR2 1 |
+| 合成 | yosys 0.33 + `stdcell/v59_4/tr1um_typ_5v0_25c.lib` + `syn/abc.constr` |
+| セル | 52 → dedup 52 → 畳み込み 37（MUX2+DFFRB を 15 組）→ BUFTH 3 本 = **40 個** |
+| 面積 | **132,795 µm²**（旧 64.8 版の提出 134,078 から −1.0%） |
+| RTL の TB | iverilog 11 本 **11/11 PASS** |
+| ゲートレベルの TB | 同じ 11 本を畳み込み後のネットリストに **11/11 PASS** |
+| BUFTH | `sclk` / `cs_n` / `sdio_in` の 3 本（`dis` はフレーム中に動かない静的な選択なので入れない） |
+
+> **★ 最初の見積り（49 → 34 セル / 124,455 µm²）とは違う。**
+> あれは `syn.sh` を通さず yosys を手で叩いたもので、**`abc.constr`
+> （`set_driving_cell BUF_X2` / `set_load 36.2`）が入っていなかった**。
+> 制約があると ABC は面積だけでなくタイミングも見てゲートを貼り直す
+> （`buffer` / `upsize` / `dnsize` が走る）。**手で打つ値は、いつか
+> 打ち忘れる値**（`docs/40_gotchas.md` §4-0）。
 
 STA（period 100 ns、**P&R 前なので配線容量は入っていない**）:
 
 ```
-  reg->reg    slack    36.873 ns   _82_/Q -> _72_/D
-  in->reg     slack    24.754 ns   dis -> _73_/D
-  reg->out    slack    20.679 ns   _72_/Q -> sdio_out
-  hold r->r   slack     6.437 ns   _81_/QB -> _81_/D
-  => reg->reg が要求する最小周期 26.254 ns  (38.09 MHz)
-     周期係数 a = 0.50 -> 半周期パス。経路の実遅延は 13.127 ns
+  reg->reg    slack    36.244 ns   _88_/Q -> _78_/D
+  in->reg     slack    20.991 ns   sdio_in -> _79_/D
+  reg->out    slack    20.679 ns   _78_/Q -> sdio_out
+  hold r->r   slack     5.381 ns   _87_/QB -> _87_/D
+  => reg->reg が要求する最小周期 27.512 ns  (36.35 MHz)
+     周期係数 a = 0.50 -> 半周期パス（立上り <-> 立下り）。経路の実遅延は 13.756 ns
 ```
 
-クリティカルパスは `DFFRB` の clk->Q 9.494 ns + `OR3` 2.333 ns で、
-**`sclk` の立上りで出て立下りで取り込む半周期パス**。
+**`sclk` の立上りで出て立下りで取り込む半周期パス。** hold が +5.381 ns
+あるので、この構造でもホールド側には余裕がある。
 
-> **★ この 38 MHz は上限ではなく出発点。** 配線容量が入っていないし、
-> TR-1um の M2 は幅 3.4 µm と太いので実配線が乗ると悪化する。
-> 旧 64.8 版の実測は ngspice（抽出ネットリスト）で **16 MHz**、外部仕様は
-> 余裕を見て 10 MHz。**最終的な速度は P&R 後の抽出 + ngspice で決める**
-> （`docs/31_verify_ngspice.md` §4）。hold が +6.437 ns あるのは、
-> 半周期パスで捕まえる構造でもホールド側に余裕があるということ。
+> **★ この 36 MHz は上限ではなく出発点。** 配線容量が入っていない。
+> P&R 後の**抽出したチップ**に ngspice を当てた実測（2026-09-15）は
+> クロック→パッドの `tco` が最悪 **41.2 ns**（外部負荷 0 pF）で、
+> SCLK の半周期がこれを上回る必要がある → **おおむね 10 MHz** が実用上限。
+> 外部仕様の 10 MHz と一致する（`docs/09_rebuild_sclk_spi.md`）。
