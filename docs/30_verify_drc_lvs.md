@@ -103,21 +103,47 @@ python3 $APRTOOLS/apr/drc_pdk.py src/<chip_top>.gds <chip_top> --mdp
 
 ### 2026-09-15 の実測（移行後・`vdd`/`vss` 統一後）
 
-x86_64 Linux / **KLayout 0.28.16 + `--allow-old-klayout`** で流した結果。
-0.28 なので**サインオフではない**が、`vdd`/`vss` へ改名しても公式デッキが
-通ることは確認できている。
+**設計機で PDK 公式デッキを完走。サインオフ相当。**
 
 | 対象 | DRC | LVS |
 |---|---|---|
-| コア `route_step_6_squeezed.gds` | **0 件** | **Congratulations! Netlists match.** |
-| チップ `step3_top_pins.gds` | **0 件** | **Congratulations! Netlists match.** |
+| コア `route_step_6_squeezed.gds` | **0 件** | **23/23 回路ペア Match**（トップピン 26） |
+| `RING_OSC` | **0 件** | チップ側の比較に含まれる |
+| チップ `step3_top_pins.gds` | **0 件** | **35/35 回路ペア Match**（トップピン 16） |
 | 提出 GDS `src/<chip_top>.gds` | **0 件** | — |
-| MDP マスク（`run_mdp.drc` → `run_IP62.drc`） | **0 件**（マスク 5.5 MB） | — |
+| MDP マスク（`run_mdp` → `run_IP62`） | **0 件**（マスク 5.4 MB） | — |
 
-> **★ 電源名の改名は公式 LVS を壊さない。**
+> **★ 「デッキを完走した」ことをレポートから確かめる方法。**
+> `--allow-old-klayout` は `size_inside` を使うルール行を**コメントアウト**
+> するので、そのルールは**カテゴリごとレポートに現れない**。
+> つまり `.lyrdb` に `M1P.PE` / `M2P.PE` があれば完全版で流れている。
+>
+> ```sh
+> grep -c "M1P.PE" <report>.lyrdb     # 1 なら完全版、0 なら緩い方
+> ```
+>
+> 実際: 設計機の報告はルール 266 本で `M1P.PE` / `M2P.PE` を含む。
+> 0.28 + `--allow-old-klayout` は 263 本でこの 2 本が無い。
+> **「0 件」だけでは、通ったのか見ていないのか区別が付かない。**
+
+LVS の合否は**デッキの標準出力**（`Congratulations! Netlists match.`）で
+出るが、後からでも `.lvsdb` から確かめられる:
+
+```python
+import klayout.db as db
+lvs = db.LayoutVsSchematic(); lvs.read("<report>.lvsdb")
+for cp in lvs.xref().each_circuit_pair():
+    print(cp.status(), cp.first().name if cp.first() else "-")
+# すべて Match (1) なら一致
+```
+
+> **★ 電源名の改名は公式 LVS を壊さない**（確認済み）。
 > `05_Compare.lvs` は電源ネット名を直接見ておらず、`IP62/01_Extract.lvs` の
 > `connect_global(BULK, "VSS")` も SPICE の大小無視で `vss` と同一視される
 > （`docs/40_gotchas.md` §1-5）。
+
+参考: 同じものを x86_64 / KLayout 0.28.16 + `--allow-old-klayout` でも流して
+DRC 0 / `Netlists match` を得ている（**緩い方なのでサインオフではない**）。
 
 ## 1. DRC — 2 段構え
 
@@ -246,6 +272,7 @@ python3 apr/gds_extract.py                     # セル単体の抽出（char �
 | APR_2026 コア | 1852 / 737 / 26 | 0 | 一致 |
 | APR_2026 `RING_OSC` | 808 / 201 / 5 | 0 | 一致 |
 | APR_2026 チップ | 3288 / 1050 / 16 | **0** | 一致 |
+| **同上・移行後（`vdd`/`vss`）2026-09-15** | ピン 26 / 16 | **0**（+ MDP 0） | **23/23・35/35 Match** |
 | TD4 コア（縦置き step11） | 3597 / 1386 / 16 | 0 | 一致 |
 | TD4 チップ | 4225 / 1503 / 16 | 0 | 一致 |
 | SCLK_SPI コア | 27 ポート / 13 サブサーキット | 0 | 一致 |

@@ -15,9 +15,12 @@ TR-1um（OpenSUSI / IP62、1 µm CMOS・M1/M2 の 2 層配線）向けの**自�
 >   **ビット単位で一致**（GDS 9 本 + JSON 16 本、全 25 項目）
 > - `vdd`/`vss` 統一後もチップ 5 本の GDS が **幾何 XOR 空**（差はラベル 16 個のみ）、
 >   `pre_check.py` OK
-> - 抽出ネットリストで **ngspice 14 項目回帰 All PASSED**
+> - 抽出ネットリストで **ngspice 14 項目回帰 All PASSED**（RING_OSC も記録どおり）
+> - 設計機（macOS/arm64）でも**全段が再現**。step10 の md5 がクラウドと一致
+> - **PDK 公式デッキで DRC 0 件（MDP マスクも 0）/ LVS 全回路ペア Match**
 >
 > → [`docs/06_verify_migration.md`](docs/06_verify_migration.md)
+>   / [`docs/30_verify_drc_lvs.md`](docs/30_verify_drc_lvs.md) §0
 
 決定済み: 参照は **git submodule** / P&R の正本は `TR-1um_I2C_2026` 世代 /
 STDCELL は **v59_4（行高 59.4）** / コア幅は **トラックピッチ 5.4 µm の整数倍** /
@@ -25,6 +28,7 @@ STDCELL は **v59_4（行高 59.4）** / コア幅は **トラックピッチ 5.
 環境変数は **`APR_*`** / `legacy/` は同梱 / `OSS_DRV` を含むフレームは**上流に PR 済み**
 （マージまで `pdk/pending-upstream/` を使う）。
 
+**TR-1um_I2C_2026 の移行はこれで完了。**
 残りは `apr/from_sclk_spi/` の統合・`apr/` のサブディレクトリ分割・
 チップ側レール名（U21）・TD4 / SCLK_SPI での同一検証
 （`docs/90_improvement_notes.md` §7）。
