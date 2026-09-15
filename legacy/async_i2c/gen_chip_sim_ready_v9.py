@@ -33,7 +33,7 @@ assumed):
    this file's 358 transistor instance lines is a bare M-line (e.g.
    "MXM1 PAD PG VDD VDD PMOS w=300u l=2u") -- KLayout's own LVS netlist
    convention, which expects a real ".model PMOS ..." card. But
-   ~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models (the
+   ~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models (the
    same model include already confirmed working for RING_OSC's own
    ngspice testbench, script/gen_ring_osc_tb.py) only provides PMOS/
    NMOS as **.subckt** wrappers (".subckt PMOS d g s b" internally

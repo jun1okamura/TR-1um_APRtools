@@ -37,7 +37,8 @@ def pdk_drc_dir():
     if env:
         cands += [os.path.join(env, "libs.tech", "klayout", "tech", "drc"),
                   os.path.join(env, "klayout", "tech", "drc")]
-    cands += [os.path.expanduser("~/Dropbox/91_OpenPDK/TR-1um/libs.tech/klayout/tech/drc"),
+    # 個人のディレクトリ構成は書かない（`TR1UM_PDK` か隣で解決する）。
+    cands += [os.path.join(cfg.pdk_root(), "libs.tech", "klayout", "tech", "drc"),
               os.path.join(cfg.ROOT, "TR-1um", "libs.tech", "klayout", "tech", "drc"),
               os.path.expanduser("~/TR-1um/libs.tech/klayout/tech/drc")]
     for c in cands:

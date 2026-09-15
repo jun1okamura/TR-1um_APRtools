@@ -371,7 +371,7 @@ P&Rツールが無い環境のため、レイアウトは手作業で進める�
   なお、どのセルにも接続されていない未使用の内部バス（`_322_`等、`case`文
   合成の副産物でロジックには寄与しないdead net）は回路図から除外済み。
 - **セルシンボルの参照パス**: 各スタンダードセルは絶対パス
-  （`/Users/okamura/Dropbox/91_OpenPDK/TR-1um/libs.tech/xschem/TR-1um_5_stdcell/*.sym`）
+  （`~/HogeHoge/OpenPDK/TR-1um/libs.tech/xschem/TR-1um_5_stdcell/*.sym`）
   で参照している。I/Oピン（`devices/ipin.sym`等）はxschem標準ライブラリを
   相対参照しており、`TR-1um_5_stdcell`内の既存`.sch`ファイルと同じ書き方
   （§2冒頭で確認したNOR2.schの記法）に合わせてある。
@@ -482,7 +482,7 @@ P&Rツールが無い環境のため、レイアウトは手作業で進める�
 ## 12. 物理実装環境（KLayout配置配線フェーズ）
 
 P&Rツールが無いため、KLayoutでの手動配置配線に移行する。使用する物理環境は
-以下（`~/Dropbox/91_OpenPDK/TR-1um/libs.tech/klayout`、新たに接続）:
+以下（`~/HogeHoge/OpenPDK/TR-1um/libs.tech/klayout`、新たに接続）:
 
 - **セルGDSライブラリ**: `libraries/TR-1um_STDCELL.gds` — 本設計が使う
   14セル型（INV_X1, DEL1, MUX2, NOR2/3/4, NAND2/3/4, AND2_X1, OR2/3/4,
@@ -4762,7 +4762,7 @@ BUF_X2/X4/X16エイリアス）が正常出力、ピン未マッチ・row height
 （なお、以前「アップロードGDSとディスク上GDSのMD5が不一致」と
 疑っていた件は誤検出と判明：比較対象がuploads/に残っていた別セッション
 由来の古いファイル（INV_X1単体1セルのみ）であり、実際のライブラリ一式は
-Dropbox同期で`LEF/TR-1um_STDCELL.gds`に直接反映されていた。）
+クラウド同期で`LEF/TR-1um_STDCELL.gds`に直接反映されていた。）
 
 ## 39.2 DFFRのリセットピン名変更：RB → RSTB、および.lib側の追随漏れ
 
@@ -7945,7 +7945,7 @@ KLayoutのNetlist Database Browser（LVS）で
 
 ```
 RuntimeError: Not a known element type: 'U' in
-  /Users/okamura/.xschem/simulations/i2c_slave_async_nrow_fm.spice,
+  ~/.xschem/simulations/i2c_slave_async_nrow_fm.spice,
   line 148 in Netlist::read
 ```
 
@@ -9960,7 +9960,7 @@ Xは一切現れず、期待通りの挙動を一発で確認。76.27のWRITE/RE
 これまで全ての実行で`scmos100.prm`（IRSIMインストール先の一般的な2umプレー
 スホルダ、TR-1umの実特性を一切反映しない）を流用してきた。ユーザーからロー
 カル環境にngspiceがあるとの申し出があり、実TR-1umプロセスの実測フィット済み
-SPICEモデル（`~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models`
+SPICEモデル（`~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models`
 経由で`.include`される`models_IP62_{mos,cap,res,diode}_v*.lib`、ユーザー指定
 のパスを`request_cowork_directory`で新規に接続）を使い、本物の`TR-1um.prm`
 を生成するスクリプトの作成を依頼された。
@@ -13093,7 +13093,7 @@ RuntimeError: Not a valid pin name in circuit 'AND2_X1' in
   .../05_Compare.lvs:101:in `execute'
 ```
 
-**根本原因**：`/Users/okamura/Dropbox/91_OpenPDK/TR-1um/libs.tech/
+**根本原因**：`~/HogeHoge/OpenPDK/TR-1um/libs.tech/
 klayout/tech/lvs/05_Compare.lvs`（79〜92行目）は`schematic(Sch_file,
 reader)`でSch_file（`"simulation/" + cell_name + ".spice"`、今回は
 77.45で生成した`i2c_slave_async_nrow_fm.spice`）を読み込んだ直後、
@@ -13164,7 +13164,7 @@ TAP2/TAP3はGC層の形状が**ゼロ**（77.44で疑ったTAPは今回の件と
 ——デカップリングキャパシタ構造はFILL2/FILL3側にあると特定。
 
 **正確なL/W値の取得**：`01_Extract.lvs`・`02_Device.drc`
-（`/Users/okamura/Dropbox/91_OpenPDK/TR-1um/libs.tech/klayout/tech/`
+（`~/HogeHoge/OpenPDK/TR-1um/libs.tech/klayout/tech/`
 配下、既存のPDK・LVSデッキ）を読み、MOS抽出に使う派生レイヤー式
 （`MP = AP.interacting(GC) & WN - ESD`等）を正確に把握した上で、
 `klayout.db`の`db.LayoutToNetlist` + `db.DeviceExtractorMOS4Transistor`
@@ -16163,7 +16163,7 @@ JSON 情報を使って作成ください。」
 `script/gen_lvs_spice_ringosc_v9.py`（新規）を作成し実装：
 
 - 入力1: `ring_osc/simulation/RING_OSC.spice`
-  （実体は`/Users/okamura/.xschem/simulations/RING_OSC.spice`へのシン
+  （実体は`~/.xschem/simulations/RING_OSC.spice`へのシン
   ボリックリンク）。`.subckt RING_OSC OUT OUTD ENB VDD VSS`と、依存
   サブサーキット4つ(INV_X1, AND2_X1, FILL2, INV3D)を含む。
 - 入力2: 既存のチップレベルLVS参照ネットリスト
@@ -16565,7 +16565,7 @@ ringosc_v9.py`が参照しているのと同一ファイル）を使用。
 
 **モデル**：`script/gen_prm_characterize.py`（IRSIMの`TR-1um.prm`
 較正に使った、確認済みの実ngspiceデッキ）と同じ
-`~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models`
+`~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models`
 （`.include`一発でmos/cap/diode/resの4ライブラリをまとめて読み込む
 インデックスファイル）、vdd=5.0Vも同一。
 
@@ -17180,7 +17180,7 @@ pending`/`phase[0:2]`/`addr_ok`/`rw_bit`を全て`scl_row0`へ）を
 `scl_row0`がその間トグルしていないにもかかわらず値が変化している
 ことから、「クロックエッジを介さない」レースだと判明した。
 
-**真因（トランジスタレベルで確定）**：`/Users/okamura/.xschem/
+**真因（トランジスタレベルで確定）**：`~/.xschem/
 simulations/DFFRB.spice`（`LEF/DFFRB.sch`由来、本プロジェクト専用
 のカスタムセルで標準セルライブラリ本体には無い）を全トランジスタ
 トレースした結果、非同期`RSTB`は**スレーブ段の出力（QB、
@@ -18680,8 +18680,8 @@ STDCELLの種類・個数を突き合わせた。
 108.25での「原状」は本プロジェクト内の合成直後ネットリスト
 （v9系統の初期状態）を指していたが、ユーザーより「原状＝レイアウトが
 完了しているV5」であるとの指定を受けた。V5は本プロジェクト
-（`TR-1um_Async_I2C`）とは別の、接続済みフォルダ`/Users/okamura/
-Dropbox/98_LSI_Design/TR-1um_I2C_2026`にある、レイアウト抽出済みの
+（`TR-1um_Async_I2C`）とは別の、接続済みフォルダ`~/
+HogeHoge/LSI_Design/TR-1um_I2C_2026`にある、レイアウト抽出済みの
 回路netlist`src/tr_1um_i2c_slave_async.cir`である（同一の
 `i2c_slave_async_nrow_fm`サブサーキット構造・同一のSTDCELLライブラリ
 を使用しており、本プロジェクトの前身にあたるレイアウト完了版と
@@ -21421,7 +21421,7 @@ V10で疑われた場合、上記で実在確認済みの同じネット名を�
   （P4=0,P12=0,P14=1,P5=1,P6=1,P3=1,P11=0,P13=0——期待通り）。
 - `.tran`／`.end`の存在、`vrstn P15`／`vdis P7`／`vscl P1`／
   `ssda P2`／`rpu P2`の各行が生成されていることを確認。
-- モデルインクルード（`~/Dropbox/.../ip62_models`、ユーザー実機の
+- モデルインクルード（`~/HogeHoge/.../ip62_models`、ユーザー実機の
   絶対パス）はこのサンドボックスには存在しないため、klayout.db.
   NetlistSpiceReaderによる完全パース検証はV9同様に実施不可——
   上記の構造的チェック（ノード数・参照ネット名の実在確認・ビット

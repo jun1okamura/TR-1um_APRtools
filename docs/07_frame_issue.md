@@ -100,9 +100,9 @@ PDK の全ブランチ（`main` / `dev` / `dev_jun1okamura` / `development_jun` 
 **TD4 に投入された時点で既に別物。** 出所の候補（未確認 — このセッションは
 アクセス権が無い）:
 
-- `~/Dropbox/91_OpenPDK/TR-1um_MPW_template`
-- `~/Dropbox/91_OpenPDK/OpenSUSI_MPW_TR2026` / `_TEST`
-- `~/Dropbox/91_OpenPDK/First_Tapeout_2026`
+- `~/HogeHoge/OpenPDK/TR-1um_MPW_template`
+- `~/HogeHoge/OpenPDK/OpenSUSI_MPW_TR2026` / `_TEST`
+- `~/HogeHoge/OpenPDK/First_Tapeout_2026`
 - 手元での修正（PDK に上げていない fix）
 
 ## 3-b. ★ 決定（2026-09-15・設計者判断）
@@ -146,7 +146,7 @@ Python API だけで CLI を持たない。**設計機（KLayout 0.28.16）か C
 python3 <APRtools>/apr/drc_pdk.py \
         $TR1UM_PDK/libs.tech/klayout/libraries/TR-1um_frame_25x25_GIO.gds OSS_FRAME_GIO
 python3 <APRtools>/apr/drc_pdk.py \
-        ~/Dropbox/98_LSI_Design/TR-1um_I2C_2026/lef/TR-1um_frame_25x25.gds OSS_FRAME_GIO
+        ~/HogeHoge/LSI_Design/TR-1um_I2C_2026/lef/TR-1um_frame_25x25.gds OSS_FRAME_GIO
 ```
 
 コンタクトが 12 個少ないので、**どちらかが `CO` 関連のルール

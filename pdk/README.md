@@ -16,7 +16,7 @@
 
 ```
 $TR1UM_PDK
-~/Dropbox/91_OpenPDK/TR-1um
+~/HogeHoge/OpenPDK/TR-1um
 ../TR-1um                      （設計リポジトリの兄弟）
 ~/TR-1um
 ```

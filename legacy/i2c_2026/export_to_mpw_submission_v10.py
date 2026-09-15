@@ -58,7 +58,7 @@ SRC_LVS_NETLIST = PROJECT_ROOT / "schematic" / "tr_1um_i2c_slave_async_v10_ringo
 
 # ---- destination (OpenSUSI TR-1um_MPW_template-based submission repo,
 # same one V9 was previously exported to) ----
-DEST_REPO = pathlib.Path("~/Dropbox/98_LSI_Design/TR-1um_I2C_2026").expanduser()
+DEST_REPO = pathlib.Path("~/HogeHoge/LSI_Design/TR-1um_I2C_2026").expanduser()
 TOP_CELL = "tr_1um_i2c_slave_async"
 
 # dead, unreferenced standard-cell leftovers sitting at the top of

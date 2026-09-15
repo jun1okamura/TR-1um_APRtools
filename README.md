@@ -78,12 +78,12 @@ git submodule add git@github.com:jun1okamura/TR-1um_APRtools.git tools/APRtools
 足すので、設計の `config.py` がそこから読まれる。
 
 ```sh
-export TR1UM_PDK=~/Dropbox/91_OpenPDK/TR-1um      # PDK は参照する（コピーしない）
-export APRTOOLS=~/Dropbox/91_OpenPDK/TR-1um_APRtools
+export TR1UM_PDK=~/HogeHoge/OpenPDK/TR-1um      # PDK は参照する（コピーしない）
+export APRTOOLS=~/HogeHoge/OpenPDK/TR-1um_APRtools
 export PYTHONPATH=$APRTOOLS/apr
 export PYTHONHASHSEED=0                            # ルータが非決定的（docs/40_gotchas.md）
 
-cd ~/Dropbox/98_LSI_Design/<design>
+cd ~/HogeHoge/LSI_Design/<design>
 python3 $APRTOOLS/apr/selfcheck.py                 # KLayout 無しで下ごしらえを点検
 python3 $APRTOOLS/apr/place.py
 python3 $APRTOOLS/apr/route.py

@@ -119,8 +119,8 @@ docstring と「I2C 移植 (n)」コメントに散っている）。
 
 | 場所 | 依存先 |
 |---|---|
-| `*_config.pdk_tech_python()` | `~/Dropbox/91_OpenPDK/TR-1um/libs.tech/klayout/tech/python`（`TR1UM_PDK` で上書き可） |
-| `gen_chip_tb.py --models` 既定 | `~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models` |
+| `*_config.pdk_tech_python()` | `~/HogeHoge/OpenPDK/TR-1um/libs.tech/klayout/tech/python`（`TR1UM_PDK` で上書き可） |
+| `gen_chip_tb.py --models` 既定 | `~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models` |
 | `gen_cell_spice.py` の `APR_REF_CIR` | **別リポジトリ** `TR-1um_I2C_2026/src/tr_1um_i2c_slave_async.cir` |
 | `layout/step10/simulation` | **`~/.xschem/simulations` へのシンボリックリンク** |
 | `lef/cell_info.json` の Tr 数 | `TR-1um_Async_I2C/LEF/<cell>.extracted` から計数 |

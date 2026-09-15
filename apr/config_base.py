@@ -87,7 +87,9 @@ def _g(key, default=None):
 # ---- PDK の解決（データはコピーしない。pdk/README.md）--------------------
 def pdk_root():
     cands = [c for c in (os.environ.get("TR1UM_PDK"),) if c]
-    cands += [os.path.expanduser("~/Dropbox/91_OpenPDK/TR-1um"),
+    # ★ 個人のディレクトリ構成は書かない。`TR1UM_PDK` か、
+    #   **APRtools / 設計の隣**に PDK が置いてあることを当てにする。
+    cands += [os.path.join(os.path.dirname(APR_ROOT), "TR-1um"),
               os.path.join(os.path.dirname(ROOT), "TR-1um"),
               os.path.expanduser("~/TR-1um")]
     for c in cands:

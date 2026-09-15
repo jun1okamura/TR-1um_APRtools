@@ -37,8 +37,8 @@
 cd <TR-1um_I2C_2026>
 cp <APRtools>/templates/config_i2c_2026_verify.py config.py     # 初回だけ
 
-export TR1UM_PDK=$HOME/Dropbox/91_OpenPDK/TR-1um
-export APRTOOLS=$HOME/Dropbox/91_OpenPDK/TR-1um_APRtools
+export TR1UM_PDK=$HOME/HogeHoge/OpenPDK/TR-1um
+export APRTOOLS=$HOME/HogeHoge/OpenPDK/TR-1um_APRtools
 export PYTHONPATH=$APRTOOLS/apr
 
 python3 $APRTOOLS/apr/selfcheck.py     # 下ごしらえの点検（KLayout 不要）

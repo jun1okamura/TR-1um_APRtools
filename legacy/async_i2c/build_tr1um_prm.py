@@ -64,7 +64,7 @@ import re
 import sys
 
 IRSIM_DIR = pathlib.Path(__file__).resolve().parent.parent / "irsim"
-MODEL_FILE = pathlib.Path.home() / "Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/models_IP62_mos_v2.lib"
+MODEL_FILE = pathlib.Path.home() / "HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/models_IP62_mos_v2.lib"
 
 # Must match gen_prm_characterize.py
 PWIDTH = 10.2
@@ -109,7 +109,7 @@ def compute_cap_params():
     if not MODEL_FILE.exists():
         raise SystemExit(
             f"real model file not found: {MODEL_FILE}\n"
-            "(needs the ~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ "
+            "(needs the ~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ "
             "folder connected)"
         )
     text = MODEL_FILE.read_text()
@@ -296,7 +296,7 @@ def main():
     lines.append("; and irsim/README.md for the full derivation/methodology.")
     lines.append(";")
     lines.append("; Resistance table from ngspice characterization of the REAL TR-1um")
-    lines.append("; PMOS/NMOS models (~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/")
+    lines.append("; PMOS/NMOS models (~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/")
     lines.append("; ip62_models, vdd=5.0V, per IRSIM's own official calibration procedure).")
     lines.append("; Capacitance parameters (capga/capda/cappda) computed directly from the")
     lines.append("; same real model file's tox/cj parameters (no simulation needed).")

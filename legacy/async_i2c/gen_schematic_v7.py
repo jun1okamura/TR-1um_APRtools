@@ -22,9 +22,9 @@ import json, re, os, sys
 from collections import defaultdict
 
 STDCELL_DIR = "/sessions/dreamy-ecstatic-heisenberg/mnt/TR-1um_5_stdcell"
-STDCELL_ABS_DIR = "/Users/okamura/Dropbox/91_OpenPDK/TR-1um/libs.tech/xschem/TR-1um_5_stdcell"
+STDCELL_ABS_DIR = "~/HogeHoge/OpenPDK/TR-1um/libs.tech/xschem/TR-1um_5_stdcell"
 LEF_DIR = "/sessions/dreamy-ecstatic-heisenberg/mnt/TR-1um_Async_I2C/LEF"
-LEF_ABS_DIR = "/Users/okamura/Dropbox/98_LSI_Design/TR-1um_Async_I2C/LEF"
+LEF_ABS_DIR = "~/HogeHoge/LSI_Design/TR-1um_Async_I2C/LEF"
 LEF_OVERRIDE_TYPES = {"DFFRB", "BUFTH", "MUX2"}  # user instruction: use LEF/ sch+sym, not STDLIB's
 
 NET_FILE = "/sessions/dreamy-ecstatic-heisenberg/mnt/TR-1um_Async_I2C/src/i2c_slave_async_net_v7.v"

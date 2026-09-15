@@ -28,7 +28,7 @@
 | push | **未**（この環境に SSH 鍵が無いため設計機から） |
 
 ```sh
-cd ~/Dropbox/91_OpenPDK/TR-1um
+cd ~/HogeHoge/OpenPDK/TR-1um
 git push -u origin fix/oss-drv-gio-frame
 # -> https://github.com/OpenSUSI/TR-1um/compare/dev...fix/oss-drv-gio-frame?expand=1
 ```

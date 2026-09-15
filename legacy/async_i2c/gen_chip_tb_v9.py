@@ -76,7 +76,7 @@ SIM_READY_SRC = str(_REPO_ROOT / "ngspice" / "tr_1um_i2c_slave_async_sim_ready.s
 TB_DIR = str(_REPO_ROOT / "ngspice" / "TB")
 TB_OUT = TB_DIR + "/tb_chip_i2c.spice"
 
-MODEL_INCLUDE = "~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
+MODEL_INCLUDE = "~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
 SIM_READY_REL = "../tr_1um_i2c_slave_async_sim_ready.spice"
 VDD = 5.0
 

@@ -95,7 +95,7 @@ SRC_GDS = PROJECT_ROOT / "ring_osc" / "tr_1um_i2c_slave_async_reassigned_logodot
 SRC_LVS_NETLIST = PROJECT_ROOT / "schematic" / "tr_1um_i2c_slave_async_ringosc_v9_lvs.spice"
 
 # ---- destination (OpenSUSI TR-1um_MPW_template-based submission repo) ----
-DEST_REPO = pathlib.Path("~/Dropbox/98_LSI_Design/TR-1um_I2C_2026").expanduser()
+DEST_REPO = pathlib.Path("~/HogeHoge/LSI_Design/TR-1um_I2C_2026").expanduser()
 TOP_CELL = "tr_1um_i2c_slave_async"
 
 # cell rename applied at export time only -- see module docstring

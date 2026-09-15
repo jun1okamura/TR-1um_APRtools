@@ -37,7 +37,7 @@ resistance by L/W for every other transistor's actual size from these two
 table entries.
 
 Uses the REAL TR-1um SPICE models (not the scmos100.prm placeholder):
-  ~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models
+  ~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models
 (measured/fitted BSIM3v3 PMOS/NMOS -- see models_IP62_mos_v2.lib) via the
 SAME .include path and .param vdd=5.0 convention already used by this
 project's own existing xschem-generated testbenches (simulations/
@@ -60,7 +60,7 @@ for those), and assembles the final irsim/TR-1um.prm.
 """
 import pathlib
 
-MODEL_INCLUDE = "~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
+MODEL_INCLUDE = "~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
 VDD = 5.0
 CAP_FF = 1000  # 1pF loading cap -- IRSIM's own README: "make sure Cap is
                 # sufficiently large (1pf is ok) otherwise the delay will

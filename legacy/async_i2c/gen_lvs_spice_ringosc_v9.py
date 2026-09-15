@@ -52,7 +52,7 @@ lookup is updated to reflect the current (RING_OSC-integrated) design.
 
 Three inputs, exactly as the user specified:
 1. "ring_osc/simulation/RING_OSC.spice" -- symlinked to
-   /Users/okamura/.xschem/simulations/RING_OSC.spice, RING_OSC's own
+   ~/.xschem/simulations/RING_OSC.spice, RING_OSC's own
    transistor-level netlist: .subckt RING_OSC OUT OUTD ENB VDD VSS, plus
    dependency subckts INV_X1/AND2_X1/FILL2/INV3D, embedded verbatim.
 2. schematic/tr_1um_i2c_slave_async_v9_lvs.spice -- the ring_osc-free

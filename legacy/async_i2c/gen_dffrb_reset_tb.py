@@ -47,7 +47,7 @@ and `plot v(qs) v(qb) v(q) v(rstb)` for a visual look).
 """
 import pathlib
 
-MODEL_INCLUDE = "~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
+MODEL_INCLUDE = "~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
 VDD = 5.0
 
 # DFFRB's real transistor-level body, copied verbatim from

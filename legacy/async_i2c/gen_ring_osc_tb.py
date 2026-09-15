@@ -13,7 +13,7 @@ Builds a real, locally-runnable ngspice testbench for the standalone
 RING_OSC (two 97-stage-equivalent ring oscillators), using the same
 real TR-1um transistor models used to calibrate irsim/TR-1um.prm
 (script/gen_prm_characterize.py's own confirmed-working convention:
-`.include '~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/
+`.include '~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/
 ip62_models'`, vdd=5.0V).
 
 **Netlist source, v2 (this revision)**: switched from the SCHEMATIC
@@ -75,7 +75,7 @@ TB_DIR = "/sessions/dreamy-ecstatic-heisenberg/mnt/TR-1um_Async_I2C/ring_osc/TB"
 SIM_READY_OUT = TB_DIR + "/RING_OSC_extracted_sim_ready.spice"
 TB_OUT = TB_DIR + "/tb_ring_osc.spice"
 
-MODEL_INCLUDE = "~/Dropbox/91_OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
+MODEL_INCLUDE = "~/HogeHoge/OpenPDK/TR-1um/libs.tech/spice/models/ip62_models"
 VDD = 5.0
 # Extended from the user's original "200ns程度" request (2026-08-31, user:
 # "伸ばします"): a real local ngspice run of the schematic-based testbench
