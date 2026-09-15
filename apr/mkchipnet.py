@@ -275,10 +275,10 @@ def main():
     header = [
         f"** {os.path.basename(a.out)} -- チップレベルの LVS ソースネットリスト。",
         "** scripts/pnr/mkchipnet.py が生成。手で編集しないこと。",
-        f"**   コア    : {os.path.relpath(CORE_SPICE, cfg.ROOT)}",
-        f"**   RING_OSC: {os.path.relpath(RO_SPICE, cfg.ROOT)}",
-        f"**   フレーム: {os.path.relpath(GIO_SPICE, cfg.ROOT)}",
-        f"**   接続表  : {os.path.relpath(CONN, cfg.ROOT)}",
+        f"**   コア    : {cfg.disp(CORE_SPICE)}",
+        f"**   RING_OSC: {cfg.disp(RO_SPICE)}",
+        f"**   フレーム: {cfg.disp(GIO_SPICE)}",
+        f"**   接続表  : {cfg.disp(CONN)}",
         "**",
         f"** x1 = {CHIP_GIO_CELL}（元 {GIO_CELL}）/ x2 = {cfg.TOP_CELL_NAME}"
         f" / x3 = {cfg.RING_OSC_CELL}。",
@@ -302,7 +302,7 @@ def main():
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"wrote {cfg.disp(a.out)}")
 
     print(f"\n{GIO_CELL}: {len(gio_ports)} ポート")
     print(f"{cfg.TOP_CELL_NAME}: {len(core_ports)} ポート")

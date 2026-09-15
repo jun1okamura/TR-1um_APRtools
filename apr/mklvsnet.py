@@ -372,8 +372,12 @@ def main():
                     help="書き出す subckt 名（既定: レイアウトのトップセル名）")
     a = ap.parse_args()
     if a.out is None:
-        _sub = "portrait" if getattr(cfg, "MACRO_MODE", "landscape") == "portrait" else "landscape"
-        a.out = os.path.join(cfg.LAYOUT, _sub, "simulation", f"{a.top}.spice")
+        # ★ 既定は **`mkchipnet.py` が読む場所**（`layout/chip/simulation/`）。
+        #   2026-09-15 まで `layout/<portrait|landscape>/simulation/` に書いて
+        #   いた。TD4 のマクロ向きから来た名前で、`MACRO_MODE = "none"` の
+        #   設計でも `landscape` 側に落ちる。**生産者と消費者が別の場所を
+        #   見ていた**わけで、誰もが `-o` を明示していたから表に出なかった。
+        a.out = os.path.join(cfg.CHIP, "simulation", f"{a.top}.spice")
 
     db = SubcktDB(load_subckts())
     v = parse_verilog(a.netlist)
@@ -455,10 +459,10 @@ def main():
     with open(a.out, "w") as f:
         f.write(f"* {a.top} -- LVS ソースネットリスト（設計意図側）\n"
                 f"* scripts/pnr/mklvsnet.py が生成。手で編集しないこと。\n*\n"
-                f"*   論理セル : {os.path.relpath(a.netlist, cfg.ROOT)}\n"
-                f"*   物理セル : {os.path.relpath(a.placement, cfg.ROOT)} "
+                f"*   論理セル : {cfg.disp(a.netlist)}\n"
+                f"*   物理セル : {cfg.disp(a.placement)} "
                 f"({', '.join(f'{t} x{n}' for t, n in sorted(phys.items()))})\n"
-                f"*   セル定義 : {os.path.relpath(SIM_DIR, cfg.ROOT)}/*.spice\n"
+                f"*   セル定義 : {cfg.disp(SIM_DIR)}/*.spice\n"
                 f"*\n"
                 f"* デバイスを持たない物理セルは出していない: "
                 f"{', '.join(sorted(t for t in phys if t in NO_DEVICE_CELLS)) or 'なし'}\n"
@@ -472,7 +476,7 @@ def main():
             f.write("\n".join(fill_lines) + "\n")
         f.write(f".ends {a.top}\n")
 
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"wrote {cfg.disp(a.out)}")
     print(f"  top pin   : {len(top_ports)}  ({' '.join(top_ports)})")
     print(f"  論理セル  : {sum(logical.values())} 個 / {len(logical)} 種")
     print(f"  物理セル  : {sum(phys.values())} 個 / {len(phys)} 種 "
