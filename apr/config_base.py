@@ -800,3 +800,71 @@ def check_opening():
     lo, hi = frame_opening(_g("CORE_WIDTH_UM"))
     h = chip_core_height()
     return h, hi - lo, (hi - lo) - h
+
+
+# --------------------------------------------------------------------------
+def chip_stack(core_box=None):
+    """チップ上辺（と下辺）の**縦の詰まり具合**を検算する（U46）。
+
+    `route_chip.py` が描く順に上から並べて、隣り合うものの間隔が金属の
+    最小間隔を満たしているかを見る。**DRC を回す前に分かる**ことしか見ない。
+
+    返り値は `[(ラベル, 実測 µm, 要 µm, ok?)]`。`selfcheck.py` が表にする。
+
+    ★ SCLK_SPI で 3 回続けて落ちた場所（`docs/09_rebuild_sclk_spi.md`）:
+        (1) レーン帯の最上が GND リングに当たる
+        (2) リングを外へ寄せると VDD リングの via と `VDD_CROSS_Y` の via が
+            重なって `V1.W1`（カット 1.4 上限）
+        (3) レーンを内へ寄せると VDD バスと `M1.S1`
+      どれも値を並べれば事前に分かる。
+    """
+    g = _g
+    box = core_box or chip_geometry()["core_chip_bbox"]
+    cl, cb, cr, ct = box
+    scheme = g("CHIP_POWER", "ringosc")
+    ring_w = rules.CHIP_RING_W
+    gnd_r = g("CHIP_GND_RING_R", rules.CHIP_GND_RING_R)
+    vdd_r = g("CHIP_VDD_RING_R", rules.CHIP_VDD_RING_R)
+    lane0 = g("CHIP_LANE_R0", rules.CHIP_LANE_R0)
+    gnd_y = g("CHIP_GND_BUS_Y", 790.0)
+    vdd_y = g("CHIP_VDD_BUS_Y", 804.0)
+    cross = g("CHIP_VDD_CROSS_Y", rules.CHIP_VDD_CROSS_Y)
+    bus_h = rules.CHIP_BUS_W / 2.0
+    m1e = rules.M1_TRUNK_WIDTH / 2.0      # レーン（M1 の水平トラック）の縁
+    m2e = rules.M2_WIRE_WIDTH / 2.0
+    wall = rules.FRAME_INNER_WALL
+    # 幅 10 µm の M1 に接する M1 は 2.0 要る（M1.SW）。レーンは細いので 1.4。
+    wide = rules.M1_WIDE_SPACE_MIN
+    thin = rules.M1_SPACE_MIN
+
+    out = []
+
+    def chk(label, got, need):
+        out.append((label, round(got, 3), need, got >= need - 1e-9))
+
+    if scheme in ("ringosc", "top_only"):
+        chk("コア上端 -> GND バス下端", (gnd_y - bus_h) - ct, wide)
+        chk("GND バス上端 -> VDD バス下端", (vdd_y - bus_h) - (gnd_y + bus_h), wide)
+        chk("VDD バス上端 -> レーン 0 の M1 縁", (lane0 - m1e) - (vdd_y + bus_h), thin)
+    else:                                  # top_bottom
+        chk("コア上端 -> VDD バス下端", (vdd_y - bus_h) - ct, wide)
+        chk("GND バス上端 -> コア下端", cb - (gnd_y + bus_h), wide)
+        chk("VDD バス上端 -> レーン 0 の M1 縁", (lane0 - m1e) - (vdd_y + bus_h), thin)
+
+    chk("レーン 0 の M2 縁 -> コアの左右端", (lane0 - m2e) - max(abs(cl), abs(cr)),
+        rules.M2_SPACE_MIN)
+    room = gnd_r - ring_w / 2.0 - rules.M2_SPACE_MIN - m2e
+    out.append(("レーンの上限 R（GND リングから）", round(room, 3), None,
+                room > lane0))
+    n = int((room - lane0) // rules.CHIP_LANE_PITCH) + 1 if room >= lane0 else 0
+    out.append((f"入るレーンの本数（ピッチ {rules.CHIP_LANE_PITCH}）", n, None, n > 0))
+    chk("GND リング外縁 -> VDD リング内縁",
+        (vdd_r - ring_w / 2.0) - (gnd_r + ring_w / 2.0), rules.M1_SPACE_MIN)
+    chk("VDD リング外縁 -> 壁", wall - (vdd_r + ring_w / 2.0), rules.M2_SPACE_MIN)
+    # ★ U48: VDD_CROSS_Y の via（6.8 角）の上端が壁に近すぎると M2.S1
+    chk("VDD_CROSS_Y の via 上端 -> 壁",
+        wall - (cross + rules.CHIP_STRIP_VIA / 2.0), rules.M2_SPACE_MIN)
+    # リングの via と CROSS の via が重なると V1.W1（カット 1.4 上限）
+    chk("VDD リングの via -> CROSS の via", abs(cross - vdd_r),
+        rules.CHIP_STRIP_VIA)
+    return out

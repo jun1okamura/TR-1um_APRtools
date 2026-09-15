@@ -183,6 +183,24 @@ def main():
     except SystemExit as e:
         line(NG, f"PDK が解決できない: {e}")
 
+    # ---- チップの縦の詰まり（U46）----------------------------------------
+    # コアが出来ていないと bbox が測れないので、あるときだけ。
+    print("\n--- 4b. チップの縦の詰まり（コア上端 -> バス -> レーン -> リング -> 壁）---")
+    try:
+        rows = cfg.chip_stack()
+    except Exception as e:
+        line(WARN, f"まだ測れない（コアの GDS が要る）: {e}")
+    else:
+        for lbl, got, need, ok in rows:
+            if need is None:
+                line(OK if ok else NG, f"{lbl:<34} {got}")
+            else:
+                line(OK if ok else NG, f"{lbl:<34} {got:>8} µm （要 {need}）")
+        print("       ★ ここが詰まると DRC で M1.S1 / M2.S1 / V1.W1 として出る。"
+              "レーンの本数は\n"
+              "         配線計画が出来るまで分からないので、route_chip.py が"
+              "改めて数える。")
+
     print("\n--- 5. 成果物の置き場 ---")
     for name in ("PLACEMENT_JSON", "SQUEEZED_GDS", "FINAL_GDS", "CHIP_CORE_GDS"):
         p = getattr(cfg, name)

@@ -131,6 +131,25 @@ RAIL_OF = {PWR_NET: CHIP_PWR_RAIL, GND_NET: CHIP_GND_RAIL,
 # チップ側のレール名 -> コアが実際に書いているラベル（照合はこちら向き）。
 CORE_LABEL_OF = {CHIP_PWR_RAIL: PWR_NET, CHIP_GND_RAIL: GND_NET}
 
+# ---- チップの縦の積み方（フレーム実測 + V10 の形）------------------------
+# ★ ここが**詰まっているときに順番に破綻する**ところ（U46）。SCLK_SPI で
+#   全信号を上辺から出したら 3 回続けて落ちた:
+#     (1) レーン帯が GND リングに当たる
+#     (2) リングを外へ寄せたら via が重なって V1.W1
+#     (3) レーンを内へ寄せたら電源バスと M1.S1
+#   値は `config_base.chip_stack()` が検算する。
+CHIP_RING_W = 10.0             # リングの幅（M1/M2 とも）
+CHIP_GND_RING_R = 884.0        # 既定。設計は CHIP_GND_RING_R で動かせる
+CHIP_VDD_RING_R = 902.0
+CHIP_BUS_W = 10.0              # コアの電源を束ねる M1 バー
+CHIP_LANE_R0 = 815.4           # 既定。レーン 0 の中心
+CHIP_LANE_PITCH = SITE_W       # 5.4。コア内のトラックと同じ
+CHIP_STRIP_W = 10.0            # パッド <-> バスのストリップ（V10 の形、5 本）
+CHIP_STRIP_VIA = 6.8           # 10 µm どうしの重なりに収まる 2x2 カット
+CHIP_VDD_CROSS_Y = 914.5       # M2 を止めて M1 に跳ねる y
+CHIP_VDD_PIN_Y = 927.0         # フレームの M1 VDD ピン（x 50…350）
+CHIP_VSS_LAND_Y = -926.0       # 下辺の VSS 壁ピン（x -450…50）
+
 # ---- ロゴ ----------------------------------------------------------------
 LOGO_PITCH = 5.0           # = M2 最小幅 3.0 + 最小スペース 2.0
 LOGO_DOT = 3.0             # 直交隣接 2.0 / 斜め 2.83 -- どちらも合法

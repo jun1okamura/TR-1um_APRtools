@@ -132,8 +132,8 @@ VIA_PAD = 3.4
 # 左右の辺のレーン（垂直 = M2）が 810 では帯の電源レールに乗ってしまう。
 # 1 トラック分（5.4）外に出して 815.4 から。M2 の縁 813.7 と帯の M2 809.0 で
 # 4.7 µm 空く（要 2.0）。M1 レール 810.0 とは層が違うので当たらない。
-LANE_R0 = getattr(cfg, "CHIP_LANE_R0", 815.4)
-LANE_PITCH = 5.4         # M2 3.4 + 最小間隔 2.0。コア内のトラックと同じ
+LANE_R0 = getattr(cfg, "CHIP_LANE_R0", rules.CHIP_LANE_R0)
+LANE_PITCH = rules.CHIP_LANE_PITCH         # M2 3.4 + 最小間隔 2.0。コア内のトラックと同じ
 # --- I2C 移植 (18): リングを外へ寄せてレーン帯を 14 本ぶん確保 -------------
 # TD4 は 12 レーンで足りたが、I2C は DIS が 9 本に枝分かれするぶん混み、
 # どこで周を切っても 14 レーン要る（2 µm 刻みで全周を探した）。
@@ -151,11 +151,11 @@ LANE_PITCH = 5.4         # M2 3.4 + 最小間隔 2.0。コア内のトラック�
 #   リング幅 10 の外縁 + M2 間隔 2.0 で **R <= 913.0** まで外へ出せる。
 #   SCLK_SPI はコアを上へ寄せて全信号を上辺から出すためレーンが 13 本要り、
 #   既定の 884 だと帯（最上 880.2）がリングに当たる。
-GND_RING_R = getattr(cfg, "CHIP_GND_RING_R", 884.0)
-VDD_RING_R = getattr(cfg, "CHIP_VDD_RING_R", 902.0)
-RING_W = 10.0
+GND_RING_R = getattr(cfg, "CHIP_GND_RING_R", rules.CHIP_GND_RING_R)
+VDD_RING_R = getattr(cfg, "CHIP_VDD_RING_R", rules.CHIP_VDD_RING_R)
+RING_W = rules.CHIP_RING_W
 RING_VIA = 6.8           # 10 µm 同士の重なりに収まる 2x2 カット
-WALL = 920.0             # 開口の内壁（実測。四隅まで同じ）
+WALL = rules.FRAME_INNER_WALL             # 開口の内壁（実測。四隅まで同じ）
 
 # ---- コアの電源をチャネルで束ねるバス -----------------------------------
 # --- I2C 移植 (17): VDD も GND も**上のチャネル**から取る -------------------
@@ -171,7 +171,7 @@ WALL = 920.0             # 開口の内壁（実測。四隅まで同じ）
 #
 # 上のチャネルはコア上端 780.2 からレーン 0 の 813.7 まで 33.5 µm。
 # M1 バスを 2 本入れる: GND を内側（790.0）、VDD を外側（804.0）。
-BUS_W = 10.0
+BUS_W = rules.CHIP_BUS_W
 TAP_STUB_W = 3.4         # コア側の M2 ポート幅そのまま。段差を作らない
 VDD_BUS_Y = getattr(cfg, "CHIP_VDD_BUS_Y", 804.0)        # M1 799.0…809.0。レーン 0 の M1 縁 814.5 と 5.5 空く
 GND_BUS_Y = getattr(cfg, "CHIP_GND_BUS_Y", 790.0)        # M1 785.0…795.0。コア上端 780.2 と 4.8 空く
@@ -196,9 +196,9 @@ GND_BUS_Y = getattr(cfg, "CHIP_GND_BUS_Y", 790.0)        # M1 785.0…795.0。�
 #   揃えたので消した（U47）。x はコアのポートを避ける必要があり、
 #   `check_strip_clearance()` が先に検算する（U41）。
 
-STRIP_W = 10.0
+STRIP_W = rules.CHIP_STRIP_W
 STRIP_OFFSETS = (-24.0, -12.0, 0.0, 12.0, 24.0)
-STRIP_VIA = 6.8          # 10 µm どうしの重なりに収まる 2x2 カット
+STRIP_VIA = rules.CHIP_STRIP_VIA          # 10 µm どうしの重なりに収まる 2x2 カット
 
 # フレームの M1 VDD ピン (50,920)-(350,934)。M2 は VDD_CROSS_Y で止めて
 # M1 に跳ねる（920 から上はフレームの VSS が M2 で寝ている）。
@@ -207,8 +207,8 @@ STRIP_VIA = 6.8          # 10 µm どうしの重なりに収まる 2x2 カッ�
 #   スペース 2 で 58 µm 占めるので、ピンの x 範囲に収まる値にすること。
 #   フレームの M1 VDD ピンは x 50…350、下辺の VSS 壁ピンは x -450…50。
 VDD_PIN_X = getattr(cfg, "CHIP_VDD_STRIP_X", 200.0)
-VDD_PIN_Y = 927.0
-VDD_CROSS_Y = getattr(cfg, "CHIP_VDD_CROSS_Y", 914.5)      # V10 と同じ。M2 の上端が壁 920 から 5.5 µm
+VDD_PIN_Y = rules.CHIP_VDD_PIN_Y
+VDD_CROSS_Y = getattr(cfg, "CHIP_VDD_CROSS_Y", rules.CHIP_VDD_CROSS_Y)      # V10 と同じ。M2 の上端が壁 920 から 5.5 µm
 # GND バス -> GND リングの M2 ストリップ。上辺で空いているのは
 # x -94.5（rx_data[0]）と 116.1（sda_in）の間だけなので、そのまん中の
 # x=0 を中心に 5 本（-29…29 を占める。両隣まで 63.8 / 85.4 µm）。
@@ -216,7 +216,7 @@ GND_STRIP_X = getattr(cfg, "CHIP_GND_STRIP_X", 0.0)
 # 下辺中央の VSS 壁ピン (-450,-934)-(50,-920) へ。10 µm 内側に着地する。
 # I2C では**コアからではなく GND リングから**降ろす（上の (17) を参照）。
 VSS_PIN_X = getattr(cfg, "CHIP_VSS_STRIP_X", -200.0)
-VSS_LAND_Y = -926.0
+VSS_LAND_Y = rules.CHIP_VSS_LAND_Y
 # 残り三辺の VSS 壁ピンへの短いストラップ（GND リング -> 壁）。
 # x=400 の上辺は VDD ライザ（80..320）から 80 µm 離してある。
 VSS_STRAP = (("LEFT", -400.0), ("LEFT", 0.0), ("LEFT", 400.0),
