@@ -114,12 +114,14 @@ def main():
           f"  PLACE_SEED={cfg.PLACE_SEED}"
           f"  restarts={cfg.PLACE_RESTARTS}"
           f"  order_passes={cfg.PLACE_ORDER_PASSES}")
-    _ovr = [k for k in ("PAD_WEIGHT", "PLACE_SEED", "PLACE_RESTARTS",
-                        "PLACE_ORDER_PASSES", "PLACE_BALANCE_TOL")
-            if os.environ.get("APR_" + k) is not None]
+    # ★ **どのつまみが存在するか**は `config_base.ENV_KNOBS` から取る（U29）。
+    #   ここに名前を並べ直すと、片方に足して片方に足し忘れる。
+    _ovr = sorted(k for k in cfg.ENV_KNOBS
+                  if os.environ.get("APR_" + k) is not None)   # lint: ok 台帳の名前で引くだけ
     if _ovr:
-        line(WARN, f"環境変数が config.py を上書きしている: "
-                   + ", ".join("APR_" + k for k in _ovr))
+        line(WARN, "環境変数が config.py を上書きしている: "
+                   + ", ".join(f"APR_{k}={os.environ['APR_' + k]}" for k in _ovr)
+                   + "\n       ★ 再現に効く値は config.py に書くこと（決定 14）")
     _, stack_h = cfg.row_y()
     print(f"       行スタック総高    {stack_h} um（圧縮前）")
     gaps = [round(b - a, 3) for a, b in zip(cfg.TAP_X, cfg.TAP_X[1:])]

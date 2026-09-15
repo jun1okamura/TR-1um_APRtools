@@ -343,7 +343,7 @@ def main(in_gds, compaction_info_path, out_gds, pin_map_in=None, pin_map_out=Non
     #   0  1622.8 µm  M1 間隔違反 15 件
     # 1 で足りるのは「M1 パッド 3.4 + 最小間隔 1.4 = 4.8 < 5.4」だから。
     # 0 にすると保護区間のすぐ脇に次のトラックが寄ってきて破綻する。
-    _pad = int(_os.environ.get("APR_PROTECT_PAD", "1"))
+    _pad = _cfg.getenv("PROTECT_PAD", 1, int)
     protect_y = [(a - _pad * track_pitch, b + _pad * track_pitch) for a, b in protect_y]
     # --- TD4 移植 (6): ハードマクロの y 範囲を保護する ------------------------
     # マクロは参照なので、この圧縮は**中身を縮められない**（原点が動くだけ）。

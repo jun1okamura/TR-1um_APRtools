@@ -131,11 +131,11 @@ PIN_RECT_SANITY_UM = 15.0
 # walk 300 tracks looking for air; dragging a multi-segment net's segment
 # that far is how a "local" fix stops being local. 30 tracks = 162 um is
 # more than one TAP-to-TAP span, so a priority corridor is always inside it.
-STRICT_MAX_TRACKS = int(_os.environ.get("APR_STRICT_MAX_TRACKS", "30"))
+STRICT_MAX_TRACKS = _cfg.getenv("STRICT_MAX_TRACKS", 30, int)
 # TD4: also run step10's component-level short check inside the rip-up loop
 # (`APR_COMPONENT_CHECK=0` to go back to box-overlap-only).
-USE_COMPONENT_CHECK = _os.environ.get("APR_COMPONENT_CHECK", "1") != "0"
-DEBUG_STRICT = _os.environ.get("APR_DEBUG_STRICT", "0") == "1"
+USE_COMPONENT_CHECK = _cfg.getenv("COMPONENT_CHECK", True, bool)
+DEBUG_STRICT = _cfg.getenv("DEBUG_STRICT", False, bool)
 
 
 def overlap_1d(a0, a1, b0, b1):
@@ -1099,7 +1099,7 @@ def main():
     # **短絡が 1 件も自動修正されないまま残っていた**。
     # 環境変数 APR_SIMPLE_PIN_MAX で振れるようにして実測した:
     #   3 (原本) -> 未解決 27 対 / 短絡 31 件
-    SIMPLE_PIN_MAX = int(_os.environ.get("APR_SIMPLE_PIN_MAX", "3"))
+    SIMPLE_PIN_MAX = _cfg.getenv("SIMPLE_PIN_MAX", 3, int)
 
     def classify_complex(net, shapes):
         n_pins = len(pin_map.get(net, []))

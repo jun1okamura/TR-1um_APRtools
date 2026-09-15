@@ -80,7 +80,7 @@ def _macro_nets():
 # per-row-local は行ごとに専用トラックを 1 本持つので重複しない。ただし専用
 # トラックはチャネルを太らせるので、**ピン数が多く複数行にまたがるものだけ**に
 # 絞る。しきい値は `APR_PRL_MIN_PINS`（既定 5）。
-PRL_MIN_PINS = int(os.environ.get("APR_PRL_MIN_PINS", "5"))
+PRL_MIN_PINS = cfg.getenv("PRL_MIN_PINS", 5, int)
 
 
 def _prl_nets():
@@ -118,7 +118,7 @@ def side_bus_nets():
         pl = json.load(open(cfg.PLACEMENT_JSON))
     except Exception:
         return set()
-    pref = tuple(os.environ.get("APR_SIDE_BUS_PINS", "Q[").split(","))
+    pref = tuple(cfg.getenv("SIDE_BUS_PINS", "Q[").split(","))
     for row in pl["rows"]:
         for i in row:
             if i["type"] != cfg.MACRO_CELL:
@@ -147,7 +147,7 @@ def per_row_local_nets():
     # だけが専用ガード付きトランクを持っていて、そいつが短絡していた。
     # こういう「1 本だけ足したい」場合に使う。
     return ({"clk_buf", "rst_n_buf"} | _prl_nets() | side_bus_nets()
-            | {n for n in os.environ.get("APR_PRL_NETS", "").split(",") if n.strip()})
+            | {n for n in cfg.getenv("PRL_NETS", "").split(",") if n.strip()})
 FORCE_HIGH_FO_NETS = set()
 # --- TD4 移植 (19): フォールバックしたネットを pass 3 送りにする -----------
 # `draw_jog` が「departure leg が clear なトラックが無い」と言って**無検査
@@ -158,7 +158,7 @@ FORCE_HIGH_FO_NETS = set()
 # 使い方: step6 を 1 回流して WARNING に出たネット名を `APR_FORCE_JOG` に
 # 渡して流し直す（`route.py --from 5 --to 6` を 2 回）。`sweep_height.py` は
 # これを自動でやる。
-FORCE_JOG_NETS = {n for n in os.environ.get("APR_FORCE_JOG", "").split("\x1f") if n}
+FORCE_JOG_NETS = {n for n in cfg.getenv("FORCE_JOG", "").split("\x1f") if n}
 
 # Top-level port directions as seen from the GIO frame.  Derived from the
 # netlist's own port declarations by the ported highlight_top_pins module,
@@ -278,7 +278,7 @@ def stage8(ch_heights):
     # step8 で 1 件（`out_port[0]` の riser x=170.1 が `_050_` を貫通）。
     # step8 が描いた形状を net_shapes に足したので、同じ rip-up / ドッグレッグを
     # そのまま掛けられる。
-    if os.environ.get("APR_RIPUP_AFTER_TOPPINS", "1") != "0":
+    if cfg.getenv("RIPUP_AFTER_TOPPINS", True, bool):
         import ripup_reroute_shorts as rr2
         print("=== step8b: rip-up after top pins ===")
         sys.argv = ["ripup_reroute_shorts.py", cfg.TOPPINS_GDS, cfg.PIN_MAP_RR_JSON,

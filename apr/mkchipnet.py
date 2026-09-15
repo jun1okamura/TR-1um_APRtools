@@ -61,9 +61,9 @@ CHIP_GIO_CELL = cfg.FRAME_CELL_CHIP  # チップ GDS / LVS での名前（OSS_FR
 # フレームの LVS ソース。**設計ごとに置き場が違う**（SCLK_SPI の
 # `lef/simulation` は xschem の作業場への symlink で、リポジトリの外を指す）。
 # `config.py` の `FRAME_LVS_SPICE` で指定できる。既定は I2C と同じ置き場。
+# lint: ok フレームは PDK 由来で STDCELL には無い。`lef/` が正しい置き場
 GIO_SPICE = getattr(cfg, "FRAME_LVS_SPICE", None) or os.path.join(
-    cfg.ROOT, "lef", "simulation",   # lint: ok フレームは PDK 由来で STDCELL に無い
-    GIO_CELL + "_nocombine.spice")
+    cfg.ROOT, "lef", "simulation", GIO_CELL + "_nocombine.spice")
 SIM_DIR_EARLY = os.path.join(cfg.CHIP, "simulation")
 CORE_SPICE = os.path.join(SIM_DIR_EARLY, cfg.TOP_CELL_NAME + ".spice")
 # I2C 移植 (26): RING_OSC が 3 つ目のインスタンスとして居る。

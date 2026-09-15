@@ -39,11 +39,70 @@ _NS = None                      # finalize() が設計の名前空間を覚え�
 
 
 # ---- 環境変数 ------------------------------------------------------------
+# ---- 掃引つまみの台帳（U29）----------------------------------------------
+# **`APR_*` を読むのはここに書いてある名前だけ。** 一覧が 1 箇所に集まるので
+#   * 二重定義が起きない
+#   * `selfcheck.py` が「いま何が効いているか」を全部出せる
+#   * 名前を打ち間違えると `getenv()` が気づく
+# 再現に効く値は**環境変数ではなく `config.py` に書く**（決定 14）。ここは
+# あくまで掃引・実験用。
+ENV_KNOBS = {
+    # 配置
+    "PAD_WEIGHT": "パッド近接の重み（0 で無効）",
+    "PLACE_SEED": "配置の乱数種",
+    "PLACE_RESTARTS": "行内順序の焼きなまし回数",
+    "PLACE_ORDER_PASSES": "行内順序のパス数",
+    "PLACE_BALANCE_TOL": "行幅のばらつき許容",
+    "N_ROWS": "行数",
+    "CORE_WIDTH_TRACKS": "コア幅（トラック数）",
+    "CH_HEIGHTS": "チャネル高の予算（カンマ区切り）",
+    "CH_END_OFF_GRID_OK": "ch の端が 5.4 の倍数でなくても止めない",
+    "NO_BOTTOM_PORTS": "コア下辺にポートを出さない",
+    "STDCELL": "STDCELL の世代（v59_4 / v64_8）",
+    "USE_FILL1": "FILL1 を使う",
+    "PRI_CELL": "優先コリドーに置くセル",
+    "PRI_MODE": "優先コリドーの入れ方",
+    "PRI_PITCH": "優先コリドーの間隔",
+    "PRI_X": "優先コリドーの x（カンマ区切り）",
+    # マクロ
+    "MACRO_MODE": "マクロの置き方（none / portrait / landscape）",
+    "MACRO_ROW": "マクロの底面を合わせる行",
+    "MACRO_POWER": "step11 でマクロ電源を繋ぐ",
+    "SIDE_BUS": "コア右の縦 M2 バスの本数",
+    "SIDE_BUS_SLACK": "同、行との隙間",
+    "SIDE_BUS_PINS": "側バスへ逃がすピン名の接頭辞（カンマ区切り）",
+    # 配線
+    "TRACK_PITCH": "チャネルの M1 トラック間隔",
+    "PRL_MIN_PINS": "行内ローカル扱いにする最小ピン数",
+    "PRL_NETS": "行内ローカル扱いを強制する網（カンマ区切り）",
+    "FORCE_JOG": "ジョグを強制する網（\\x1f 区切り）",
+    "SPAN_LANE_PACK": "跨ぎ網のレーンを詰める",
+    "RIPUP_AFTER_TOPPINS": "トップピンの後にもう一度 rip-up する",
+    "STRICT_MAX_TRACKS": "rip-up で動かすトラックの上限",
+    "SIMPLE_PIN_MAX": "「単純な網」とみなすピン数の上限",
+    "COMPONENT_CHECK": "連結成分での短絡検査を使う",
+    "DEBUG_STRICT": "rip-up の詳細を出す",
+    "PROTECT_PAD": "圧縮で残す保護トラック数",
+    "TOPPIN_RIGHT": "トップピンを右へ出す網",
+    "TOPPIN_SIDE_BY_X": "トップピンの辺を x で決める",
+    "TOPPIN_ADJACENT_CH": "トップピンを隣の ch にも出す",
+    # フレーム / 外部ツール
+    "FRAME_GDS": "フレーム GDS を明示する",
+    "REF_CIR": "突き合わせる参照ネットリスト",
+    "XSCHEM_SIM_DIR": "xschem の作業場",
+}
+
+
 def getenv(name, default=None, cast=None):
     """`APR_<name>` を読む。**直接 os.environ を読まない。**
 
     変数名の一覧がここに集まるので、二重定義が構造的に起きない。
+    聞かれた名前と既定値は `ENV_KNOBS` に控える（U29）。
     """
+    if name not in ENV_KNOBS:
+        # 台帳に無い名前。**打ち間違いか、足し忘れ**。止めはしないが必ず出す。
+        print(f"** config_base.getenv: APR_{name} は ENV_KNOBS に無い"
+              "（台帳に足すこと）")
     v = os.environ.get("APR_" + name)
     if v is None:
         return default

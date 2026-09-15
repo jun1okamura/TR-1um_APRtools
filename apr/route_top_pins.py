@@ -193,7 +193,7 @@ def gather_pins(placement, ch_heights, row_h, resolver=None):
     # 判定は**行幅 < コア幅**（モードに依らない）。`APR_TOPPIN_RIGHT=1` で戻せる。
     _row_w = getattr(_cfg, "ROW_WIDTH_UM", None)
     _core_w = getattr(_cfg, "CORE_WIDTH_UM", None)
-    _right_ok = _os.environ.get("APR_TOPPIN_RIGHT")
+    _right_ok = _cfg.getenv("TOPPIN_RIGHT")
     if _right_ok is None:
         _right_ok = not (_row_w and _core_w and _row_w < _core_w - 1e-6)
     else:
@@ -215,7 +215,7 @@ def gather_pins(placement, ch_heights, row_h, resolver=None):
     #
     # ピンの x で近い方の辺へ出せば、走る距離は最大でも行幅の半分になる。
     # `APR_TOPPIN_SIDE_BY_X=0` で行単位（原本）に戻せる。
-    _by_x = _os.environ.get("APR_TOPPIN_SIDE_BY_X", "1") != "0"
+    _by_x = _cfg.getenv("TOPPIN_SIDE_BY_X", True, bool)
     if _by_x and _right_ok and _row_w:
         _mid_items = [it for r in _mids for it in by_row[r]]
         _right = [it for it in _mid_items if it[4] >= _row_w / 2.0]
@@ -591,7 +591,7 @@ def main(placement_json=PLACEMENT_JSON, in_gds=IN_GDS, out_gds=OUT_GDS, ch_heigh
     # 同じ列の `_050_`（y 837…1077）を貫通して短絡した。step7 まで 0 件だった
     # 短絡が step8 で 1 件出るのはこれが原因。
     # 行 r のすぐ隣のチャネルに落とせば riser は 1 行分（約 60 µm）で済む。
-    TOPPIN_ADJ = _os.environ.get("APR_TOPPIN_ADJACENT_CH", "1") != "0"
+    TOPPIN_ADJ = _cfg.getenv("TOPPIN_ADJACENT_CH", True, bool)
     band_used = {}
 
     def row_of(cy):

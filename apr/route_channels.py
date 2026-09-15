@@ -124,6 +124,7 @@ _HERE = _os.path.dirname(_os.path.abspath(__file__))
 _sys.path.insert(0, _HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as _cfg  # noqa: E402
+import rules                                       # noqa: E402
 # ---------------------------------------------------------------------------
 import json
 import math
@@ -163,7 +164,7 @@ M2_MIN_GAP = 2.0
 # 実測（`APR_TRACK_PITCH=5.0` で step10 まで通した）: M2 の間隔違反 2 件が
 # ちょうど `dy=1.6 dx=3.4`（= 5.0 - 3.4）で出た。M1 側も 11 件出る。
 # 高さは 1655.8 → 1593.6 µm と確かに縮むが DRC が通らないので**使えない**。
-TRACK_PITCH = float(_os.environ.get("APR_TRACK_PITCH", "5.4"))
+TRACK_PITCH = _cfg.getenv("TRACK_PITCH", rules.TRACK_PITCH, float)
 _TRACK_PITCH_MIN = M1_PAD_SIZE + M2_MIN_GAP
 if TRACK_PITCH < _TRACK_PITCH_MIN - 1e-9:
     raise SystemExit(f"APR_TRACK_PITCH {TRACK_PITCH} は下限 {_TRACK_PITCH_MIN} を割る"
@@ -345,7 +346,7 @@ def um(v, dbu):
     return int(round(v / dbu))
 
 
-SPAN_LANE_PACK = _os.environ.get("APR_SPAN_LANE_PACK", "0") == "1"
+SPAN_LANE_PACK = _cfg.getenv("SPAN_LANE_PACK", False, bool)
 
 
 def assign_lanes(nets_subset, pack=True):
