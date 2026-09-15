@@ -977,11 +977,10 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
             raise SystemExit(f"{net} の {edge} タップが 4 本でない: {xs}")
         d.net = net
         lo, hi = min(xs) - 8.0, max(xs) + 8.0
-        if net == "VDD":
-            hi = max(hi, max(VDD_RISER_X) + 8.0)
-        else:
-            lo = min(lo, min(VSS_STRIP_X) - 8.0)
-            hi = max(hi, max(VSS_STRIP_X) + 8.0)
+        # バーはストリップの束まで伸ばす（V10 の形）
+        _pin = VDD_PIN_X if net == "VDD" else VSS_PIN_X
+        _sx = [_pin + o for o in STRIP_OFFSETS]
+        lo, hi = min(lo, min(_sx) - 8.0), max(hi, max(_sx) + 8.0)
         # マクロのライザもこのバーで受けるので、バーを伸ばす
         for rx, _ in risers[net]:
             lo, hi = min(lo, rx - 8.0), max(hi, rx + 8.0)
@@ -1006,24 +1005,39 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
               + "  ".join(f"{k} " + ", ".join(f"x={x} y={y}" for x, y in v)
                           for k, v in risers.items() if v))
 
+    # --- パッド <-> 内部バスの渡し方は **V10 と同じ形**（I2C / SCLK_SPI と共通）---
+    # 幅 **10 µm** を **ピッチ 12（幅 10 + スペース 2）で 5 本**、フレームの
+    # 電源ピンの x を中心に (-24, -12, 0, +12, +24)。層が変わるところは
+    # 複数カットの via。
+    #
+    # ★ 2026-09-15 まで TD4 だけ違っていた。VDD は幅 **3.4** を 60 µm ピッチで
+    #   5 本ばらまく形で、断面積が V10 の **1/3** しかなかった。GND も幅は 10 だが
+    #   100 µm ピッチにばらけていて、パッドの直下で束ねていなかった。
+    #   `ringosc` / `top_only` は最初から V10 の形なので、そちらへ揃える。
     # VDD: バス -> リング -> M1 でフレームのピンへ
     d.net = "VDD"
-    for rx in VDD_RISER_X:
-        d.via(rx, VDD_BUS_Y, VDD_RISER_W, 6.8)
-        d.wire("M2", rx, VDD_BUS_Y, rx, VDD_CROSS_Y, VDD_RISER_W)
-        d.via(rx, VDD_RING_R, VDD_RISER_W, 6.8)           # リングへ
-        d.via(rx, VDD_CROSS_Y, VDD_RISER_W, VDD_RISER_W)  # M1 へ跳ねる
-        d.wire("M1", rx, VDD_CROSS_Y, rx, VDD_PIN_Y, VDD_RISER_W)
+    for o in STRIP_OFFSETS:
+        sx = VDD_PIN_X + o
+        d.via(sx, VDD_BUS_Y, STRIP_VIA, STRIP_VIA)        # M1 バス -> M2
+        d.wire("M2", sx, VDD_BUS_Y, sx, VDD_CROSS_Y, STRIP_W)
+        d.via(sx, VDD_RING_R, STRIP_VIA, STRIP_VIA)       # VDD リングへ
+        d.via(sx, VDD_CROSS_Y, STRIP_VIA, STRIP_VIA)      # M1 へ跳ねる
+        d.wire("M1", sx, VDD_CROSS_Y, sx, VDD_PIN_Y, STRIP_W)
     d.net = None
-    print(f"VDD ライザ {len(VDD_RISER_X)} 本 x={list(VDD_RISER_X)} -> "
-          f"M1 ピン y={VDD_PIN_Y}（M2 は y={VDD_CROSS_Y} で止める）")
+    print(f"VDD ストリップ {len(STRIP_OFFSETS)} 本 幅 {STRIP_W} "
+          f"x={[VDD_PIN_X + o for o in STRIP_OFFSETS]} -> M1 ピン y={VDD_PIN_Y}"
+          f"（M2 は y={VDD_CROSS_Y} で止める）")
 
-    # GND: バス -> リング -> 下辺中央の VSS 壁ピンへ
+    # GND: 下のバス -> GND リング -> 下辺中央の VSS 壁ピンへ。
+    # `ringosc` はバスが上にあるので「上へ 5 本 + 下へ 5 本」の 2 組要るが、
+    # ここはバスが下にあるので **1 組が両方を兼ねる**（途中でリングを拾う）。
     d.net = "GND"
-    for sx in VSS_STRIP_X:
-        d.via(sx, GND_BUS_Y, VSS_STRIP_W, 6.8)
-        d.wire("M2", sx, GND_BUS_Y, sx, VSS_LAND_Y, VSS_STRIP_W)
-        d.via(sx, -GND_RING_R, VSS_STRIP_W, 6.8)
+    for o in STRIP_OFFSETS:
+        sx = VSS_PIN_X + o
+        d.via(sx, GND_BUS_Y, STRIP_VIA, STRIP_VIA)        # M1 バス -> M2
+        d.wire("M2", sx, GND_BUS_Y, sx, VSS_LAND_Y, STRIP_W)
+        d.via(sx, -GND_RING_R, STRIP_VIA, STRIP_VIA)      # GND リングへ
+    # 残り三辺の VSS 壁ピンへの短いストラップ（GND リング -> 壁）
     for edge, v in VSS_STRAP:
         p = (v, 0.0) if edge in ("TOP", "BOTTOM") else (0.0, v)
         inner = project_to_R(p[0], p[1], edge, GND_RING_R)
@@ -1031,8 +1045,9 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
         d.path([inner, outer], start_layer=ring_layer(edge),
                end_layer="M2", w=STRAP_W)
     d.net = None
-    print(f"GND ストリップ {len(VSS_STRIP_X)} 本 -> 下辺の VSS 壁ピン "
-          f"y={VSS_LAND_Y}、ほか {len(VSS_STRAP)} 本のストラップ")
+    print(f"GND ストリップ {len(STRIP_OFFSETS)} 本 幅 {STRIP_W} "
+          f"x={[VSS_PIN_X + o for o in STRIP_OFFSETS]} -> GND リング -> "
+          f"VSS 壁ピン y={VSS_LAND_Y}、ほか {len(VSS_STRAP)} 本のストラップ")
 
 
 POWER = {"ringosc": power_ringosc, "top_bottom": power_top_bottom,
