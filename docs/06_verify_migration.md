@@ -35,27 +35,77 @@
 
 ```sh
 cd <TR-1um_I2C_2026>
-cp <APRtools>/templates/config_i2c_2026_verify.py config.py
+cp <APRtools>/templates/config_i2c_2026_verify.py config.py     # 初回だけ
 
-export TR1UM_PDK=<PDK>
-export PYTHONPATH=<APRtools>/apr
+export TR1UM_PDK=$HOME/Dropbox/91_OpenPDK/TR-1um
+export APRTOOLS=$HOME/Dropbox/91_OpenPDK/TR-1um_APRtools
+export PYTHONPATH=$APRTOOLS/apr
 export PYTHONHASHSEED=0          # ★ ルータは非決定的（docs/40_gotchas.md §4-2）
-export I2C_PAD_WEIGHT=16         # 提出時の設定
+export APR_PAD_WEIGHT=16         # 提出時の設定
 
-python3 <APRtools>/apr/selfcheck.py          # 下ごしらえの点検
-python3 <APRtools>/apr/place.py --seed 4     # 提出時の seed
-python3 <APRtools>/apr/route.py
+python3 $APRTOOLS/apr/selfcheck.py           # 下ごしらえの点検（KLayout 不要）
+python3 $APRTOOLS/apr/place.py --seed 4      # 提出時の seed。step1〜4
+python3 $APRTOOLS/apr/route.py               # step5〜11
 ```
 
-`--seed 4` と `I2C_PAD_WEIGHT=16` は提出時の設定
+`--seed 4` と `APR_PAD_WEIGHT=16` は提出時の設定
 （`docs/21_flow_place.md` §6）。**これを外すと別の配置になる**ので、
 md5 比較のときは必ず合わせる。
+`PYTHONHASHSEED=0` も同じ重さで効く — **環境変数なので `export` を
+忘れた 1 回だけが違う結果になる**（`docs/40_gotchas.md` §4-2）。
+
+段階を分けたいとき:
+
+```sh
+python3 $APRTOOLS/apr/route.py --to 6        # チャネル配線まででいったん止める
+python3 $APRTOOLS/apr/route.py --from 7      # 続きから
+```
+
+所要は設計機で `place.py` 52 秒 / `route.py` 52 秒。
+`route.py` は step ごとに GDS を残すので、途中で落ちてもどこまで進んだか分かる。
+
+> **★ 何と比べるかを決めてから回す。**
+> いまの `TR-1um_I2C_2026` は移行後（`vdd`/`vss`・`*_nrow_fm` 剥がし済み）なので、
+> **提出当時の md5 表（§4）とは電源ラベルの分だけ一致しない**。
+> 再現性を見たいなら比較先は**コミット済みの現物**にする:
+>
+> ```sh
+> git status --short        # 回す前にクリーンであることを確認
+> …place/route…
+> git status --short        # JSON に差が出なければ配置配線は同一
+> python3 $APRTOOLS/apr/cmp_gds.py HEAD:layout/step10/route_step_6_squeezed.gds \
+>                                      layout/step10/route_step_6_squeezed.gds
+> ```
 
 ## 3. 比較の方法
 
 **GDS の生 md5 は使えない。** KLayout は保存のたびに `BGNLIB` / `BGNSTR` に
 タイムスタンプを書くので、同じ図形でも毎回違うハッシュになる。
-**タイムスタンプのレコードをゼロで潰してから md5 を取る**:
+**タイムスタンプのレコードをゼロで潰してから md5 を取る**。
+
+これは `apr/cmp_gds.py` がやる（毎回書き直していたので道具にした）:
+
+```sh
+python3 $APRTOOLS/apr/cmp_gds.py <base.gds> <new.gds>
+python3 $APRTOOLS/apr/cmp_gds.py HEAD:layout/step10/route_step_6_squeezed.gds \
+                                     layout/step10/route_step_6_squeezed.gds
+python3 $APRTOOLS/apr/cmp_gds.py --dir <baseDir> <newDir>
+```
+
+**不一致のときに「何が違うか」まで出す**のが要点で、正規化 md5 が割れたら
+`klayout.db` で層ごとに `Region(base) ^ Region(new)` を取り、テキストは
+別に集合の差を出す:
+
+```
+[  NG  ] route_step_6_squeezed.gds   正規化 md5 不一致
+         → **幾何は完全一致**（Region XOR が全層で空）
+         ラベル: base のみ 16 / new のみ 16
+           ['GND', 'VDD'] -> ['vdd', 'vss']
+```
+
+「md5 が違う」で止めると、**ラベルの改名と本物の配線違いが同じ顔になる**。
+
+中身（`cmp_gds.py` がやっていること）:
 
 ```python
 import struct, hashlib
