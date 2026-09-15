@@ -120,16 +120,43 @@ def measure_lef(lef_path):
 
 
 def measure(gds_path, min_w=5.0, min_h=20.0):
-    import gdstk
+    """セルの外形を GDS の bbox から測る。**`klayout.db` で測る**（U53）。
+
+    以前は `gdstk` だったが、`apr/` でここだけが `gdstk` を要るようにして
+    いて、入らない環境では**面積を測り直せなかった**（トランジスタ数だけ
+    更新する羽目になった）。他は全部 `klayout.db` なので寄せた。
+
+    ★ `db.Region(cell.begin_shapes_rec(li))` を使うこと:
+      - `begin_shapes_rec` が**下位セルごと**拾う（`gdstk` の
+        `bounding_box()` も参照を辿るので、ここが揃っていないと階層セルで
+        ずれる）
+      - `Region` は**テキストを見ない**。`cell.dbbox()` だと `labels(48,0)`
+        の TEXT が点として bbox に入ってしまい、図形の外にラベルがある
+        セルで値が変わる
+
+    移植の検算: この実装で v59_4 の **48 セル × (幅・高さ・面積) が、
+    `gdstk` 版の書いた `cell_char.json` と 1 つも違わない**ことを確認した。
+
+    `gdstk` 自体はまだ `char/check_pass.py` と `macro/regfile/mkmemport.py`
+    が使う（boolean 演算と GDS 書き出し）。**そちらは移していない。**
+    """
+    import klayout.db as db
+    ly = db.Layout()
+    ly.read(gds_path)
+    layers = list(ly.layer_indexes())
     out = {}
-    for c in gdstk.read_gds(gds_path).cells:
-        b = c.bounding_box()
-        if not b:
+    for c in ly.each_cell():
+        bb = db.DBox()
+        for li in layers:
+            r = db.Region(c.begin_shapes_rec(li))
+            if r.is_empty():
+                continue
+            bb += r.bbox().to_dtype(ly.dbu)
+        if bb.empty():
             continue
-        (x0, y0), (x1, y1) = b
-        w, h = x1 - x0, y1 - y0
+        w, h = bb.width(), bb.height()
         if w < min_w or h < min_h:
-            continue                       # vias and sub-shapes
+            continue                       # via などの小片
         out[c.name] = dict(width_um=round(w, 2), height_um=round(h, 2),
                            area_um2=round(w * h))
     return out
