@@ -136,7 +136,8 @@ def drop_empty_subckts(text):
 def main():
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("--gds", default=os.path.join(cfg.CHIP, "step3_top_pins.gds"))
+    # 既定は**その設計の最終チップ GDS**（ロゴが最後の設計は step4_final）。
+    ap.add_argument("--gds", default=cfg.CHIP_FINAL_GDS)
     ap.add_argument("--top", default=cfg.CHIP_TOP_CELL)
     ap.add_argument("-o", "--out", default=None)
     ap.add_argument("--keep-extracted", action="store_true")

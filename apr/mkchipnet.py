@@ -63,7 +63,10 @@ GIO_SPICE = os.path.join(cfg.ROOT, "lef", "simulation",   # lint: ok フレー�
 SIM_DIR_EARLY = os.path.join(cfg.CHIP, "simulation")
 CORE_SPICE = os.path.join(SIM_DIR_EARLY, cfg.TOP_CELL_NAME + ".spice")
 # I2C 移植 (26): RING_OSC が 3 つ目のインスタンスとして居る。
-RO_SPICE = os.path.join(SIM_DIR_EARLY, cfg.RING_OSC_CELL + ".spice")
+# RING_OSC を載せない設計（TD4）では 3 つ目のインスタンスが無い。
+HAS_RO = bool(getattr(cfg, "HAS_RING_OSC", False))
+RO_SPICE = (os.path.join(SIM_DIR_EARLY, cfg.RING_OSC_CELL + ".spice")
+            if HAS_RO else None)
 CONN = os.path.join(cfg.CHIP, "gio_connections.json")
 SIM_DIR = os.path.join(cfg.CHIP, "simulation")
 OUT_PATH = os.path.join(SIM_DIR, cfg.CHIP_TOP_CELL + ".spice")
@@ -130,7 +133,7 @@ def build():
 
     gio_ports = subckt_ports(GIO_SPICE, GIO_CELL)
     core_ports = subckt_ports(CORE_SPICE, cfg.TOP_CELL_NAME)
-    ro_ports = subckt_ports(RO_SPICE, cfg.RING_OSC_CELL)
+    ro_ports = subckt_ports(RO_SPICE, cfg.RING_OSC_CELL) if HAS_RO else []
 
     nc = []
 
@@ -149,7 +152,7 @@ def build():
         for name in ([p] if isinstance(p, str) else (p or [])):
             if name not in RAIL:
                 claim[name] = f"P{n}"
-    ro_prefix = cfg.RING_OSC_CELL + "."
+    ro_prefix = (cfg.RING_OSC_CELL + ".") if HAS_RO else "\x00無し."
 
     # ---- フレーム側 -------------------------------------------------------
     gio_net = {}
@@ -235,7 +238,8 @@ def build():
     gio_body = re.sub(rf"\b{re.escape(GIO_CELL)}\b", CHIP_GIO_CELL,
                       open(GIO_SPICE, encoding="utf-8").read().rstrip("\n"))
     core_body = open(CORE_SPICE, encoding="utf-8").read().rstrip("\n")
-    ro_body = open(RO_SPICE, encoding="utf-8").read().rstrip("\n")
+    ro_body = (open(RO_SPICE, encoding="utf-8").read().rstrip("\n")
+               if HAS_RO else "")
     names = lambda t: set(re.findall(r"^\.subckt\s+(\S+)", t, re.M | re.I))  # noqa: E731
     # RING_OSC とコアは同じセルライブラリを使うので `.subckt INV_X1` などが
     # 必ずダブる。**ダブった定義は RING_OSC 側から落とす**（中身は同じ）。
@@ -276,7 +280,7 @@ def main():
         f"** {os.path.basename(a.out)} -- チップレベルの LVS ソースネットリスト。",
         "** scripts/pnr/mkchipnet.py が生成。手で編集しないこと。",
         f"**   コア    : {cfg.disp(CORE_SPICE)}",
-        f"**   RING_OSC: {cfg.disp(RO_SPICE)}",
+    ] + ([f"**   RING_OSC: {cfg.disp(RO_SPICE)}"] if HAS_RO else []) + [
         f"**   フレーム: {cfg.disp(GIO_SPICE)}",
         f"**   接続表  : {cfg.disp(CONN)}",
         "**",
@@ -290,14 +294,14 @@ def main():
         "** scripts/pnr/add_top_pins.py が同じ 16 本を打つ。**本数が合って",
         "** いないと KLayout はグラフマッチに入らない。**",
     ]
-    lines = header + ["", gio_body, "", core_body, "", ro_body, "",
-                      f".subckt {cfg.CHIP_TOP_CELL} " + " ".join(TOP_PIN_ORDER),
-                      wrap("x1", [gio_net[p] for p in gio_ports], CHIP_GIO_CELL),
-                      wrap("x2", [core_net[p] for p in core_ports],
-                           cfg.TOP_CELL_NAME),
-                      wrap("x3", [ro_net[p] for p in ro_ports],
-                           cfg.RING_OSC_CELL),
-                      ".ends", ""]
+    insts = [wrap("x1", [gio_net[p] for p in gio_ports], CHIP_GIO_CELL),
+             wrap("x2", [core_net[p] for p in core_ports], cfg.TOP_CELL_NAME)]
+    if HAS_RO:
+        insts.append(wrap("x3", [ro_net[p] for p in ro_ports], cfg.RING_OSC_CELL))
+    lines = header + ["", gio_body, "", core_body] + (["", ro_body] if HAS_RO else []) + [
+        "",
+        f".subckt {cfg.CHIP_TOP_CELL} " + " ".join(TOP_PIN_ORDER),
+    ] + insts + [".ends", ""]
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as f:

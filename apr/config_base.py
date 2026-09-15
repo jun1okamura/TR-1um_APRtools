@@ -483,6 +483,9 @@ def finalize(ns):
     ns.setdefault("RING_OSC_LEF", os.path.join(APR_ROOT, "macro", "ringosc", "RING_OSC.lef"))
     ns.setdefault("RING_OSC_CELL", "RING_OSC")
     ns.setdefault("RING_OSC_ORIGIN", None)      # 載せる設計だけが (x, y) を与える
+    # ★ 「RING_OSC を載せるか」の単一の判定。`RING_OSC_CELL` は既定で
+    #   名前が入っているので、**セル名の有無で判定してはいけない**。
+    ns["HAS_RING_OSC"] = ns["RING_OSC_ORIGIN"] is not None
 
     ns.setdefault("CELL_INFO", os.path.join(lay, "cell_info.json"))
     ns.setdefault("PLACEMENT_JSON", os.path.join(lay, "placement.json"))
