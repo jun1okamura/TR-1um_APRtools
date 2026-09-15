@@ -148,12 +148,25 @@ def transistors(dirpath):
 
 
 def transistors_from_gds(gds_path, names):
-    """`.extracted` が無いセルを **GDS から数える**（U33）。
+    """**GDS から数える。台帳のトランジスタ数はここが唯一の出所**（U49）。
 
-    `.extracted` は平坦なセルぶんしか無く、`TLAT8` や `DEC16` のような
-    **階層を持つセル**は 1 枚も無かった。抽出してみると素子はちゃんと居る:
-    トップの回路ではなく**下位の回路**に入っているだけ。
-    `each_circuit()` を全部足す。
+    ★ ここは 2 回間違えた。どちらも「数え方の定義」の問題で、GDS も
+      `.extracted` も嘘は書いていなかった。
+
+    (1) **`combine_devices()` を呼ばないと折り返しを二重に数える。**
+        `BUFTH` は w=10.2u の PMOS を 10.2u × 2 フィンガーで描くので、
+        生の抽出ではゲート図形が 10 枚に見える。`.extracted` を書く側
+        （`klayout_extract.main`）は `combine_devices()` を通してから
+        書いているので 8。**8 が正しい。**
+
+    (2) **`each_circuit()` を足すと、階層セルは「1 回だけ」数えてしまう。**
+        `REG4x16` は `TLAT` を 64 個並べているのに、`TLAT` という回路が
+        1 つあるだけなので 12 しか数えない。**平坦化してから数える。**
+        `REG4x16` は 66 ではなく **1076**、`DEC16` は 26 ではなく **256**。
+
+    だから `.extracted` の値はもう使わない: 平坦なセルでは
+    `combine_devices()` 後と 1 個も違わず、階層セルでは同じ理由で
+    間違っている（`REG4x16.extracted` の 72 も「回路ごとに 1 回」）。
 
     `FILL*` / `TAP*` は素子が本当に 0（拡散とコンタクトだけ）なので、
     **0 と書く**。`None` のままだと「測れていない」と区別が付かない。
@@ -169,6 +182,12 @@ def transistors_from_gds(gds_path, names):
             #   「Object has been destroyed already」になる。
             l2n = klayout_extract.build(gds_path, name)
             nl = l2n.netlist()
+            # `.extracted` を書く側と**同じ正規化**を通す（(1)）
+            nl.make_top_level_pins()
+            nl.combine_devices()
+            nl.purge()
+            nl.purge_nets()
+            nl.flatten()                      # インスタンスを展開する（(2)）
             out[name] = sum(sum(1 for _ in c.each_device())
                             for c in nl.each_circuit())
             del l2n
@@ -203,28 +222,22 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
     else:
         geo = measure(gds_path)
         src = cfg.disp(gds_path) + " bounding boxes (NOT the footprint)"
-    tr = transistors(extracted_dir)
-    # `.extracted` の無いセルは GDS から数える（U33）
-    _missing = sorted(n for n in geo if n not in tr)
-    if _missing:
-        print(f"  {len(_missing)} セルに .extracted が無いので GDS から数える: "
-              + ", ".join(_missing))
-        tr.update(transistors_from_gds(gds_path, _missing))
-    # ★ 両方ある分は**突き合わせる**（U49）。`.extracted` は凍結した写しなので
-    #   古くなりうる（`BUF_X2` は 4 と書いてあるが GDS は 6。この食い違いは
-    #   `check_cell_spice.py` の冒頭に既に書いてある）。**GDS が焼かれる方**。
-    _both = sorted(n for n in geo if n in tr and n not in _missing)
-    if _both:
-        _gds = transistors_from_gds(gds_path, _both)
-        _bad = [(n, tr[n], _gds[n]) for n in _both
-                if n in _gds and _gds[n] != tr[n]]
-        if _bad:
-            print(f"  !! .extracted と GDS でトランジスタ数が違う {len(_bad)} セル"
-                  "（**GDS が焼かれる方**。.extracted が古い疑い。U49）:")
-            for n, a, b in _bad:
-                print(f"       {n:<10} .extracted={a:<5} GDS={b}")
-            print("     台帳には .extracted の値を入れてある（従来どおり）。"
-                  "どちらを正とするかは未決。")
+    # ★ トランジスタ数は **GDS だけ**から数える（U49）。`.extracted` は
+    #   平坦なセルでは一致し、階層セルでは同じ数え方の間違いをしている。
+    tr = transistors_from_gds(gds_path, sorted(geo))
+    # `.extracted` があるものは突き合わせて、**ずれたら黙らずに出す**。
+    _ext = transistors(extracted_dir)
+    _both = sorted(n for n in tr if n in _ext)
+    _bad = [(n, _ext[n], tr[n]) for n in _both if _ext[n] != tr[n]]
+    if _bad:
+        print(f"  !! .extracted と GDS でトランジスタ数が違う {len(_bad)} セル"
+              "（台帳は GDS を使う。U49）:")
+        for n, a, b in _bad:
+            print(f"       {n:<10} .extracted={a:<5} GDS(平坦化)={b}")
+        print("     階層セルは .extracted も『回路ごとに 1 回』しか数えていない。")
+    elif _both:
+        print(f"  {len(_both)} セルで .extracted と GDS が一致")
+
     old = json.load(open(info_path)) if os.path.exists(info_path) else {}
     meta = {k: v for k, v in old.items() if k.startswith("_")}
 
@@ -271,7 +284,7 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
 
     meta.setdefault("_source", {}).update({
         "areas": src,
-        "transistors": "counted from <cell>.extracted",
+        "transistors": "counted from the GDS (combine_devices + flatten)",
         "gate_equivalent_ref": "NAND2 = 4 transistors = 1981 um2 = 1 equivalent gate"})
     for spec in overrides or []:
         cell, _, kv = spec.partition(":")

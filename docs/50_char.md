@@ -193,5 +193,21 @@ python3 apr/drc_check_cells.py    # セル単体 DRC（v59_4 は 52/52 clean）
 - 論理関数が無い 17 セル（`REG8x16` / `TLAT*` / `DEC*` / `ADDBUF` …）は
   ABC が使えないので Liberty に出ない。**マクロと latch は合成に出さない**
   方針どおり
-- トランジスタ数が拾えない 12 セルは `stdcell/v59_4/extracted/` に
-  `.extracted` が無いもの。`--set CELL:transistors=N` で補える
+- **トランジスタ数は GDS だけから数える**（`.extracted` は使わない。U49）。
+  数え方は `combine_devices()` → `flatten()` → 素子を数える、の順:
+  - **combine しないと折り返しを二重に数える**。`BUFTH` の w=10.2u PMOS は
+    2 フィンガーで描いてあるのでゲート図形は 10 枚だが、素子は 8
+  - **flatten しないと階層セルを 1 回しか数えない**。`REG4x16` は `TLAT` を
+    64 個並べているのに、`TLAT` という回路は 1 つしか無い
+  検算になる関係（どれも実測と一致する）:
+
+  | セル | 内訳 | Tr |
+  |---|---|--:|
+  | `TLAT8` | 8 × `TLAT`(12) | 96 |
+  | `DEC16` | 8 × `DEC2`(32) | 256 |
+  | `REG4x16` | `TLAT64`(768) + `REGBUF4`(32) + `DEC16`(256) + `ADDBUF`(20) | 1076 |
+  | `REG8x16` | `TLAT128`(1536) + `REGBUF8`(64) + `DEC16`(256) + `ADDBUF`(20) | 1876 |
+
+  **大きさの違うセルが同じ数になっていたら、数え方が壊れている合図**
+  （`TLAT4` も `TLAT128` も 12 と書いてあった時期がある）。
+  `FILL*` / `TAP*` は素子が本当に 0。`--set CELL:transistors=N` で上書きできる

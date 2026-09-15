@@ -1,7 +1,7 @@
 {
  "_source": {
   "areas": "$APRTOOLS/stdcell/v59_4/TR-1um_STDCELL.gds bounding boxes (NOT the footprint)",
-  "transistors": "counted from <cell>.extracted",
+  "transistors": "counted from the GDS (combine_devices + flatten)",
   "gate_equivalent_ref": "NAND2 = 4 transistors = 1981 um2 = 1 equivalent gate"
  },
  "ADDBUF": {
@@ -102,7 +102,7 @@
   "width_um": 878.4,
   "height_um": 86.4,
   "area_um2": 75894,
-  "transistors": 26,
+  "transistors": 256,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -110,7 +110,7 @@
   "width_um": 114.0,
   "height_um": 86.4,
   "area_um2": 9850,
-  "transistors": 26,
+  "transistors": 32,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -339,7 +339,7 @@
   "width_um": 254.7,
   "height_um": 937.0,
   "area_um2": 238654,
-  "transistors": 72,
+  "transistors": 1076,
   "kind": "other",
   "no_func_reason": "\u30ec\u30b8\u30b9\u30bf\u30d5\u30a1\u30a4\u30eb\u672c\u4f53\u3002\u624b\u3067\u30a4\u30f3\u30b9\u30bf\u30f3\u30b9\u3059\u308b"
  },
@@ -347,7 +347,7 @@
   "width_um": 405.9,
   "height_um": 937.0,
   "area_um2": 380328,
-  "transistors": 72,
+  "transistors": 1876,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -363,7 +363,7 @@
   "width_um": 168.3,
   "height_um": 63.4,
   "area_um2": 10670,
-  "transistors": 8,
+  "transistors": 32,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -371,7 +371,7 @@
   "width_um": 319.5,
   "height_um": 63.4,
   "area_um2": 20256,
-  "transistors": 8,
+  "transistors": 64,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -415,7 +415,7 @@
   "width_um": 319.5,
   "height_um": 878.4,
   "area_um2": 280649,
-  "transistors": 12,
+  "transistors": 1536,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -423,7 +423,7 @@
   "width_um": 168.3,
   "height_um": 63.4,
   "area_um2": 10670,
-  "transistors": 12,
+  "transistors": 48,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -431,7 +431,7 @@
   "width_um": 168.3,
   "height_um": 114.0,
   "area_um2": 19186,
-  "transistors": 12,
+  "transistors": 96,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -439,7 +439,7 @@
   "width_um": 168.3,
   "height_um": 878.4,
   "area_um2": 147835,
-  "transistors": 12,
+  "transistors": 768,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -447,7 +447,7 @@
   "width_um": 319.5,
   "height_um": 63.4,
   "area_um2": 20256,
-  "transistors": 12,
+  "transistors": 96,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },
@@ -455,7 +455,7 @@
   "width_um": 319.5,
   "height_um": 114.0,
   "area_um2": 36423,
-  "transistors": 12,
+  "transistors": 192,
   "kind": "other",
   "no_func_reason": "\u540c\u4e0a"
  },

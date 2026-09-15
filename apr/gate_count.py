@@ -20,11 +20,17 @@ import os
 import sys
 from collections import Counter
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import netlist_util as nu
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
+import netlist_util as nu  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DEFAULT_INFO = os.path.join(ROOT, "lef", "cell_info.json")
+# ★ 読むのは **cell_char.json**（`transistors` が入っているのはこちら）。
+#   以前は `<APRtools>/lef/cell_info.json` を見ていた — 移行前の置き場で、
+#   **そこにファイルは無い**ので実行すると必ず FileNotFoundError になっていた。
+#   `syn_report.py` の `cell_area.json` と同じ壊れ方（U37 / 決定 21）。
+DEFAULT_INFO = cfg.stdcell_file("cell_char.json")
 NAND2_TR = 4        # NAND2 = 16.2 x 64.8 = 1049.8 um2 = 1 equivalent gate
 
 
@@ -46,7 +52,7 @@ def report(path, info, density, extra=None):
             seq += n
         rows.append((cell, n, tr, ar))
 
-    print(f"\n=== {os.path.relpath(path, ROOT)} ===")
+    print(f"\n=== {cfg.disp(path)} ===")
     print(f"{'cell':12} {'count':>6} {'Tr':>7} {'area(um2)':>11}")
     print("-" * 39)
     for cell, n, tr, ar in rows:
