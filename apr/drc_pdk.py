@@ -28,7 +28,9 @@ import argparse, collections, os, re, shutil, subprocess, sys, tempfile
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
-import config as cfg                                    # noqa: E402
+# ★ `--top` を明示すれば設計の config.py は要らない（U57）。
+#   代役は設計固有の値を聞かれたときに理由を言って止まる。
+cfg = apr_path.soft_config()                            # noqa: E402
 
 
 def pdk_drc_dir():

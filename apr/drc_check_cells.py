@@ -35,8 +35,9 @@ import klayout.db as db
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-import apr_path  # noqa: F401  設計ルートを sys.path へ
-import config as cfg  # noqa: E402
+import apr_path  # noqa: E402  設計ルートを sys.path へ
+# ★ `--gds` で入力を全部もらえるので、設計の config.py は**無くても動く**（U57）
+cfg = apr_path.soft_config()  # noqa: E402
 import rules  # noqa: E402  プロセス定数の単一ソース
 
 M1, M2, V1 = rules.M1, rules.M2, rules.V1
@@ -143,7 +144,8 @@ def check_cell(ly, cell, dbu):
     return out
 
 
-def main(gds=cfg.CELL_GDS, only=()):
+def main(gds=None, only=()):
+    gds = gds or cfg.CELL_GDS
     ly = db.Layout()
     ly.read(gds)
     dbu = ly.dbu
@@ -188,6 +190,6 @@ if __name__ == "__main__":
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("cells", nargs="*")
-    ap.add_argument("--gds", default=cfg.CELL_GDS)
+    ap.add_argument("--gds", default=None)
     a = ap.parse_args()
     sys.exit(main(a.gds, set(a.cells)))
