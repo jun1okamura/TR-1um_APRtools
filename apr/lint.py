@@ -33,7 +33,7 @@
 
 | id | 重さ | 何を見るか |
 |---|---|---|
-| `escape-apr` | NG | `os.path.dirname(HERE)` — `apr/` の外を見ている |
+| `escape-apr` | NG | `apr/` の外を見ている。(a) `os.path.dirname(HERE)` (b) **APRtools のルート + 設計側にしか無いディレクトリ**（`out/` `layout/` `src/` `lef/` …）|
 | `moved-dir` | NG | `cfg.ROOT` + APRtools へ移したディレクトリ名 |
 | `baked-path` | NG | `os.path.relpath(x, cfg.ROOT)` が `print` の外（生成物に焼き付く）→ `cfg.disp()` |
 | `env-direct` | NG | `os.environ` で**外部ツール以外**を読む |
@@ -55,6 +55,15 @@ import sys
 # 対象にはするが、STDCELL の写しを指していたら本当の漏れ。
 MOVED = ("stdcell", "art", "macro", "syn", "char")
 MOVED_SOFT = ("lef",)
+
+# ★ **APRtools のルートの下には無い**ディレクトリ。設計リポジトリ側にしかない。
+#   `ROOT = os.path.dirname(os.path.dirname(__file__))` で APRtools の根を取って
+#   その下を指すコードが 3 本あり、**どれも実行すれば必ず落ちていた**:
+#     gate_count.py           <APRtools>/lef/cell_info.json  （U52。履歴に一度も無い）
+#     dedup_gates.py          <APRtools>/out/*.v
+#     merge_muxdffrb_rslatch  <APRtools>/out/*.v
+#   読み手が居ないので誰も気づかない（決定 21）。設計側は `cfg.*` で取る。
+DESIGN_ONLY_DIRS = ("out", "layout", "src", "lef", "hdl", "ngspice", "reference")
 
 # 外部ツールの環境変数。これは `getenv()`（`APR_` 前置）の対象ではない。
 EXTERNAL_ENV = {
@@ -155,13 +164,65 @@ def check_file(path):
             for sub in ast.walk(nd):
                 in_print.add(id(sub))
 
+    # `X = os.path.dirname(os.path.dirname(...__file__...))` は APRtools の根。
+    # ★ `os.path` 形と `pathlib` 形の両方を拾う。`dedup_gates.py` は
+    #   `pathlib.Path(__file__).resolve().parent.parent` を 2 段の代入で
+    #   書いていたので、`os.path.join` だけ見ていた版では素通りした。
+    apr_dir_names, apr_root_names = set(), set()
+    for nd in ast.walk(tree):
+        if not (isinstance(nd, ast.Assign) and len(nd.targets) == 1
+                and isinstance(nd.targets[0], ast.Name)):
+            continue
+        name = nd.targets[0].id
+        v = seg(src, nd.value).replace(" ", "")
+        if "__file__" in v:
+            if v.startswith("os.path.dirname(os.path.dirname("):
+                apr_root_names.add(name)          # APRtools の根
+            elif v.endswith(".parent") or v.startswith("os.path.dirname("):
+                apr_dir_names.add(name)           # apr/ 自身
+        else:
+            base = v[:-len(".parent")] if v.endswith(".parent") else None
+            if base in apr_dir_names:
+                apr_root_names.add(name)          # apr/ の親 = APRtools の根
+
+    _inner_div = set()
     for nd in ast.walk(tree):
         # --- escape-apr / moved-dir / baked-path / env-* ---
+        # (b') pathlib 形: <APRtools の根> / "out" / ...
+        #   `a / "out" / "x.v"` は BinOp が入れ子になるので、**外側 1 つだけ**
+        #   報告する（内側も拾うと 1 行が 2 件になる）。
+        if isinstance(nd, ast.BinOp) and isinstance(nd.op, ast.Div) \
+                and id(nd) not in _inner_div:
+            for _sub in ast.walk(nd):
+                if _sub is not nd and isinstance(_sub, ast.BinOp) \
+                        and isinstance(_sub.op, ast.Div):
+                    _inner_div.add(id(_sub))
+            root = nd
+            while isinstance(root, ast.BinOp) and isinstance(root.op, ast.Div):
+                root = root.left
+            if isinstance(root, ast.Name) and root.id in apr_root_names:
+                t = seg(src, nd)
+                for d in DESIGN_ONLY_DIRS:
+                    if f'"{d}"' in t or f"'{d}'" in t:
+                        add("NG", "escape-apr", nd, t,
+                            f"`{d}/` は APRtools のルートの下には無い（設計側にある）。"
+                            f"cfg の導出値を使う。ここは実行すれば必ず落ちる")
+                        break
         if isinstance(nd, ast.Call):
             s = seg(src, nd)
             if s.startswith("os.path.dirname(HERE)"):
                 add("NG", "escape-apr", nd, s,
                     "apr/ の外を見ている。同じ apr/ の中なら os.path.join(HERE, …)")
+            # (b) APRtools の根 + 設計側にしか無いディレクトリ（os.path 形）
+            if s.startswith("os.path.join") and nd.args:
+                first = seg(src, nd.args[0])
+                if first in apr_root_names:
+                    for d in DESIGN_ONLY_DIRS:
+                        if f'"{d}"' in s or f"'{d}'" in s or f'"{d}/' in s or f"'{d}/" in s:
+                            add("NG", "escape-apr", nd, s,
+                                f"`{d}/` は APRtools のルートの下には無い（設計側にある）。"
+                                f"cfg の導出値を使う。ここは実行すれば必ず落ちる")
+                            break
             if s.startswith("os.path.join") and "cfg.ROOT" in s:
                 for d in MOVED:
                     if f'"{d}"' in s or f"'{d}'" in s:

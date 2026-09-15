@@ -1,5 +1,20 @@
 """
-add_power_pins.py (this session, user request:
+add_power_pins.py -- TAP 列の x ごとに、コアの上下端へ `vdd`/`vss` の M2PIN とラベルを打つ（step9）。
+
+入力は `placement.json` と配線済み GDS、出力は「TAP 列数 x 2 ネット x 2 辺」
+個のピンマーカが増えた GDS。`route.py` の stage9 から呼ばれる。
+
+★ TAP の x は **row0 だけ**から取る（全行で同じという前提）。型名 `TAP2` 直書き
+  （`TAP3` は見ない）。
+★ `TAP_GND_X_LOCAL` / `TAP_VDD_X_LOCAL` は `route_channels.py` の、
+  `PIN_SIZE_UM` は `route_top_pins.py` の**写し**。ずれると電源メッシュを外す。
+★ テキストは箱の**ど真ん中**に置く（KLayout のテキストベースのピン抽出が
+  名前を解決できる位置）。
+★ `core_h` を渡さないと「実際に描かれた図形の上端」を使う。配線がコア枠まで
+  届いていないとピンが内側にずれる。
+★ ラベルは `rules.PWR_NET` / `GND_NET` なので設計非依存。
+
+以下は I2C v9 当時の調査ログ。
 "1. TAP のVDD/VSS ピンがついていません" -> clarified via AskUserQuestion as
 "BBOXの端にVDD/VSSがPINでありません" -- i.e. at the chip/core BBOX edge,
 unlike every signal port, VDD/GND never got a real PIN marker.)

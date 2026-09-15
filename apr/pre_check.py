@@ -1,4 +1,19 @@
 #!/usr/bin/env python3
+"""pre_check.py -- MPW テンプレート同梱の提出前ゲート。
+
+トップセルがちょうど 1 個か / 名前が `--top` と一致するか / dbu が 0.001 か /
+トップの bbox がちょうど 2500x2500 um で原点中心か / `OSS_FRAME` または
+`OSS_FRAME_TEG` があるか を見て、`OK:` / `ERROR:` を出して 0 / 1 で終わる。
+
+    python3 pre_check.py <layout.gds> --top <chip_top>
+
+★ **これは上流のテンプレート由来**（Apache-2.0、原著 Leo Moser）。値
+  （`FRAME_CELL_NAMES` など）を勝手に変えない。直すなら上流へ PR（決定 10）。
+★ `import pya` と `click` に依存する。**`pip install klayout` だけの環境では
+  動かない**（他の apr/ は `klayout.db` を使う）。
+★ bbox は EPS 1e-6 の完全一致。
+★ `export_mpw.py` は同じ検査を自前で持っていて、ここは呼ばない（二重定義）。
+"""
 # ----- ------ ----- ----- ------ ----- ----- ------ -----
 # OpenSUSI
 # LICENSE: Apache License Version 2.0, January 2004

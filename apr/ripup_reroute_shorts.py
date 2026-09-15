@@ -1,5 +1,20 @@
 """
-ripup_reroute_shorts.py
+ripup_reroute_shorts.py -- 配線後に残った短絡を、局所的に剥がして引き直す（step7 / step8b）。
+
+ルータ本体には触らない純粋な後処理。入力は配線済み GDS + `pin_map` +
+`net_shapes` + `placement.json` + チャネル高 CSV、出力は直した GDS と
+更新した `pin_map` / `net_shapes`。収束するまで繰り返す。
+
+直し方は 3 つ: 縦（M2）をトラック単位で横へずらす / 縦の途中に
+X 方向のドッグレッグを入れる / 横（M1）トランクをぶら下がりごと隣の
+トラックへ移す。**両側とも「複雑」な衝突は動かさずに報告する**
+（23 ピンのリセット網を動かして遠くで別の短絡を作った事故がある）。
+
+★ `TRACK_PITCH = 5.4` は直書きで、**`route_channels.py` と一致していないと
+  トラック index の計算が意味を失う**。あちらは `APR_TRACK_PITCH` で変えられる
+  のにこちらは読まないので、ピッチを変えるとここだけ取り残される。
+
+以下は当時の経緯。`design_notes.md` は `legacy/async_i2c/` にある。
 
 General-purpose, net-name-agnostic post-route short fixer (design_notes,
 this session: "自動での修正を検討してください。今までの方針を放棄して

@@ -1,5 +1,22 @@
 """
-squeeze_channels.py (section 44, user request "既存配線はそのままに、
+squeeze_channels.py -- 配線済み GDS を Y 方向に圧縮する。**配線は引き直さない**（step10）。
+
+チャネル内で誰も使っていないトラックのスライスを削り、その上を下げる。
+入力は配線済み GDS と step6 が書いた `compaction_info.json`、出力は
+圧縮した GDS と、Y を写像し直した `pin_map` / `net_shapes` /
+`force_jog_events`。戻り値は新しいコア高。
+
+★ `compaction_info` は **step6 時点の記録**で、step7/8/8b が足した配線を
+  知らない。記録上「未使用」のトラックに実際は M1 が乗っていると、その
+  スライスごと削られて **M1 が高さ 0 に潰れ、隣の配線と地続きになる**。
+  だから入力 GDS の M1 を実測して「使用中」を回収してから削る。
+★ **ハードマクロの Y 範囲は identity 写像で保護する**（マクロは参照なので
+  中身を縮められない。中で潰すとピンから外れる）。
+★ 断点の浮動小数の累積が製造グリッドから外れるので `0.05 µm` に丸める
+  （丸めないと実 DRC が OFFGRID を大量に出す）。
+
+`compress_channels.py` とは別物（あちらは配置から配線ごとやり直す）。
+以下は当時の経緯。`design_notes.md` は `legacy/async_i2c/` にある。
 未使用のM1チャネル分のY軸を圧縮できますか")
 
 A POST-ROUTE geometric compaction pass: unlike compress_channels.py

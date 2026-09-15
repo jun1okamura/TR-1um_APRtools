@@ -1,5 +1,18 @@
 """
-netlist_parser.py
+netlist_parser.py -- 構造 Verilog を読んで、トップ名・ポート・インスタンスを返すライブラリ。
+
+    parse_netlist(path) -> {"top_name": …, "top_ports": [...],
+                            "instances": [(型, 名前, {ピン: ネット}), …]}
+
+ネットは `assign` の別名を union-find で解決済み。**この解決を飛ばすと
+別名どうしが別ネットに見えて、実接続が静かに落ちる**（単入力のスタブに
+見える）。`_build_alias_resolver(text)` は `_` 付きだが事実上の公開 API で、
+4 本がテキストを渡して使っている。
+
+★ **名前付き接続 `.PIN(net)` だけ**。位置接続は読めない。
+★ **ピン 1 本にネット 1 本**。`.ADD({a,b,c})` は中括弧ごと 1 本の文字列で
+  返る。バス展開は呼び出し側（`netlist_util` + `place.expand`）の仕事。
+★ `mklvsnet.py` は「`_build_alias_resolver` では足りない」として別実装を持つ。
 
 Minimal structural-Verilog reader for src/i2c_slave_async_net.v (Yosys
 output, named-port instantiation only -- ".PIN(net)" style). Returns

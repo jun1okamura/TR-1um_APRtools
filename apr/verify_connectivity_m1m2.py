@@ -1,5 +1,14 @@
 """
-verify_connectivity_m1m2.py
+verify_connectivity_m1m2.py -- 配線の接続性を見る。ピンを **M1 で引き、外れたら M2** で引く版。
+
+`route.py` が step7 の検算として毎回回すのはこちら。
+`verify_connectivity.py` との差は**ピン座標をどの層で引くか 1 点だけ**で、
+判定も出力もスキャン窓も同じ。
+
+分かれている理由: `route_top_pins.py` が打つトップポートのピンは
+**M2PIN マーカだけで M1 の着地が無い**ので、M1 のみ版だと step8 以降
+それを全部「未検出」として報告してしまう。
+
 
 Same layer-aware Union-Find connectivity check as verify_connectivity_
 verify_connectivity.py, but locate() tries BOTH M1 and M2 for each pin coordinate

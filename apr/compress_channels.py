@@ -1,5 +1,17 @@
 """
-compress_channels.py
+compress_channels.py -- 一度配線して実トラック使用数を測り、チャネル高を詰めて**回し直す**ドライバ。
+
+`squeeze_channels.py` とは別物: あちらは配線済み GDS を幾何的に潰すだけ、
+こちらは `gen_placement_gds` -> `route_channels` をもう一度回す。
+
+★ **元の高さは絶対に超えない**（`min` で頭打ち）。式は実 DRC 幾何と
+  両方向にずれうるので、縮まないチャネルは原寸据え置きが安全側。
+★ 失敗しても自動では戻さない。DRC や短絡が出たら `MARGIN_TRACKS` を
+  上げるか、当該チャネルを手で広げて回し直す。
+★ 「描かれた幾何の Y 範囲を測る」方式は使えない — TAP2 の電源ストラップが
+  必ず全高を走るので、どのチャネルも常に「満杯」と報告される。だから
+  ルータが実際に払い出したトラック数を真値にしている。
+★ `orig_heights` は**明示すること**（省くと `route_channels` の旧既定値）。
 
 Section 41 (user request): a POST-PROCESS that shrinks each routing
 channel's height down to what it actually needs, after a normal

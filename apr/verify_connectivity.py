@@ -1,5 +1,22 @@
 """
-verify_connectivity.py
+verify_connectivity.py -- 配線の接続性を見る。ピンを **M1 だけ**で引く版。
+
+GDS と `pin_map.json` を読み、M1/M2 を V1 で繋いだ連結成分を作って、
+ネットが 1 成分にまとまっているか（`NET SPLIT`）、他ネットと成分を
+共有していないか（`SHORT SUSPECTED`）を stdout に出す。
+
+    python3 verify_connectivity.py <gds> <pin_map.json> [y_lo] [y_hi] [scan_w]
+
+★ 通常のフローが回すのは **`verify_connectivity_m1m2.py` の方**。こちらは
+  トップピンを打つ前（全ピンが M1 に着地しているはずの段階）の、より厳しい
+  検査としてだけ意味がある。
+★ スキャン窓は `Box(0, y_lo, scan_w, y_hi)` で **x=0 起点**。既定値は I2C の
+  コア規模の名残なので、**大きい設計では明示しないと黙って取りこぼす**
+  （`route.py` はコア高 +10 / 幅 +30 を渡している）。
+★ `TOP_CELL` は config 固定で CLI から変えられない（チップには使えない）。
+★ ピン探索はほぼ厳密一致。`squeeze_channels.py` がここのために
+  ピン金属を残す配慮をしている。
+
 
 N-row variant of verify_connectivity_2row_fm.py (see that file's
 docstring for the full layer-aware Union-Find algorithm). Only changes:

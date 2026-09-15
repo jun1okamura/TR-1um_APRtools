@@ -1,5 +1,17 @@
 """
-gen_placement_gds.py
+gen_placement_gds.py -- `placement.json` から配置済み GDS を書く（step5）。
+
+行とチャネル帯を下から積み上げて全インスタンスを置き、確認用の注釈を
+足す（(250,0) コア枠とチャネル帯 / (250,1) 電源バー予約枠 / (250,2) その文字）。
+
+★ 積み上げの順番は `ch0`(下) -> `row0` -> `ch1` -> … -> `ch(n)`(上)。
+  **`route_channels.py` の y 規約と一致していなければならない。**
+★ `CELL_GDS` と `TOP_CELL_NAME` は引数にできない。**モジュール変数を
+  書き換えて呼ぶ**（`route.py` がそうしている）。
+★ `main()` は `global CH_HEIGHTS` を破壊的に上書きするので、同じプロセスで
+  続けて呼ぶときは前の値が残らない。
+★ コア枠は `core_w`、チャネル帯は `row_w` で描く（**わざと違う**。行に
+  属さないマクロ列もコアの一部だから）。
 
 Section 38: N-row placement GDS builder (generalizes
 gen_placement_gds_2row_fm.py to N rows / N+1 channel bands: bottom

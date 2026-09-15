@@ -1,5 +1,16 @@
 """
-dedup_gates.py
+dedup_gates.py -- 同じ入力の同じ組合せゲートを 1 個に畳む（合成後の共通部分式除去）。
+
+`in.v` を読んで `out.v` を書く。構造の検出は `parse_netlist`、書き換えは
+元テキストへの正規表現手術（バス添字の生表記を保つため）。
+
+★ **`OUT_PIN` に載っているセルしか畳まない。** DFF など状態を持つセルと
+  多出力セルは意図的に除外。**セルを追加したらここに足さないと素通りする。**
+★ **飛ばさないこと。** 同じ重複（24 個の NOR2 / 9 個の AND2_X1）が再合成で
+  黙って再発し、配置配線側を 1 セッション追いかけた真因だった。
+  「セル数が前回と同じくらいに見える」ときこそ疑う。
+★ yosys の `opt_merge` を `abc` の後に足しても 0 セルしか消えなかった
+  （理由は未解明）ので手動でやっている。
 
 Post-ABC common-subexpression-elimination pass for synthesized netlists.
 
@@ -68,16 +79,21 @@ Run: python3 script/dedup_gates.py [<in.v> <out.v>]
      (defaults to i2c_slave_async_net_v10.v -> _v10_deduped.v, 108.38)
 Or:  import and call main(in_path=..., out_path=...)
 """
+import os
 import re
 import sys
 import pathlib
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "pnr"))
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
 from netlist_parser import parse_netlist  # noqa: E402
 
-_SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
-_REPO_ROOT = _SCRIPT_DIR.parent
+# ★ 既定の入出力は **設計の out/**（`cfg.SYN_OUT_DIR` / `cfg.SYN_TOP`）。
+#   以前は `<APRtools>/out/i2c_slave_async*.v` を見ていた — APRtools に
+#   `out/` は無いので、**引数を省くと必ず落ちる**既定値だった。`syn/syn.sh`
+#   が毎回パスを明示して渡すので誰も踏まず、そのまま残っていた（U52 と同型）。
+#   `pnr/` を sys.path に足す行も消した（そのディレクトリは無い）。
 
 # 108.38: standardized V10 step-0 default -- raw Yosys output in,
 # dedup_gates.py's cleaned netlist out. Positional CLI args still
@@ -90,8 +106,8 @@ _REPO_ROOT = _SCRIPT_DIR.parent
 #   2. 既定の入出力を out/ の TD4 構成のファイル名に直す
 #      （src/ は MPW が食う GDS と .cir 専用になったため）
 # -------------------------------------------------------------------------
-DEFAULT_IN = str(_REPO_ROOT / "out" / "i2c_slave_async.v")
-DEFAULT_OUT = str(_REPO_ROOT / "out" / "i2c_slave_async_dedup.v")
+DEFAULT_IN = os.path.join(cfg.SYN_OUT_DIR, cfg.SYN_TOP + ".v")
+DEFAULT_OUT = os.path.join(cfg.SYN_OUT_DIR, cfg.SYN_TOP + "_dedup.v")
 
 # cell type -> name of its single output pin. Only pure single-output
 # combinational cells are safe to CSE this way; DFFRB/DFFS (state) and

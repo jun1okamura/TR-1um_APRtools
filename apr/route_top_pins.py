@@ -1,5 +1,19 @@
 """
-route_top_pins.py (section 47 originally, v6; STEP6 this session
+route_top_pins.py -- トップポートをコアの辺まで引き出し、辺に M1PIN/M2PIN マーカとラベルを打つ（step8）。
+
+入力は `placement.json` と配線済み GDS と `net_shapes.json`、出力は GDS と
+マージ済み `net_shapes.json`（**`pin_map` は書かない**）。row0 のポートは
+下端へ、最上行は上端へ、中間行は隣のチャネルへ降ろして M1 で左右の辺へ。
+
+★ **無検査のフォールバックがある。** どのトラックも衝突するときは
+  「一番マシなもの」を選んで引く（ログの `[CHECK]`）。そこで引いたライザが
+  他ネットの列を貫通することがあるので、**直後に step8b のリップアップが要る**。
+★ 衝突判定はネット非対応の生 Region クエリ。自ネットを誤検出しないよう
+  `net_shapes_json` で差し引くので、**渡さないと全ポートが自分と衝突する**。
+★ モジュール既定の `CH_HEIGHTS` / `IN_GDS` / `PORT_DIR` は I2C 時代の残骸。
+  `route.py` が実行時に差し替える。
+
+以下は v6/v7 当時の経緯。`design_notes.md` は `legacy/async_i2c/` にある。
 for the v7 / N 行 TRACK_PITCH=5.4 recipe -- user request)
 
 Routes each top-level port of i2c_slave_async out to the block BBOX on

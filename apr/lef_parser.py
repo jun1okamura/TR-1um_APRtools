@@ -1,5 +1,20 @@
 """
-lef_parser.py
+lef_parser.py -- LEF を読んで MACRO の SIZE / FOREIGN / ピン矩形を返すライブラリ。
+
+読むだけで何も書かない。`place.py` / `gen_placement_json.py` /
+`gen_placement_gds.py` / `verify_port_connectivity.py` が読む。
+**幾何は毎回 GDS から導き直さず、ここを正とする。**
+
+    parse_lef(path) -> {MACRO 名: {
+        "size":    (w, h),
+        "foreign": GDS のセル名,          # FOREIGN が無ければ MACRO 名
+        "pins":    {ピン名: {"direction": …, "use": …,
+                             "rects": [(layer, x0, y0, x1, y1), …]}}}}
+
+★ **自前 LEF 専用の正規表現パーサ。** `RECT` しか読まない
+  （`POLYGON` / `PATH` / 複数 `PORT` / `OBS` / `SITE` は見ない）。
+★ 座標の正規表現が `[\d.]+` なので、**負の値の RECT / SIZE は黙って落ちる**。
+★ `DIRECTION` / `USE` を無条件に参照するので、欠けたピンがあると落ちる。
 
 Minimal LEF reader for LEF/TR-1um_STDCELL.lef -- pulls out per-MACRO
 SIZE, FOREIGN (physical GDS cell name), and per-PIN DIRECTION/USE/PORT

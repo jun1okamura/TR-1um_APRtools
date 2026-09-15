@@ -1,4 +1,20 @@
 #!/usr/bin/env python3
+"""read_info.py -- `info.yaml` を読んで CI の出力変数を組み立てる。
+
+**GDS は一切読まない。** `gds` / `lvs` / `mdp` / `pdk` の 4 セクションから
+必須キーを取り、派生するファイル名（`<top>.gds` / `<top>.<lvs_ext>` /
+`<top>.lyrdb` / `<top>.extracted`）を作って `$GITHUB_OUTPUT` に
+`key=value` を追記する。
+
+    python3 read_info.py [--info info.yaml]
+
+★ **GitHub Actions のステップ用。** `GITHUB_OUTPUT` が無いと必ず失敗するので、
+  手元で `info.yaml` を覗く道具ではない。
+★ `lvs_flag` は `true` のみ真（`yes` / `1` は空文字になる）。
+★ `click` と `PyYAML` に依存する。
+★ `export_mpw.py` が「CI と同じ決め方」と言っているのはこのファイルのことだが、
+  **ロジックは向こうが独自に持っている**（二重定義）。
+"""
 # ----- ------ ----- ----- ------ ----- ----- ------ -----
 # OpenSUSI
 # LICENSE: Apache License Version 2.0, January 2004

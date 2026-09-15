@@ -1,5 +1,24 @@
 """
-route_channels.py (v3)
+route_channels.py -- チャネルルータ本体。配置 GDS を配線済み GDS にする（step6）。
+
+入力は `placement.json` と配置 GDS とチャネル高。出力は配線済み GDS と
+`pin_map` / `net_shapes` / `channel_usage` / `compaction_info` /
+`force_jog_events` の JSON。M2 は**常に縦だけ**で、x を変えるときは
+via_1 -> M1 の水平ラン -> via_1（「ジョグ」）で移る。
+
+`main()` の中で 5 パスを順に回す:
+  `tap_power_mesh` -> `pass0_per_row_local` -> `pass1_high_fo_row_only_adjacent`
+  -> `pass2_spanning` -> `pass3_force_jog_nets`
+
+★ 単体で直接叩かないこと。`route.py` は `PYTHONHASHSEED=0` を立てて
+  自分を再 exec するが、**ここを直接叩くとその保護が効かない**（ルータの
+  どこかが集合を反復していて、同じ配置から違う結果が出る。U1）。
+★ モジュール既定の `PER_ROW_LOCAL_NETS` / `FORCE_JOG_NETS` / `CH_HEIGHTS` は
+  **I2C 時代の網名と実測値**。`route.py` が毎回上書きして渡す。
+★ `TRACK_PITCH` の下限は 5.4 で、いまがその下限（`rules.TRACK_PITCH_MIN`）。
+
+以下は v3/v4 当時の変更経緯。参照している `design_notes.md` は
+`legacy/async_i2c/` にある。
 
 Section 38: N-row / (N+1)-channel router, generalizing
 route_channels_2row_fm.py. Channel i sits directly below row i and

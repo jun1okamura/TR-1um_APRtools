@@ -1,5 +1,22 @@
 """
-highlight_top_pins.py (section 46, user request "STEP7で止めて、
+highlight_top_pins.py -- トップポートの一覧と別名解決を持つライブラリ + ピン位置の可視化ツール。
+
+**`apr/` のトップレベルポート情報の単一ソース。** `route.py` /
+`route_top_pins.py` / `verify_port_connectivity.py` がここから
+`SCALAR_PORTS` / `BUS_PORTS` / `PORT_DIR_DERIVED` / `port_net_name()` /
+`bus_bit_net_name()` / `build_net_pins()` を取る。
+可視化側は配線済み GDS の**写し**に診断レイヤ (260,0)〜(260,3) を足して
+別ファイルに書く（入力は書き換えない。**(48,*)/(49,*) の本物のピンとは別**）。
+
+★ **import しただけで `cfg.NET_PATH` を読む**（副作用）。ネットリストが
+  無いと import が落ちる。依存側はこの副作用に乗っている。
+★ **`resolver` を渡すのが正。** 渡さないと静的な辞書だけで解決するので、
+  再合成で別名チェインが変わるたびに黙って違うピンを掴む。
+★ エスケープ識別子のビット指定はビット添字の前に**空白が入る**綴り。
+  原本の正規表現はこれを 1 本も拾えず step8 が止まった（TD4 移植）。
+★ `__main__` の既定パスと `CH_HEIGHTS` は I2C v6 の値。単体実行は他設計で誤る。
+
+以下は I2C 時代の経緯。
 トップピンの位置をハイライトしてください")
 
 Marks every physical location where one of i2c_slave_async's TOP-LEVEL

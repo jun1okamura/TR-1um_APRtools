@@ -78,7 +78,7 @@ yosys の出力を P&R に渡せる形にする。
 | `frame_pins.py` |  | 98 | 2 | GIO パッドリングのピン幾何を GDS から読む |
 | `gen_placement_gds.py` |  | 134 | 2 | 配置結果を GDS に落とす |
 | `gen_placement_json.py` |  | 196 | 1 | ルータが読む配置 JSON へ変換する |
-| `compress_channels.py` |  | 136 |  | チャネル高を詰める |
+| `compress_channels.py` |  | 136 |  | 一度配線して使用トラック数を測り、チャネル高を詰めて**回し直す**（`squeeze_channels` は引き直さない方） |
 | `squeeze_channels.py` |  | 496 | 1 | 既存配線を保ったままチャネルを詰める |
 | `sweep_height.py` |  | 132 |  | コア高を詰めるための探索 |
 | `sweep_seed.py` |  | 115 |  | 配置シードを振って、配線して短絡が最少になる配置を選ぶ |
@@ -98,8 +98,8 @@ yosys の出力を P&R に渡せる形にする。
 | `highlight_top_pins.py` |  | 300 | 3 | トップピンの到達を色分けして出す |
 | `connect_macro_power.py` |  | 259 | 3 | マクロの電源をコアのレールに繋ぐ（step11） |
 | `detect_loops_jogs.py` |  | 170 |  | `net_shapes_*.json` のループ・無駄な折れを機械で洗う |
-| `verify_connectivity.py` |  | 125 |  | 配線の接続性（汎用） |
-| `verify_connectivity_m1m2.py` |  | 130 |  | M1/M2 の層をまたぐ接続性 |
+| `verify_connectivity.py` |  | 125 |  | 接続性。ピンを **M1 だけ**で引く版。トップピンを打つ前用で、フローは回さない |
+| `verify_connectivity_m1m2.py` |  | 130 |  | 接続性。ピンを **M1 で引き、外れたら M2**。**`route.py` が step7 で回すのはこちら** |
 | `verify_port_connectivity.py` |  | 203 | 1 | **トップピンが本当にセルまで届いているか** |
 
 ### E. チップ（フレームに載せる）
@@ -115,7 +115,7 @@ yosys の出力を P&R に渡せる形にする。
 | `place_logo.py` | ○ | 204 |  | 空いているところに OpenSUSI のロゴを置く（チップ step4） |
 | `verify_chip.py` | ○ | 260 |  | チップ配線の接続性と短絡。**コアの電源タップ 0 本は NG**（U21） |
 | `export_mpw.py` | ○ | 139 |  | MPW に出す 2 つのファイルを `src/` に置く。config と `info.yaml` の食い違いも見る |
-| `pre_check.py` | ○ | 143 |  | MPW テンプレートの提出前チェック |
+| `pre_check.py` | ○ | 143 |  | MPW テンプレート同梱の提出前ゲート。**上流由来（Apache-2.0）なので値を変えない**。`pya` と `click` に依存 |
 | `mkleffrm.py` |  | 388 |  | フレームとパッドセルの LEF を生成する |
 
 ### F. 抽出と LVS ソース
@@ -144,7 +144,7 @@ yosys の出力を P&R に渡せる形にする。
 |---|:--:|--:|--:|---|
 | `drc_pdk.py` | ○ | 209 | 1 | **PDK の本物の DRC デッキ**を当てて要約する。`--mdp` で提出物も見る |
 | `lvs_pdk.py` | ○ | 157 |  | **PDK の本物の LVS デッキ**を当てて要約する |
-| `drc_check.py` |  | 68 |  | 自作の簡易 DRC（コア用） |
+| `drc_check.py` |  | 68 |  | 自作の簡易 DRC。**トップセル名を省くとコア名にフォールバック**する（チップに当てて 0 件を返した事故あり） |
 | `drc_check_cells.py` |  | 92 |  | 自作 DRC を 1 セルずつ当てる。**値が本体と違う**のが意図か事故か未決（U4） |
 | `cmp_gds.py` | ○ | 240 |  | 2 つの GDS が同じものかを判定する。**生バイトはタイムスタンプで毎回変わる**ので `cmp` ではなくこれ |
 | `pin_grid_check.py` |  | 165 |  | prBoundary とピンが配置グリッドに乗っているか |
@@ -206,12 +206,12 @@ yosys の出力を P&R に渡せる形にする。
 | `normalize_prboundary.py` |  | 171 |  | セルの中身ごと平行移動して prBoundary の左下を原点に揃える |
 | `relabel.py` |  | 91 |  | GDS のテキストラベルを一括で改名する |
 | `add_addbuf_labels.py` |  | 81 |  | `ADDBUF` のピンにラベルを付ける（LVS の曖昧性解消）。**KLayout マクロ**なので `python3` では回らない |
-| `read_info.py` |  | 108 |  | GDS の中身（セル・レイヤ・bbox）を覗く |
+| `read_info.py` |  | 108 |  | **GDS は読まない。** `info.yaml` から CI の出力変数を組み立てて `$GITHUB_OUTPUT` に書く（GitHub Actions 用） |
 
 ## この表から見えること
 
 - **大きい順**: `route_channels` 2688 行 / `ripup_reroute_shorts` 1295 行 / `route_chip` 1210 行 / `config_base` 930 行 / `place` 845 行。上 2 本で `apr/` 全体の 17% を占める。
-- **docstring が実質空のものが 13 本**（`route_channels` `ripup_reroute_shorts` `netlist_parser` `lef_parser` `compress_channels` `gen_placement_gds` `dedup_gates` `merge_muxdffrb_rslatch` `drc_check` `pre_check` `read_info` `verify_connectivity` `verify_connectivity_m1m2`）。さらに 4 本（`add_power_pins` `highlight_top_pins` `route_top_pins` `squeeze_channels`）は **そのときの依頼文がそのまま残っている**。いずれも上の表が当面の代わり。
+- **17 本は要約の 1 行目が無いか、当時の依頼文のままだった**（`add_power_pins.py` の 「(this session, user request:」など）。本文は長いのに**何をするファイルなのかが 1 行目に書いていない**状態で、この表の元にもならなかった。2026-09-15 に全部書いた（U51）。残っている経緯記述が参照する `design_notes.md` は `legacy/async_i2c/` にある。
 - `apr_path` を **53 本**が読む。**`apr/` 直下から動かせない唯一のファイル**（`sys.path` を組み立てる本人なので、自分を探せなくなる）。
 - `route.py` は下請けを 8 本呼ぶ。**D 群を単体で回すことは普通ない。**
 - J 群（図）と K 群（単発）の 11 本は、落ちても設計物に影響しない。

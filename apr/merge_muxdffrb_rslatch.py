@@ -1,5 +1,17 @@
 """
-merge_muxdffrb_rslatch.py
+merge_muxdffrb_rslatch.py -- `MUX2`+`DFFRB` を `MUXDFFRB` に、たすき掛けの `NOR2` 対を `RSLATCH` にまとめる。
+
+構造の検出は canonical 名（`parse_netlist`）、書き換えは元テキストの生表記。
+`.VDD(VDD)` / `.GND(GND)` を直書きするので、**ゲートレベル TB は `--power`
+が要る**。
+
+★ **R / S の役割はソース順で決める**（名前照合ではない）。NOR の SR ラッチは
+  `(R,Q)` と `(S,QB)` を組ごと入れ替えても等価なので、必要なのは
+  「Q に選んだ方の A 入力が R」だけ。RTL が `_q` を `_qn` の前に書く慣習と
+  一致しているが、**依存しているのはファイル順だけ**。
+★ 属性行を前方から探す旧版は、`re.S` の `.*?` が改行を跨いで戻るため
+  ファイル先頭から数 KB を飲み込んで抽出範囲を壊した。いまは**後方から**
+  インスタンス直前で終わるようアンカーして探す。
 
 Post-synthesis netlist transform: replaces the two recurring 2-gate
 patterns identified in design_notes.md section 108.27 with the new
@@ -46,16 +58,21 @@ buffering -> placement -> routing -> ripup/reroute -> DRC/connectivity).
 """
 import argparse
 import pathlib
+import os
 import re
 import sys
 from collections import defaultdict
 
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent))
-sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent / "pnr"))
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
 from netlist_parser import parse_netlist  # noqa: E402
 
-_SCRIPT_DIR = pathlib.Path(__file__).resolve().parent
-_REPO_ROOT = _SCRIPT_DIR.parent
+# ★ 既定の入出力は **設計の out/**（`cfg.SYN_OUT_DIR` / `cfg.SYN_TOP`）。
+#   以前は `<APRtools>/out/i2c_slave_async*.v` を見ていた — APRtools に
+#   `out/` は無いので、**引数を省くと必ず落ちる**既定値だった。`syn/syn.sh`
+#   が毎回パスを明示して渡すので誰も踏まず、そのまま残っていた（U52 と同型）。
+#   `pnr/` を sys.path に足す行も消した（そのディレクトリは無い）。
 
 # 108.38: was i2c_slave_async_net_v10.v (raw Yosys output) -- see the
 # module docstring's v37 note for why this now defaults to
@@ -69,9 +86,9 @@ _REPO_ROOT = _SCRIPT_DIR.parent
 #   2. 既定の入出力を out/ の TD4 構成のファイル名に直す
 #      （src/ は MPW が食う GDS と .cir 専用になったため）
 # -------------------------------------------------------------------------
-RAW_V10_PATH = str(_REPO_ROOT / "out" / "i2c_slave_async.v")
-DEFAULT_IN = str(_REPO_ROOT / "out" / "i2c_slave_async_dedup.v")
-DEFAULT_OUT = str(_REPO_ROOT / "out" / "i2c_slave_async_merged.v")
+RAW_V10_PATH = os.path.join(cfg.SYN_OUT_DIR, cfg.SYN_TOP + ".v")
+DEFAULT_IN = os.path.join(cfg.SYN_OUT_DIR, cfg.SYN_TOP + "_dedup.v")
+DEFAULT_OUT = os.path.join(cfg.SYN_OUT_DIR, cfg.SYN_TOP + "_merged.v")
 
 
 def find_mux_dffrb_pairs(instances):
