@@ -99,6 +99,7 @@ python3 $APRTOOLS/apr/route.py
 
 | 文書 | 内容 |
 |---|---|
+| [`apr/README.md`](apr/README.md) | **`apr/` 91 本の地図**。回し方に出る 21 本と、残り 70 本の役割別分類表（`lint` の `file-table` が検査する） |
 | [`docs/00_directory.md`](docs/00_directory.md) | ディレクトリ構成、共通/設計固有の 4 層モデル、移行手順 |
 | [`docs/01_inventory.md`](docs/01_inventory.md) | 3 リポジトリの資産棚卸しと移行対応表 |
 | [`docs/02_stdcell_diff.md`](docs/02_stdcell_diff.md) | STDCELL 2 世代の差分 → v59_4 を正本に決定 |

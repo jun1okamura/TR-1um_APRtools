@@ -39,12 +39,15 @@
 | `env-direct` | NG | `os.environ` で**外部ツール以外**を読む |
 | `env-knob` | warn | `os.environ` で `APR_*` を直読み → `config_base.getenv()` へ |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない |
+| `file-table` | NG | `apr/*.py` と `apr/README.md` の分類表が食い違っている |
 """
 from __future__ import annotations
 
 import argparse
 import ast
+import io
 import os
+import re
 import sys
 
 # APRtools 側に移したディレクトリ。設計の `cfg.ROOT` の下を指していたら移行漏れ。
@@ -207,6 +210,46 @@ def check_file(path):
     return out
 
 
+# ---- file-table -----------------------------------------------------------
+# `apr/README.md` の分類表が `apr/*.py` の実体と一致しているか。
+# 決定 20「表・台帳は 1 箇所」。**表に載っていないファイルは地図から消える**ので、
+# 足したら 1 行足させる。`ENV_KNOBS` を台帳にしたのと同じ形（U29）。
+TABLE_ROW = re.compile(r"^\|\s*`([A-Za-z0-9_]+)\.py`\s*\|")
+
+
+def check_file_table(apr_dir):
+    """apr/README.md の分類表と apr/*.py を突き合わせる。"""
+    readme = os.path.join(apr_dir, "README.md")
+    if not os.path.exists(readme):
+        return [Finding("NG", "file-table", readme, 1, "apr/README.md が無い",
+                        "`apr/` の地図。91 本の分類表を置く場所")]
+    listed, dup, out = {}, [], []
+    for i, line in enumerate(io.open(readme, encoding="utf-8"), 1):
+        m = TABLE_ROW.match(line)
+        if not m:
+            continue
+        if m.group(1) in listed:
+            dup.append((m.group(1), i))
+        else:
+            listed[m.group(1)] = i
+    actual = {f[:-3] for f in os.listdir(apr_dir)
+              if f.endswith(".py") and f not in SKIP_FILES} | {"lint", "config_base"}
+    for name in sorted(actual - set(listed)):
+        out.append(Finding(
+            "NG", "file-table", os.path.join(apr_dir, name + ".py"), 1,
+            f"{name}.py が apr/README.md の分類表に無い",
+            "README の A〜K のどれかに 1 行足す（どの群か分からないなら K）"))
+    for name in sorted(set(listed) - actual):
+        out.append(Finding(
+            "NG", "file-table", readme, listed[name],
+            f"表に `{name}.py` があるが実体が無い",
+            "消したのなら表からも消す"))
+    for name, i in dup:
+        out.append(Finding("NG", "file-table", readme, i,
+                           f"`{name}.py` が表に 2 回出ている", "1 本は 1 行だけ"))
+    return out
+
+
 def walk(roots):
     for r in roots:
         if os.path.isfile(r):
@@ -235,6 +278,9 @@ def main():
     for p in walk(a.roots):
         n_files += 1
         found += check_file(p)
+    # 台帳の検査は 1 回だけ（ファイルごとではない）
+    if any(os.path.abspath(r) == here for r in a.roots):
+        found += check_file_table(here)
 
     ng = [f for f in found if f.sev == "NG"]
     warn = [f for f in found if f.sev == "warn"]
