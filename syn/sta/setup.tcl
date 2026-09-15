@@ -1,11 +1,12 @@
 # 読み込みと制約。sta.sh が NET / TOP / PER を先頭で定義してから連結する。
 #
-# **このコアはクロックレス（非同期）**。フリップフロップは
-#   scl_gated (= scl & 有効条件)  posedge
-#   scl_n     (= ~scl)            posedge  ← scl の立下り
-# の 2 つで叩かれる。どちらも scl から組合せ回路で作られるので、
-# **scl ポートに create_clock を 1 本置けば、そこから先はクロックネットワークとして
-# 自動で伝播する**（AND で削られた枝も、INV で反転した枝も）。
+# **TR-1um の設計は専用のクロック源を持たない。** 外から来る 1 本の線
+# （I2C の scl、SPI の sclk）を組合せ回路で加工したものが FF を叩く:
+#   I2C  scl_gated (= scl & 有効条件) posedge / scl_n (= ~scl) posedge
+#   SPI  sclk_buf posedge / shift_clk (= sclk ^ dis) posedge
+# どれも元の 1 本から作られるので、**`STA_CLK_PORT` に create_clock を 1 本
+# 置けば、そこから先はクロックネットワークとして自動で伝播する**
+# （AND で削られた枝も、INV や XOR で反転した枝も）。
 # create_generated_clock は要らない。分周も位相調整もしていないし、
 # 合成後のインスタンス名（_385_ のような自動名）に制約を貼ると、
 # 再合成のたびに剥がれるため。

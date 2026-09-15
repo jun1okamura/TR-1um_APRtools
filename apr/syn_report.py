@@ -8,26 +8,33 @@
   **見積り**。こちらは `.lib` でマッピングした**実セルそのもの**を数えるので
   読み替えが要らない。ライブラリに無いゲートを勝手に当てはめる余地が無い。
 
-面積の出どころは `scripts/cell_area.json`（GDS の (235,0) abutment box 実測）で
-`area_estimate.py` と同じ。Yosys の `stat -liberty` が出す面積とも一致するはず
-（`.lib` の area も同じ json から書いている）。
+面積の出どころは **STDCELL 正本の** `cell_area.json`（GDS の (235,0) abutment
+box 実測）で `area_estimate.py` と同じ。Yosys の `stat -liberty` が出す面積とも
+一致するはず（`.lib` の area も同じ json から書いている）。
+
+★ 以前はこの json を**スクリプトの隣**に探していた。APRtools に移した時点で
+そこには無い（`cmp_cells.py` と同じ壊れ方）。`cfg.stdcell_file()` を通す。
 """
 from __future__ import annotations
 import argparse, collections, json, os, re, sys
+
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
 
 # OSS_FRAME_GIO のコア。パッド内側 1840 x 1840 から四隅の OSS_FRAME_CNR
 # （120 x 120 um x 4）を欠いた分が実際に置ける面積。
 CORE_W = CORE_H = 1840.0
 CORE_AREA = CORE_W * CORE_H - 4 * 120.0 * 120.0      # = 3,328,000 um2
-ROW_H = 59.4
-HERE = os.path.dirname(os.path.abspath(__file__))
+ROW_H = cfg.ROW_HEIGHT_UM
 
 
-def cells_of(net):
+def cells_of(net, areas_path):
     """マップ後 Verilog からセルのインスタンスを数える"""
     txt = open(net).read()
     txt = re.sub(r"//[^\n]*", "", txt)
-    known = set(json.load(open(f"{HERE}/cell_area.json"))["cells"])
+    known = set(json.load(open(areas_path))["cells"])
     c = collections.Counter()
     for m in re.finditer(r"^\s*([A-Za-z_][A-Za-z0-9_]*)\s+\\?\S+\s*\(", txt, re.M):
         if m.group(1) in known:
@@ -39,13 +46,13 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("top")
     ap.add_argument("-n", "--net", default=None)
-    ap.add_argument("--areas", default=f"{HERE}/cell_area.json")
+    ap.add_argument("--areas", default=cfg.stdcell_file("cell_area.json"))
     ap.add_argument("--brief", action="store_true", help="1 行にまとめる")
     a = ap.parse_args()
     net = a.net or f"out/{a.top}.v"
     A = json.load(open(a.areas))
     areas = A["cells"]
-    c = cells_of(net)
+    c = cells_of(net, a.areas)
     if not c:
         sys.exit(f"{net} に既知のセルが見つからない")
 

@@ -1,8 +1,9 @@
 # reg->reg / in->reg / reg->out / hold の最悪 slack と、reg->reg が要求する最小周期。
 #
 # **「最小周期 = PER - slack」は使えない。**
-# このコアは scl_gated (posedge scl) と scl_n (negedge scl) の 2 つの縁で叩かれる。
-# 片方から片方へ渡る経路は**半周期**しか与えられないので、周期を T にすると
+# TR-1um の設計はどれも**クロックの両方の縁で叩かれる**（I2C は scl_gated /
+# scl_n、SPI は sclk / sclk^dis）。片方から片方へ渡る経路は**半周期**しか
+# 与えられないので、周期を T にすると
 # slack は T ではなく T/2 に比例して動く。実測 (2026-09-14, OpenSTA 3.1.0):
 # 遅延 24.5ns の経路を、この式で計算すると「所要周期 1274ns / Fmax 0.78MHz」に
 # 化けた（正しくは半周期 > 24.5ns、つまり周期 > 49ns）。
@@ -48,7 +49,7 @@ if {$p1 ne ""} {
   if {$a > 1.0e-6} {
     set b    [expr {$s1 - $a * $P1}]
     set tmin [expr {-$b / $a}]
-    set kind [expr {$a < 0.75 ? "半周期パス（scl_n <-> scl_gated）" : "全周期パス（同じ縁どうし）"}]
+    set kind [expr {$a < 0.75 ? "半周期パス（立上り <-> 立下り）" : "全周期パス（同じ縁どうし）"}]
     puts [format "  => reg->reg が要求する最小周期 %.3f ns  (%.2f MHz)" $tmin [expr {1000.0/$tmin}]]
     puts [format "     周期係数 a = %.2f -> %s。経路の実遅延は %.3f ns" \
           $a $kind [expr {$a * $tmin}]]

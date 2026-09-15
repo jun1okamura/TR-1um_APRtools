@@ -214,6 +214,23 @@ LOGO_BOX = None                 # 設計が空き地を指定するとき (x0,y0
 # ---- 合成と STA（設計ごと）-----------------------------------------------
 SYN_LIB = None                  # None なら stdcell_file("tr1um_typ_5v0_25c.lib")
 SYN_TOP = None                  # None なら TOP_CELL_NAME
+SYN_RTL = []                    # 合成に読ませる RTL。設計が与える
+SYN_OUT_DIR = None              # None なら <設計>/out
+SYN_CONSTR = None               # None なら $APRTOOLS/syn/abc.constr
+# セルの振る舞いモデル（Verilog）。iverilog の TB が要る設計だけ。
+#   SYN_CELLS_GEN      char/mkcellverilog.py で起こす（I2C）。False なら既存を使う
+#   SYN_CELLS_IN_SYNTH RTL がセルを直接インスタンス化しているので yosys にも読ませる
+#                      （I2C の NOR2 クロス結合）。SPI / TD4 は素の RTL なので False
+SYN_CELLS_V = None
+SYN_CELLS_GEN = False
+SYN_CELLS_IN_SYNTH = False
+SYN_CELLS_ARGS = ["--power", "--delay", "1"]
+SYN_BLACKBOX = []               # 合成中セルのまま残す（例 ["RSLATCH"]）
+# TB は**リスト**。1 本ずつ iverilog に掛ける（SPI は 11 本ある）。
+SYN_TB_RTL = []                 # RTL に当てる TB。空なら飛ばす
+SYN_TB_NET = []                 # 畳み込み後のネットリストに当てる TB
+SYN_TB_INCDIR = []              # iverilog -I に渡すディレクトリ
+SYN_REF_NETLIST = None          # 既提出ネットリスト（cmp_cells.py で突き合わせ）
 STA_CLK_PORT = None             # クロックを入れるポート名（例 "scl" / "sclk"）
 STA_PERIOD_NS = 100.0           # STA の周期
 STA_FALSE_PATH_FROM = ["rst_n"] # recovery/removal を特性化していないので外す
@@ -536,6 +553,12 @@ def finalize(ns):
         APR_ROOT, "stdcell", ns.setdefault("STDCELL", STDCELL),
         "tr1um_typ_5v0_25c.lib")
     ns["SYN_TOP"] = ns.get("SYN_TOP") or ns["TOP_CELL_NAME"]
+    # ★ setdefault は使わない。`from config_base import *` で既定値が設計の
+    #   名前空間に入っているので必ず空振りする（docs/08_migration_td4.md #3）。
+    ns["SYN_OUT_DIR"] = ns.get("SYN_OUT_DIR") or os.path.join(ns["ROOT"], "out")
+    ns["SYN_CONSTR"] = ns.get("SYN_CONSTR") or os.path.join(APR_ROOT, "syn", "abc.constr")
+    ns["NET_PATH"] = ns.get("NET_PATH") or os.path.join(
+        ns["SYN_OUT_DIR"], ns["SYN_TOP"] + "_pnr.v")
     ns.setdefault("SQUEEZED_GDS", os.path.join(lay, "step10", "route_step_6_squeezed.gds"))
     ns.setdefault("MACROPWR_GDS", os.path.join(lay, "step11", "route_step_7_macro_power.gds"))
     for key, base in (("PIN_MAP_JSON", "pin_map.json"),
