@@ -18,6 +18,9 @@ from __future__ import annotations
 import argparse, collections, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
 
 
 def cells_of(path, known):
@@ -33,7 +36,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("ref")
     ap.add_argument("new")
-    ap.add_argument("--areas", default=f"{HERE}/cell_area.json")
+    # ★ 面積表は **STDCELL 正本**の中。スクリプトの隣ではない
+    #   （`apr/` に移したので `{HERE}/cell_area.json` は存在しない）。
+    ap.add_argument("--areas", default=cfg.stdcell_file("cell_area.json"))
     a = ap.parse_args()
     areas = json.load(open(a.areas))["cells"]
     known = set(areas)

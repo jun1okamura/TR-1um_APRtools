@@ -9,7 +9,10 @@
 # create_generated_clock は要らない。分周も位相調整もしていないし、
 # 合成後のインスタンス名（_385_ のような自動名）に制約を貼ると、
 # 再合成のたびに剥がれるため。
-read_liberty lef/tr1um_typ_5v0_25c.lib
+# ★ Liberty もクロックポートも**設計の config.py から**（sta.sh が渡す）。
+#   ここに `lef/…` と書いていたので、STDCELL 正本へ移したあと
+#   設計の写しを読んでいた（2026-09-15）。
+read_liberty $LIB
 read_verilog $NET
 link_design $TOP
 
@@ -20,7 +23,7 @@ link_design $TOP
 # ものでタイミングには関係しないので外す。
 foreach p [all_inputs] {
   set n [get_full_name $p]
-  if {$n eq "scl" || $n eq "VDD" || $n eq "GND"} continue
+  if {$n eq $CLK || [lsearch -exact $NONSIG $n] >= 0} continue
   set_driving_cell -lib_cell BUF_X2 -pin Y $p
 }
 # 出力は OSS_ESD_5V_DIO の OUT ピン容量 36.2 fF を負荷にする
@@ -30,22 +33,27 @@ foreach p [all_outputs] { set_load 36.2 $p }
 # **recovery / removal は特性化していない**（scripts/char/ が測っていない）ので、
 # ここで見ても意味のある数字にならない。パスとしては外し、リセットの解除タイミングは
 # ngspice のチップレベル TB（reference/v10/tb_chip_i2c_batch14_v10.spice 相当）で見る。
-set_false_path -from [get_ports rst_n]
+foreach fp $FALSEPATH {
+  if {[llength [get_ports -quiet $fp]]} { set_false_path -from [get_ports $fp] }
+}
 
 # --- 周期に依存する制約は proc にまとめる --------------------------------
 # report.tcl が**周期を変えて 2 回測る**ため（最小周期の求め方は report.tcl の
 # 冒頭を参照）。set_input_delay / set_output_delay は -add_delay を付けなければ
 # 同じポート・同じクロックの指定を上書きするので、何度呼んでも重ならない。
 proc apply_period {per} {
-  create_clock -name scl -period $per [get_ports scl]
+  # ★ Tcl の proc は**グローバルを見ない**。`scl` と直書きしていたときは
+  #   要らなかったが、config から取るようにしたので宣言する。
+  global CLK NONSIG
+  create_clock -name $CLK -period $per [get_ports $CLK]
   # クロックツリーはまだ無い（P&R 前）。ideal / skew 0 で見る。
-  set_ideal_network [get_ports scl]
+  set_ideal_network [get_ports $CLK]
   foreach p [all_inputs] {
     set n [get_full_name $p]
-    if {$n eq "scl" || $n eq "VDD" || $n eq "GND"} continue
-    set_input_delay -clock scl [expr {$per * 0.2}] $p
+    if {$n eq $CLK || [lsearch -exact $NONSIG $n] >= 0} continue
+    set_input_delay -clock $CLK [expr {$per * 0.2}] $p
   }
-  foreach p [all_outputs] { set_output_delay -clock scl [expr {$per * 0.2}] $p }
+  foreach p [all_outputs] { set_output_delay -clock $CLK [expr {$per * 0.2}] $p }
 }
 apply_period $PER
 

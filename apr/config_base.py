@@ -209,6 +209,13 @@ DOWN_FACING_INSTS = set()
 PER_ROW_LOCAL_NETS = set()
 PAD_MAP = {}
 LOGO_BOX = None                 # 設計が空き地を指定するとき (x0,y0,x1,y1)
+# ---- 合成と STA（設計ごと）-----------------------------------------------
+SYN_LIB = None                  # None なら stdcell_file("tr1um_typ_5v0_25c.lib")
+SYN_TOP = None                  # None なら TOP_CELL_NAME
+STA_CLK_PORT = None             # クロックを入れるポート名（例 "scl" / "sclk"）
+STA_PERIOD_NS = 100.0           # STA の周期
+STA_FALSE_PATH_FROM = ["rst_n"] # recovery/removal を特性化していないので外す
+STA_NON_SIGNAL_PORTS = ["VDD", "GND"]   # 構造インスタンスの電源ピン用のポート
 LOGO_SCALE = 1                  # ロゴの縮約（1 = 等倍）
 LOGO_COLS = None                # 切り出す列 "0:64" など。None で全幅
 UNBONDED = set()
@@ -521,6 +528,12 @@ def finalize(ns):
     ns.setdefault("CHIP_TOPPINS_GDS", os.path.join(chip, "step3_top_pins.gds"))
     # 提出に載せる最終 GDS（ロゴが最後の設計は step4_final）
     ns.setdefault("CHIP_FINAL_GDS", ns["CHIP_TOPPINS_GDS"])
+
+    # ---- 合成 / STA ------------------------------------------------------
+    ns["SYN_LIB"] = ns.get("SYN_LIB") or os.path.join(
+        APR_ROOT, "stdcell", ns.setdefault("STDCELL", STDCELL),
+        "tr1um_typ_5v0_25c.lib")
+    ns["SYN_TOP"] = ns.get("SYN_TOP") or ns["TOP_CELL_NAME"]
     ns.setdefault("SQUEEZED_GDS", os.path.join(lay, "step10", "route_step_6_squeezed.gds"))
     ns.setdefault("MACROPWR_GDS", os.path.join(lay, "step11", "route_step_7_macro_power.gds"))
     for key, base in (("PIN_MAP_JSON", "pin_map.json"),

@@ -133,3 +133,66 @@ sh syn/sta/sta.sh <netlist> <top> <period_ns> syn/sta/path.tcl   # クリティ�
 | `apr/from_sclk_spi/explore_rows.py` | 行数の検討 |
 
 1 等価ゲート = `NAND2` = 4 Tr = 16.2 × 59.4 = **962.3 µm²**（v59_4）。
+
+## STA（`syn/sta/`、OpenSTA）— 2026-09-15 に設計非依存化
+
+Liberty・クロックポート・false path を**設計の `config.py`** から取るようにした。
+`setup.tcl` に `read_liberty lef/…` と `create_clock … [get_ports scl]` が
+直書きされていて、STDCELL を正本へ移したあとも**設計の写しを読んでいた**。
+
+```python
+# 設計の config.py
+SYN_LIB = None                   # 既定 = stdcell_file("tr1um_typ_5v0_25c.lib")
+SYN_TOP = "spi_slave_sclk"
+STA_CLK_PORT = "sclk"            # クロックを入れるポート
+STA_PERIOD_NS = 100.0
+STA_FALSE_PATH_FROM = ["rstn"]   # recovery/removal は未特性化なので外す
+STA_NON_SIGNAL_PORTS = []        # 構造セルの電源ポート（I2C は VDD/GND）
+```
+
+```sh
+export PYTHONPATH=$APRTOOLS/apr        # sta.sh が config.py を読む
+sh $APRTOOLS/syn/sta/sta.sh <netlist> <top> <period_ns>
+sh $APRTOOLS/syn/sta/sta.sh <netlist> <top> <period_ns> $APRTOOLS/syn/sta/path.tcl
+```
+
+> **★ Tcl の `proc` はグローバルを見ない。**
+> `apply_period` の中で `scl` と直書きしていたときは要らなかったが、
+> 変数にした瞬間 `can't read "CLK"` で落ちた。`global CLK NONSIG` が要る。
+
+> **★ STA は RSLATCH に畳んだ後のネットリストに当てる。**
+> 畳む前は NOR2 のクロス結合が生のループで残っていて、OpenSTA が
+> combinational loop としてアークを 1 本**勝手に**切る。
+
+### SCLK_SPI を 59.4 版で合成した結果（2026-09-15）
+
+RTL は `hdl/spi_slave_sclk.v`（118 行）。**旧 64.8 版とは別物になる**ので
+GDS の比較はしない（U32）。
+
+| | |
+|---|---|
+| 合成 | yosys 0.33 + `stdcell/v59_4/tr1um_typ_5v0_25c.lib` |
+| セル | 49 個 → **34 個**（`merge_muxdffrb_rslatch.py` で MUX2+DFFRB を 15 組 畳んだ） |
+| 面積 | **124,455 µm²**（畳む前後で不変。MUXDFFRB = MUX2 + DFFRB） |
+| 内訳 | MUXDFFRB 15 / DFFRB 5 / MUX2 1 / AND2_X1 3 / NAND2 2 / NOR4 2 / INV_X1 2 / XOR2 2 / OR3 1 / XNOR2 1 |
+
+STA（period 100 ns、**P&R 前なので配線容量は入っていない**）:
+
+```
+  reg->reg    slack    36.873 ns   _82_/Q -> _72_/D
+  in->reg     slack    24.754 ns   dis -> _73_/D
+  reg->out    slack    20.679 ns   _72_/Q -> sdio_out
+  hold r->r   slack     6.437 ns   _81_/QB -> _81_/D
+  => reg->reg が要求する最小周期 26.254 ns  (38.09 MHz)
+     周期係数 a = 0.50 -> 半周期パス。経路の実遅延は 13.127 ns
+```
+
+クリティカルパスは `DFFRB` の clk->Q 9.494 ns + `OR3` 2.333 ns で、
+**`sclk` の立上りで出て立下りで取り込む半周期パス**。
+
+> **★ この 38 MHz は上限ではなく出発点。** 配線容量が入っていないし、
+> TR-1um の M2 は幅 3.4 µm と太いので実配線が乗ると悪化する。
+> 旧 64.8 版の実測は ngspice（抽出ネットリスト）で **16 MHz**、外部仕様は
+> 余裕を見て 10 MHz。**最終的な速度は P&R 後の抽出 + ngspice で決める**
+> （`docs/31_verify_ngspice.md` §4）。hold が +6.437 ns あるのは、
+> 半周期パスで捕まえる構造でもホールド側に余裕があるということ。

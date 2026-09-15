@@ -11,8 +11,27 @@ NET=$1; TOP=$2; PER=$3; RPT=${4:-$HERE/report.tcl}
 [ -n "$PER" ] || { echo "usage: $0 <netlist> <top> <period_ns> [report.tcl]" >&2; exit 1; }
 STA=${STA:-sta}
 command -v "$STA" >/dev/null 2>&1 || { echo "$STA が無い。scripts/sta/README.md を見てください" >&2; exit 1; }
+# Liberty / クロックポート / false path は **設計の config.py** から取る。
+# （PYTHONPATH=$APRTOOLS/apr が要る。手で上書きするなら LIB= / CLK= を渡す）
+CFG=$(python3 - <<'PY'
+import config as c
+print(c.SYN_LIB)
+print(getattr(c, "STA_CLK_PORT", "") or "")
+print(" ".join(getattr(c, "STA_FALSE_PATH_FROM", []) or []))
+print(" ".join(getattr(c, "STA_NON_SIGNAL_PORTS", []) or []))
+PY
+) || { echo "config.py が読めない（PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
+LIB=${LIB:-$(echo "$CFG" | sed -n 1p)}
+CLK=${CLK:-$(echo "$CFG" | sed -n 2p)}
+FALSEPATH=${FALSEPATH:-$(echo "$CFG" | sed -n 3p)}
+NONSIG=${NONSIG:-$(echo "$CFG" | sed -n 4p)}
+[ -n "$CLK" ] || { echo "config.py に STA_CLK_PORT が無い" >&2; exit 1; }
+[ -f "$LIB" ] || { echo "$LIB が無い" >&2; exit 1; }
+
 T=$(mktemp "${TMPDIR:-/tmp}/sta_XXXXXX.tcl")
 { echo "set NET $NET"; echo "set TOP $TOP"; echo "set PER $PER"
+  echo "set LIB $LIB"; echo "set CLK $CLK"
+  echo "set FALSEPATH [list $FALSEPATH]"; echo "set NONSIG [list $NONSIG]"
   echo "set HERE $HERE"; cat "$HERE/setup.tcl"; cat "$RPT"; } > "$T"
 # 電源ピンの Warning 201 をたたむ。
 #   Warning 201: ... instance u_muxdffrb_1 port VDD not found.
