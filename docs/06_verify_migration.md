@@ -40,19 +40,23 @@ cp <APRtools>/templates/config_i2c_2026_verify.py config.py     # 初回だけ
 export TR1UM_PDK=$HOME/Dropbox/91_OpenPDK/TR-1um
 export APRTOOLS=$HOME/Dropbox/91_OpenPDK/TR-1um_APRtools
 export PYTHONPATH=$APRTOOLS/apr
-export PYTHONHASHSEED=0          # ★ ルータは非決定的（docs/40_gotchas.md §4-2）
-export APR_PAD_WEIGHT=16         # 提出時の設定
 
-python3 $APRTOOLS/apr/selfcheck.py           # 下ごしらえの点検（KLayout 不要）
-python3 $APRTOOLS/apr/place.py --seed 4      # 提出時の seed。step1〜4
-python3 $APRTOOLS/apr/route.py               # step5〜11
+python3 $APRTOOLS/apr/selfcheck.py     # 下ごしらえの点検（KLayout 不要）
+python3 $APRTOOLS/apr/place.py         # step1〜4
+python3 $APRTOOLS/apr/route.py         # step5〜11
 ```
 
-`--seed 4` と `APR_PAD_WEIGHT=16` は提出時の設定
-（`docs/21_flow_place.md` §6）。**これを外すと別の配置になる**ので、
-md5 比較のときは必ず合わせる。
-`PYTHONHASHSEED=0` も同じ重さで効く — **環境変数なので `export` を
-忘れた 1 回だけが違う結果になる**（`docs/40_gotchas.md` §4-2）。
+**引数も、再現に効く環境変数も要らない**（2026-09-15 にそうした）。
+
+| 再現に効くもの | どこにあるか |
+|---|---|
+| `PYTHONHASHSEED=0` | `place.py` / `route.py` が**自分を起動し直して固定**する |
+| `PAD_WEIGHT` / `PLACE_SEED` / `restarts` / `order_passes` | **設計の `config.py`**（`PAD_WEIGHT=16.0` / `PLACE_SEED=4`） |
+| 上書きしたいとき（掃引） | `APR_PAD_WEIGHT` / `APR_PLACE_SEED` …（環境変数 > config.py > 既定） |
+
+`place.py` は使った値を毎回 1 行目に印字し、`layout/place_params.json` にも残す。
+`selfcheck.py` は回す前にそれを見せ、**環境変数が config.py を上書きしていれば
+warn を出す**。
 
 段階を分けたいとき:
 
@@ -330,13 +334,15 @@ python3 ../../../scripts/pnr/check_batch14.py batch14.log
 解析 180 秒（設計機）。`ENB = P15 = rst_n` なので、**この TB は
 RING_OSC 入りの `_sim.spice` を使う**（14 項目回帰の方は `--no-ringosc`）。
 
-### この段で見つかって直したもの（移行の取りこぼし 4 件目）
+### この段で見つかって直したもの（移行の取りこぼし 4・5 件目）
 
 | # | 症状 | 原因 | 対処 |
 |---|---|---|---|
 | 4 | `gen_chip_sim_ready.py` が `apr_root/klayout_extract.py` を探して落ちる | 設計側では `scripts/pnr/` から見た `scripts/klayout_extract.py` だったので `os.path.dirname(HERE)` | `EXTRACT = os.path.join(HERE, "klayout_extract.py")`（APRtools では同じ `apr/` の中） |
 
-**この 4 件はいずれも「パスと名前」で、回路の話が 1 つも無い。**
+| 5 | `route.py` の最終段が `FAIL GND / FAIL VDD  no PIN marker` | ポート名は RTL 由来の `VDD`/`GND`、PIN マーカのラベルは `rules` 由来の `vdd`/`vss`。`verify_port_connectivity.py` がポート名のままマーカを探していた | 境界で写像（`PWR_ALIAS`）。**`step10` の GDS は基準と md5 完全一致だった** |
+
+**この 5 件はいずれも「パスと名前」で、回路の話が 1 つも無い。**
 移行で壊れるのはそこだと分かったので、`apr/selfcheck.py` に
 「`apr/` 内の相対パス前提が残っていないか」を足す価値がある
 （`docs/90_improvement_notes.md`）。

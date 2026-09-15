@@ -73,6 +73,16 @@ def main():
     print(f"       CORE_WIDTH        {cfg.CORE_WIDTH_TRACKS} トラック x {cfg.TRACK_PITCH}"
           f" = {cfg.CORE_WIDTH_UM} um")
     print(f"       CH_HEIGHTS        {cfg.CH_HEIGHTS}")
+    print(f"       配置パラメータ    PAD_WEIGHT={cfg.PAD_WEIGHT}"
+          f"  PLACE_SEED={cfg.PLACE_SEED}"
+          f"  restarts={cfg.PLACE_RESTARTS}"
+          f"  order_passes={cfg.PLACE_ORDER_PASSES}")
+    _ovr = [k for k in ("PAD_WEIGHT", "PLACE_SEED", "PLACE_RESTARTS",
+                        "PLACE_ORDER_PASSES", "PLACE_BALANCE_TOL")
+            if os.environ.get("APR_" + k) is not None]
+    if _ovr:
+        line(WARN, f"環境変数が config.py を上書きしている: "
+                   + ", ".join("APR_" + k for k in _ovr))
     _, stack_h = cfg.row_y()
     print(f"       行スタック総高    {stack_h} um（圧縮前）")
     gaps = [round(b - a, 3) for a, b in zip(cfg.TAP_X, cfg.TAP_X[1:])]

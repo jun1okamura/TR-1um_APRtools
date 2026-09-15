@@ -400,3 +400,5 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U23 | `apr/selfcheck.py` は設定と入力しか見ていない。**移行で壊れたのは全て「パスと名前」**（4 件、`docs/06_verify_migration.md` §5-d）なので、`apr/` 内の相対パス前提（`os.path.dirname(HERE)` で外を見る、`cfg.ROOT/lef/…` 直書き）を静的に検出する検査を足す | 2026-09-15 |
 | U24 | `gen_chip_tb_*.py` が `.include` に `$TR1UM_PDK` を**展開した絶対パス**で書き込む。他機で作った TB がそのままでは読めない。相対パスか環境変数参照にする | 2026-09-15 |
 | U25 | `apr/gen_chip_tb.py` / `check_chip_sim.py` は **TD4 固有**（LED フラッシャの期待値が埋まっている）のまま `apr/` に入っている。設計固有の TB は設計側へ戻すか、期待値を JSON へ追い出す | 2026-09-15 |
+| U26 | 再現に効く値がフラグ頼みだった件は `config.py` へ移して解決（`PAD_WEIGHT` / `PLACE_SEED` …）。**同じ形の残りを洗う** — `route.py` の `--ch-heights`、`sweep_*.py` の既定、`gen_chip_tb_*.py` の `--tmax` / `--until` | 2026-09-15（`docs/40_gotchas.md` §4-0） |
+| U27 | 電源名の写像漏れが 5 件目（`verify_port_connectivity.py`）。**`rules.PWR_NET` を参照せず素の `VDD`/`GND` を書いている箇所**を機械的に洗う検査を `selfcheck.py` に足す（U23 と同じ動機） | 2026-09-15 |

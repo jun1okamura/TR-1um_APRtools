@@ -24,6 +24,7 @@ import klayout.db as db
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
+import rules                  # noqa: E402  電源ネット名の単一ソース
 import config as cfg          # noqa: E402
 import netlist_parser            # noqa: E402
 import highlight_top_pins as hp  # noqa: E402
@@ -146,6 +147,17 @@ def main(gds=cfg.SQUEEZED_GDS, placement=cfg.PLACEMENT_JSON, net_path=cfg.NET_PA
     for bus, w in hp.BUS_PORTS.items():
         ports += [f"{bus}[{i}]" for i in range(w)]
 
+    # ★ 電源だけ「ポート名」と「ラベル名」が違う。
+    #   ポート名は**ネットリスト（RTL）**から来るので `VDD` / `GND`、
+    #   PIN マーカのラベルは `highlight_top_pins.py` が `rules` で書くので
+    #   `vdd` / `vss`。境界で写像する（`docs/04_naming.md` §1-5、U21）。
+    #   2026-09-15、ここを直し忘れて `route.py` が最後の 1 段だけ
+    #   「VDD / GND に PIN マーカが無い」で落ちた。**幾何は正しかった**ので、
+    #   名前の写像漏れだけで 2 ポートぶんの偽陽性が出ていた。
+    PWR_ALIAS = {"VDD": rules.PWR_NET, "VCC": rules.PWR_NET,
+                 "GND": rules.GND_NET, "VSS": rules.GND_NET,
+                 rules.PWR_NET: rules.PWR_NET, rules.GND_NET: rules.GND_NET}
+
     print(f"=== {os.path.relpath(gds, cfg.ROOT)} ===")
     print(f"  {len(parts)} merged M1/M2 shapes, "
           f"{len(set(uf.find(k) for k in uf.p))} connected component(s)\n")
@@ -157,7 +169,7 @@ def main(gds=cfg.SQUEEZED_GDS, placement=cfg.PLACEMENT_JSON, net_path=cfg.NET_PA
         else:
             net = hp.port_net_name(port, resolver)
         pins = net_pins.get(net) or net_pins.get(port) or []
-        mks = marker.get(port, [])
+        mks = marker.get(port) or marker.get(PWR_ALIAS.get(port, port), [])
         if not mks:
             print(f"  FAIL {port:14} no PIN marker")
             bad += 1

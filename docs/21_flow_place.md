@@ -26,8 +26,16 @@ python3 apr/plot_placement.py    # -> layout/placement_steps.png
 | step3 | **TAP 挿入**（固定ピッチのセグメント分割） | `layout/step3/place_step3_tap.gds` |
 | step4 | **FILL 挿入**（行幅を厳密に揃える）※最終 | `layout/step4/place_step4_fill.gds` / `.json` |
 
-CLI: `--netlist` `--cell-info` `--restarts`（既定 800） `--order-passes`（既定 40）
-`--seed`（既定 7） `--fill-mode {alternate,distributed,end}` `--balance-tol`（既定 0.02）
+CLI: `--netlist` `--cell-info` `--restarts` `--order-passes` `--seed`
+`--fill-mode {alternate,distributed,end}` `--balance-tol`
+
+**既定値は設計の `config.py` から来る**（`PLACE_SEED` / `PLACE_RESTARTS` /
+`PLACE_ORDER_PASSES` / `PLACE_BALANCE_TOL` / `PAD_WEIGHT`。優先順は
+**環境変数 `APR_*` > config.py > 既定**）。
+`I2C_2026` は `PAD_WEIGHT=16.0` / `PLACE_SEED=4` を持つので、
+**引数を 1 つも付けずに提出物が再現する**。
+使った値は 1 行目に印字され `layout/place_params.json` にも残る
+（`docs/40_gotchas.md` §4-0）。
 
 副産物 `layout/row_assignment.json` を `insert_row_buffers.py --row-assignment` に戻す
 **2 パス**が正規手順（`docs/20_flow_syn.md` §4）。
@@ -88,7 +96,8 @@ CLI: `--netlist` `--cell-info` `--restarts`（既定 800） `--order-passes`（�
 同じ辺に出ているのは 32 本中 5 本（`tx_data[5]` は左辺に出るのにパッドは右辺）。
 
 → 行割当（`cut_cost`）と行内順序（`hpwl`）の**両方にパッド近接項**を追加。
-`_EDGE_ROW = {"BOTTOM":0, "TOP":-1, "RIGHT":1, "LEFT":2}`、重み `APR_PAD_WEIGHT`
+`_EDGE_ROW = {"BOTTOM":0, "TOP":-1, "RIGHT":1, "LEFT":2}`、重み `cfg.PAD_WEIGHT`
+（`APR_PAD_WEIGHT` で上書き可）
 （既定 1.0、I2C 採用値 **16**）。
 
 > この規約は `route_top_pins` の左右振り分けに依存しており、

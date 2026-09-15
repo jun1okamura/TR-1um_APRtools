@@ -76,8 +76,18 @@ def resolve(spec, tmpdir):
     return spec, spec
 
 
-def geom_diff(base, new, verbose=True):
-    """層ごとに Region の XOR を取る。戻り値は (差のある層, ラベル差)。
+def tops(ly):
+    """トップセル名の集合。
+
+    **`Layout.top_cell()` は使わない。** 参照されないセルが 1 つでも
+    残っていると「トップが複数ある」で例外になる。配置配線の中間 GDS には
+    使われなかったライブラリセルが混ざることが実際にある（そしてそれ自体が
+    2 つの GDS の差になる）ので、**トップの集合そのものを比較対象にする**。"""
+    return {c.name for c in ly.top_cells()}
+
+
+def geom_diff(base, new, top=None, verbose=True):
+    """層ごとに Region の XOR を取る。戻り値は (差のある層, ラベル差, 注記)。
 
     比較できなければ None を返す（`klayout` モジュールが無いとき）。"""
     try:
@@ -91,16 +101,45 @@ def geom_diff(base, new, verbose=True):
         return ly
 
     la, lb = load(base), load(new)
+    notes = []
+
+    ta_, tb_ = tops(la), tops(lb)
+    if top:
+        roots = {top}
+        for ly, tag in ((la, "base"), (lb, "new")):
+            if ly.cell(top) is None:
+                raise SystemExit(f"{tag} にセル {top} が無い")
+    elif ta_ == tb_:
+        roots = ta_
+        if len(roots) > 1:
+            notes.append(f"トップセルが {len(roots)} 個（両方同じ）: "
+                         f"{sorted(roots)}  ※参照されないセルが残っている")
+    else:
+        roots = ta_ | tb_
+        notes.append(f"**トップセルの顔ぶれが違う** base のみ {sorted(ta_ - tb_)}"
+                     f" / new のみ {sorted(tb_ - ta_)}")
+
+    ca, cb = {c.name for c in la.each_cell()}, {c.name for c in lb.each_cell()}
+    if ca != cb:
+        notes.append(f"セル定義 base {len(ca)} / new {len(cb)} 本 — "
+                     f"base のみ {sorted(ca - cb)[:6]} / new のみ {sorted(cb - ca)[:6]}")
+
+    def regions(ly, lay, dt):
+        r = db.Region()
+        idx = ly.find_layer(lay, dt)
+        if idx is None:
+            return r
+        for name in sorted(roots):
+            c = ly.cell(name)
+            if c is not None:
+                r.insert(c.begin_shapes_rec(idx))
+        return r
+
     layers = sorted({(li.layer, li.datatype) for li in la.layer_infos()} |
                     {(li.layer, li.datatype) for li in lb.layer_infos()})
     bad = []
     for lay, dt in layers:
-        ra, rb = db.Region(), db.Region()
-        for ly, r in ((la, ra), (lb, rb)):
-            idx = ly.find_layer(lay, dt)
-            if idx is not None:
-                r.insert(ly.top_cell().begin_shapes_rec(idx))
-        x = (ra ^ rb)
+        x = (regions(la, lay, dt) ^ regions(lb, lay, dt))
         x.merge()
         if not x.is_empty():
             bad.append(((lay, dt), x.count(), round(x.area() / 1e6, 3)))
@@ -114,19 +153,23 @@ def geom_diff(base, new, verbose=True):
             idx = ly.find_layer(li)
             if idx is None:
                 continue
-            for it in ly.top_cell().begin_shapes_rec(idx):
-                sh = it.shape()
-                if sh.is_text():
-                    t = sh.text.transformed(it.trans())
-                    out.add((sh.text.string, li.layer, li.datatype,
-                             round(t.x * ly.dbu, 3), round(t.y * ly.dbu, 3)))
+            for name in sorted(roots):
+                c = ly.cell(name)
+                if c is None:
+                    continue
+                for it in c.begin_shapes_rec(idx):
+                    sh = it.shape()
+                    if sh.is_text():
+                        t = sh.text.transformed(it.trans())
+                        out.add((sh.text.string, li.layer, li.datatype,
+                                 round(t.x * ly.dbu, 3), round(t.y * ly.dbu, 3)))
         return out
 
     ta, tb = texts(la), texts(lb)
-    return bad, (ta - tb, tb - ta)
+    return bad, (ta - tb, tb - ta), notes
 
 
-def compare(base_spec, new_spec, tmpdir, quiet=False):
+def compare(base_spec, new_spec, tmpdir, quiet=False, top=None):
     base, blabel = resolve(base_spec, tmpdir)
     new, nlabel = resolve(new_spec, tmpdir)
     ma, mb = norm_md5(base), norm_md5(new)
@@ -139,11 +182,13 @@ def compare(base_spec, new_spec, tmpdir, quiet=False):
     print(f"         new  {mb[:16]}…  {os.path.getsize(new):,} B  {nlabel}")
     if quiet:
         return False
-    r = geom_diff(base, new)
+    r = geom_diff(base, new, top)
     if r is None:
         print("         （`pip install klayout` があれば幾何とラベルの差まで出せる）")
         return False
-    bad, (only_a, only_b) = r
+    bad, (only_a, only_b), notes = r
+    for n in notes:
+        print(f"         ! {n}")
     if not bad:
         print("         → **幾何は完全一致**（Region XOR が全層で空）")
     else:
@@ -156,8 +201,8 @@ def compare(base_spec, new_spec, tmpdir, quiet=False):
             print(f"           {sa[:8]} -> {sb[:8]}")
     elif not bad:
         print("         → ラベルも一致。差はバイト列の書き方だけ"
-              "（KLayout のバージョン差）")
-    return not bad and not only_a and not only_b
+              "（KLayout のバージョン差、あるいは使われていないセルの有無）")
+    return not bad and not only_a and not only_b and not notes
 
 
 def main():
@@ -167,13 +212,16 @@ def main():
     ap.add_argument("new")
     ap.add_argument("--dir", action="store_true",
                     help="2 つをディレクトリとして扱い、同名の .gds を総当たり")
+    ap.add_argument("--top", default=None,
+                    help="このセルだけを見る（既定: トップセル全部。"
+                         "参照されないセルが残っていても落ちない）")
     ap.add_argument("-q", "--quiet", action="store_true",
                     help="md5 だけ見る（幾何の比較をしない）")
     a = ap.parse_args()
 
     with tempfile.TemporaryDirectory() as tmp:
         if not a.dir:
-            return 0 if compare(a.base, a.new, tmp, a.quiet) else 1
+            return 0 if compare(a.base, a.new, tmp, a.quiet, a.top) else 1
         names = sorted(f for f in os.listdir(a.new) if f.endswith(".gds")
                        if os.path.exists(os.path.join(a.base, f)))
         if not names:
@@ -181,7 +229,7 @@ def main():
         ng = 0
         for f in names:
             if not compare(os.path.join(a.base, f), os.path.join(a.new, f),
-                           tmp, a.quiet):
+                           tmp, a.quiet, a.top):
                 ng += 1
         print(f"\n{len(names)} 本中 {len(names)-ng} 本一致 / {ng} 本不一致")
         return 1 if ng else 0

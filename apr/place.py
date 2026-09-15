@@ -76,8 +76,9 @@ NO_MACRO = getattr(cfg, "MACRO_MODE", "landscape") == "none"
 #   * 行割当 (`cut_cost`)  ネットの最寄りセルが希望の行から何行離れているか
 #   * 行内順序 (`hpwl`)    パッドの x をアンカーにする（上下辺）／
 #                          行の端 x をアンカーにする（左右辺）
-# 重みは `APR_PAD_WEIGHT`（0 で従来どおり）。
-PAD_WEIGHT = float(os.environ.get("APR_PAD_WEIGHT", "1.0"))
+# 重みは **`config.py` の `PAD_WEIGHT`**（0 で従来どおり）。環境変数
+# `APR_PAD_WEIGHT` で上書きできる（掃引用）。直接 os.environ を読まない。
+PAD_WEIGHT = float(getattr(cfg, "PAD_WEIGHT", 1.0))
 _EDGE_ROW = {"BOTTOM": 0, "TOP": -1, "RIGHT": 1, "LEFT": 2}
 
 
@@ -709,6 +710,15 @@ def main(net_path=None, info_path=None, restarts=800, order_passes=40,
     if not os.path.exists(info_path):
         raise SystemExit(f"{info_path} が無い。先に scripts/pnr/mkcellinfo.py")
 
+    # ★ 何で回したかを毎回残す。**結果だけ見て「再現しない」と言わない**ため。
+    params = dict(seed=seed, pad_weight=PAD_WEIGHT, restarts=restarts,
+                  order_passes=order_passes, balance_tol=tol,
+                  fill_mode=fill_mode, stdcell=getattr(cfg, "STDCELL", "?"))
+    print("配置パラメータ: " + "  ".join(f"{k}={v}" for k, v in params.items()))
+    os.makedirs(cfg.LAYOUT, exist_ok=True)
+    json.dump(params, open(os.path.join(cfg.LAYOUT, "place_params.json"), "w"),
+              indent=1, sort_keys=True)
+
     cells, macro, width, cellof, net_cells, ports, macro_pin = \
         load(net_path, info_path)
     info = json.load(open(info_path))
@@ -818,12 +828,15 @@ if __name__ == "__main__":
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--netlist", default=None)
     ap.add_argument("--cell-info", default=None)
-    ap.add_argument("--restarts", type=int, default=800)
-    ap.add_argument("--order-passes", type=int, default=40)
-    ap.add_argument("--seed", type=int, default=7)
+    # ★ 既定値は **config.py から来る**（`config_base.finalize()` が
+    #   環境変数 > config.py > 既定 の順で決める）。引数を 1 つも付けずに
+    #   提出した配置が再現できること、が守りたい性質。
+    ap.add_argument("--restarts", type=int, default=cfg.PLACE_RESTARTS)
+    ap.add_argument("--order-passes", type=int, default=cfg.PLACE_ORDER_PASSES)
+    ap.add_argument("--seed", type=int, default=cfg.PLACE_SEED)
     ap.add_argument("--fill-mode", choices=("alternate", "distributed", "end"),
                     default="alternate")
-    ap.add_argument("--balance-tol", type=float, default=0.02,
+    ap.add_argument("--balance-tol", type=float, default=cfg.PLACE_BALANCE_TOL,
                     help="行幅の許容ばらつき（平均比）。緩めるとカットは減るが"
                          "行が凸凹になる")
     a = ap.parse_args()

@@ -351,6 +351,20 @@ def finalize(ns):
     #   配置後に chip_geometry() が実測して上書きする。ここは参考値。
     ns["CORE_OFFSET_X_NOMINAL"] = round(-ns["CORE_WIDTH_UM"] / 2.0, 3)
 
+    # ---- 配置の再現に効くパラメータ -------------------------------------
+    # **フラグや環境変数に頼らない。** 提出した配置を作った値は設計の
+    # config.py に書く（`PAD_WEIGHT` を export し忘れた 1 回だけが別の配置に
+    # なる、という事故を 2026-09-15 に実際に起こした。`docs/40_gotchas.md` §4-3）。
+    # 優先順は **環境変数 > config.py > 既定**（掃引は環境変数で回す）。
+    for _k, _d, _c in (("PAD_WEIGHT", 1.0, float), ("PLACE_SEED", 7, int),
+                       ("PLACE_RESTARTS", 800, int),
+                       ("PLACE_ORDER_PASSES", 40, int),
+                       ("PLACE_BALANCE_TOL", 0.02, float)):
+        ns.setdefault(_k, _d)
+        _v = getenv(_k)
+        if _v is not None:
+            ns[_k] = _c(_v)
+
     # チャネル予算
     env_ch = getenv("CH_HEIGHTS")
     if env_ch:
