@@ -98,9 +98,15 @@ def check_cell(ly, cell, dbu):
     add("M2.W1 width", m2.width_check(um(M2_W)), M2_W)
     add("M2.S1 space", m2.space_check(um(M2_S)), M2_S)
     add("V1.S1 space", v1.space_check(um(V1_S)), V1_S)
-    for tag, metal in (("V1.M1", m1), ("M2.V1", m2)):
-        not_enc = v1 - metal.sized(-um(V1_ENC))
-        add_polys(tag + " enclosure", not_enc, V1_ENC)
+    # ★ 囲みは **`enclosed_check`（辺の対）** で見る。デッキの
+    #   `V1.drc(enclosed(M1) < 1.0)` と同じ粒度になる（U56）。
+    #   以前は `v1 - m1.sized(-1.0)` の**領域の引き算**で、見落としはしないが
+    #   「1 つの via につき 1 件」になり、4 辺とも足りない via を
+    #   デッキが 4 件と数えるのに対してこちらは 1 件だった。**同じものを
+    #   見ていても数え方が違うと突き合わせられない。**（`drc_check.py` は
+    #   最初からこちらの API を使っていた）
+    for tag, metal in (("V1.M1 enclosure", m1), ("M2.V1 enclosure", m2)):
+        add(tag, v1.enclosed_check(metal, um(V1_ENC)), V1_ENC)
 
     # ---- U55: PDK デッキにあって自作側に無かった 4 規則 -------------------
     # 出典は `$TR1UM_PDK/libs.tech/klayout/tech/drc/run.drc`（Cat-6）と
