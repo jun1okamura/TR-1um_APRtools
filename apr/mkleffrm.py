@@ -274,6 +274,7 @@ def make_netof(gds, top):
         lr = l2n.layer_by_name(lay)
         for net in circuit.each_net():
             nm = net.expanded_name()
+            # lint: ok フレーム GDS の中の網名。コア側の網ではない
             if nm in ("VDD", "VSS"):
                 r = l2n.shapes_of_net(net, lr, True)
                 r.merge()

@@ -29,8 +29,12 @@ from matplotlib.patches import Rectangle                    # noqa: E402
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
-import config as cfg                                    # noqa: E402
+import config as cfg
+import rules                                    # noqa: E402
 import klayout.db as db                                     # noqa: E402
+
+
+_PWR_RAILS = (rules.CHIP_PWR_RAIL, rules.CHIP_GND_RAIL)
 
 
 def core_port_pins(gds, dx, dy):
@@ -164,9 +168,9 @@ def main():
     for name, pts in seen.items():
         for px, py in pts:
             ax.plot([px], [py], marker="o", ms=2.6,
-                    color="#c0392b" if name not in ("VDD", "GND") else "#e67e22")
+                    color="#c0392b" if name not in _PWR_RAILS else "#e67e22")
         px, py = pts[0]
-        if name not in ("VDD", "GND"):
+        if name not in _PWR_RAILS:
             ax.annotate(name, (px, py), fontsize=6.5, color="#c0392b",
                         xytext=(0, 6 if py > 0 else -10), textcoords="offset points",
                         ha="center")

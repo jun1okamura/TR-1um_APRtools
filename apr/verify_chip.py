@@ -142,7 +142,8 @@ def main():
     #   ここを `"VDD"`/`"GND"` で引いていたので、下のタップ照合は
     #   **一度も動いていなかった**（「コアの電源タップ 0 本を確認」と出て
     #   通ってしまう）。I2C / TD4 のサインオフでも 0 本だった。U21 の 1 件。
-    CORE_RAIL = {rules.PWR_NET: "VDD", rules.GND_NET: "GND"}
+    #   表は `rules` に 1 つだけ置く。
+    CORE_RAIL = rules.RAIL_OF
     ties = plan.get("ties")
     if ties is None:
         ties = plan["hiz_ties"] + plan["float_ties"]

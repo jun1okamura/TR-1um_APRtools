@@ -117,6 +117,20 @@ PAD_PWR = "VDD"
 PAD_GND = "VSS"
 # ★ SPICE は大小を区別しない。大小だけで別ネットを作れない。
 
+# ---- コア側とチップ側の境界（U21）---------------------------------------
+# コアの中は小文字（`PWR_NET` / `GND_NET`）、チップの中はフレームに合わせて
+# 大文字。**その 2 つを繋ぐ写像はここ 1 箇所だけ**に置く。
+# 以前は `route_chip.core_power_pins()` と `verify_chip.py` が別々に
+# 書いていて、`verify_chip` の方が小文字を見落として**照合が一度も
+# 動いていなかった**（「コアの電源タップ 0 本を確認」と出して通っていた）。
+CHIP_PWR_RAIL = "VDD"
+CHIP_GND_RAIL = "GND"        # チップ側は GND。フレームのピン名 VSS とは別
+# コアのラベル -> チップ側のレール名。旧世代のコア（大文字ラベル）も読める。
+RAIL_OF = {PWR_NET: CHIP_PWR_RAIL, GND_NET: CHIP_GND_RAIL,
+           "VDD": CHIP_PWR_RAIL, "GND": CHIP_GND_RAIL, PAD_GND: CHIP_GND_RAIL}
+# チップ側のレール名 -> コアが実際に書いているラベル（照合はこちら向き）。
+CORE_LABEL_OF = {CHIP_PWR_RAIL: PWR_NET, CHIP_GND_RAIL: GND_NET}
+
 # ---- ロゴ ----------------------------------------------------------------
 LOGO_PITCH = 5.0           # = M2 最小幅 3.0 + 最小スペース 2.0
 LOGO_DOT = 3.0             # 直交隣接 2.0 / 斜め 2.83 -- どちらも合法

@@ -191,16 +191,10 @@ GND_BUS_Y = getattr(cfg, "CHIP_GND_BUS_Y", 790.0)        # M1 785.0…795.0。�
 # コアだけが開口に入っているチップ。VDD は上辺のバスから 5 本のライザで
 # フレームの M1 ピンへ、GND は下辺のバスから 5 本のストリップで下辺中央の
 # VSS 壁ピンへ、まっすぐ降ろす。
-# ★ x は**コアの上辺 / 下辺のポートが出ている場所を避ける**。TD4 の値を
-#   そのまま SPI に当てたら、下辺の -100.0 / 0.0 がコアのポート -99.9 /
-#   -2.7 に重なって rx_data[0] と rx_data[2] が GND に短絡した。
-#   設計ごとに `CHIP_VDD_RISER_X` / `CHIP_VSS_STRIP_X` で置き換える。
-VDD_RISER_W = getattr(cfg, "CHIP_VDD_RISER_W", 3.4)
-VDD_RISER_X = tuple(getattr(cfg, "CHIP_VDD_RISER_X",
-                            (80.0, 140.0, 200.0, 260.0, 320.0)))
-VSS_STRIP_W = getattr(cfg, "CHIP_VSS_STRIP_W", 10.0)
-VSS_STRIP_X = tuple(getattr(cfg, "CHIP_VSS_STRIP_X",
-                            (-400.0, -300.0, -200.0, -100.0, 0.0)))
+# ★ 幅・本数・x は 3 方式とも同じ（下の `STRIP_*`）。以前 `top_bottom` だけ
+#   `VDD_RISER_X` / `VSS_STRIP_X` という別の並びを持っていたが、V10 の形に
+#   揃えたので消した（U47）。x はコアのポートを避ける必要があり、
+#   `check_strip_clearance()` が先に検算する（U41）。
 
 STRIP_W = 10.0
 STRIP_OFFSETS = (-24.0, -12.0, 0.0, 12.0, 24.0)
@@ -208,16 +202,20 @@ STRIP_VIA = 6.8          # 10 µm どうしの重なりに収まる 2x2 カッ�
 
 # フレームの M1 VDD ピン (50,920)-(350,934)。M2 は VDD_CROSS_Y で止めて
 # M1 に跳ねる（920 から上はフレームの VSS が M2 で寝ている）。
-VDD_PIN_X = 200.0
+# ★ ストリップの束の**中心 x**。既定はフレームの電源ピンの中心。
+#   コアのポートと重なるときはここを動かす（U41）。束は幅 10 x 5 本 +
+#   スペース 2 で 58 µm 占めるので、ピンの x 範囲に収まる値にすること。
+#   フレームの M1 VDD ピンは x 50…350、下辺の VSS 壁ピンは x -450…50。
+VDD_PIN_X = getattr(cfg, "CHIP_VDD_STRIP_X", 200.0)
 VDD_PIN_Y = 927.0
 VDD_CROSS_Y = getattr(cfg, "CHIP_VDD_CROSS_Y", 914.5)      # V10 と同じ。M2 の上端が壁 920 から 5.5 µm
 # GND バス -> GND リングの M2 ストリップ。上辺で空いているのは
 # x -94.5（rx_data[0]）と 116.1（sda_in）の間だけなので、そのまん中の
 # x=0 を中心に 5 本（-29…29 を占める。両隣まで 63.8 / 85.4 µm）。
-GND_STRIP_X = 0.0
+GND_STRIP_X = getattr(cfg, "CHIP_GND_STRIP_X", 0.0)
 # 下辺中央の VSS 壁ピン (-450,-934)-(50,-920) へ。10 µm 内側に着地する。
 # I2C では**コアからではなく GND リングから**降ろす（上の (17) を参照）。
-VSS_PIN_X = -200.0
+VSS_PIN_X = getattr(cfg, "CHIP_VSS_STRIP_X", -200.0)
 VSS_LAND_Y = -926.0
 # 残り三辺の VSS 壁ピンへの短いストラップ（GND リング -> 壁）。
 # x=400 の上辺は VDD ライザ（80..320）から 80 µm 離してある。
@@ -649,7 +647,7 @@ def macro_risers(gds, dx, dy):
     座標は LEF の宣言ではなく、GDS のインスタンス位置 + LEF のポート矩形。"""
     # I2C にマクロは無い（config.MACRO_MODE = "none"）。
     if getattr(cfg, "MACRO_MODE", "none") == "none":
-        return {"VDD": [], "GND": []}, None
+        return {rules.CHIP_PWR_RAIL: [], rules.CHIP_GND_RAIL: []}, None
     ly = db.Layout()
     ly.read(gds)
     core = ly.cell(cfg.TOP_CELL_NAME)
@@ -659,11 +657,12 @@ def macro_risers(gds, dx, dy):
             origin = (inst.dtrans.disp.x, inst.dtrans.disp.y)
             break
     if origin is None:
-        return {"VDD": [], "GND": []}, None
+        return {rules.CHIP_PWR_RAIL: [], rules.CHIP_GND_RAIL: []}, None
     mx, my = origin
     ports = connect_macro_power.macro_power_ports(cfg.LEF_PATH, cfg.MACRO_CELL)
-    out = {"VDD": [], "GND": []}
-    for net, rail, top_side in (("vdd", "VDD", True), ("vss", "GND", False)):
+    out = {rules.CHIP_PWR_RAIL: [], rules.CHIP_GND_RAIL: []}
+    for net, rail, top_side in ((rules.PWR_NET, rules.CHIP_PWR_RAIL, True),
+                                (rules.GND_NET, rules.CHIP_GND_RAIL, False)):
         rects = ports[net]
         ymark = (max if top_side else min)(r[1] for r in rects)
         for r in rects:
@@ -690,9 +689,8 @@ def core_power_pins(gds, dx, dy):
     c = ly.cell(cfg.TOP_CELL_NAME)
     u = ly.dbu
     bb = c.bbox()
-    # コアのラベル -> チップ側のレール名
-    RAIL_OF = {rules.PWR_NET: "VDD", rules.GND_NET: "GND",
-               "VDD": "VDD", "GND": "GND", "VSS": "GND"}
+    # コアのラベル -> チップ側のレール名。**表は rules に 1 つだけ**（U21）。
+    RAIL_OF = rules.RAIL_OF
     out = {"VDD": defaultdict(list), "GND": defaultdict(list)}
     for s in c.shapes(ly.layer(49, 0)).each():
         if not s.is_text():
@@ -710,6 +708,41 @@ def core_power_pins(gds, dx, dy):
 
 
 # --------------------------------------------------------------------------
+def check_strip_clearance(plan, xs, w, edge, what):
+    """縦の電源ストリップが**コアの信号ポートの真上 / 真下**に来ていないか（U41）。
+
+    コアのポートはチャネルへまっすぐ M2 で降りる（昇る）。電源のストリップも
+    同じチャネルを縦に通るので、x が重なると**その場で短絡する**。
+    SCLK_SPI で実際に起きた: TD4 世代の既定 -100.0 / 0.0 が
+    コアのポート -99.9 / -2.7 に重なり、`rx_data[0]` と `rx_data[2]` が
+    GND に落ちた。**ルータは電源を後から描くので、この衝突は誰も見ていない。**
+
+    重なりの判定は「M2 の縁どうしが 2.0 µm 空くか」。
+    """
+    need = w / 2.0 + M2_WIRE_W / 2.0 + 2.0
+    ports = [(sg["from"]["x"], sg["net"]) for sg in plan["signals"]
+             if sg["from"].get("what") == "core" and sg["from"].get("edge") == edge]
+    bad = []
+    for sx in xs:
+        for px, net in ports:
+            if abs(px - sx) < need:
+                bad.append((sx, px, net, round(abs(px - sx), 2)))
+    if bad:
+        lines = "\n".join(f"    x={sx} と {net}（コアのポート x={px}）が "
+                           f"{gap} µm（要 {need:.1f}）" for sx, px, net, gap in bad)
+        raise SystemExit(
+            f"** {what} がコアの {edge} 辺のポートと重なる（U41）:\n{lines}\n"
+            f"   config.py の CHIP_VDD_STRIP_X / CHIP_GND_STRIP_X / "
+            f"CHIP_VSS_STRIP_X で束の中心を動かすこと。\n"
+            f"   その辺のポート x: {sorted({round(p, 1) for p, _ in ports})}")
+    if not ports:
+        print(f"  {what} {len(xs)} 本: コアの {edge} 辺に信号ポートが無いので素通し")
+        return
+    near = min(abs(px - sx) for sx in xs for px, _ in ports)
+    print(f"  {what} {len(xs)} 本はコアの {edge} 辺のポート {len(ports)} 本と"
+          f"最小 {near:.1f} µm 空いている（要 {need:.1f}）")
+
+
 def power_ringosc(d, plan, taps, risers, macro_at, ct, cb):
     """**RING_OSC の帯を下に敷いたチップ**の電源（APR_2026 世代）。
 
@@ -760,6 +793,14 @@ def power_ringosc(d, plan, taps, risers, macro_at, ct, cb):
         print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "
               + "  ".join(f"{k} " + ", ".join(f"x={x} y={y}" for x, y in v)
                           for k, v in risers.items() if v))
+
+    # ★ ストリップがコアのポートに重ならないか先に見る（U41）
+    check_strip_clearance(plan, [VDD_PIN_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "TOP", "VDD ストリップ")
+    check_strip_clearance(plan, [GND_STRIP_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "TOP", "GND ストリップ（上）")
+    check_strip_clearance(plan, [VSS_PIN_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "BOTTOM", "VSS ストリップ（下）")
 
     # --- I2C 移植 (22): V10 と同じ 10 µm x 5 本のストリップ ---------------
     # VDD: バス(804) -> [リング 902 に via] -> M2 で 914.5 -> M1 でピン 927
@@ -918,6 +959,14 @@ def power_top_only(d, plan, taps, risers, macro_at, ct, cb):
               + "  ".join(f"{k} " + ", ".join(f"x={x} y={y}" for x, y in v)
                           for k, v in risers.items() if v))
 
+    # ★ ストリップがコアのポートに重ならないか先に見る（U41）
+    check_strip_clearance(plan, [VDD_PIN_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "TOP", "VDD ストリップ")
+    check_strip_clearance(plan, [GND_STRIP_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "TOP", "GND ストリップ（上）")
+    check_strip_clearance(plan, [VSS_PIN_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "BOTTOM", "VSS ストリップ（下）")
+
     # --- I2C 移植 (22): V10 と同じ 10 µm x 5 本のストリップ ---------------
     # VDD: バス(804) -> [リング 902 に via] -> M2 で 914.5 -> M1 でピン 927
     d.net = "VDD"
@@ -1004,6 +1053,12 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
         print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "
               + "  ".join(f"{k} " + ", ".join(f"x={x} y={y}" for x, y in v)
                           for k, v in risers.items() if v))
+
+    # ★ ストリップがコアのポートに重ならないか先に見る（U41）
+    check_strip_clearance(plan, [VDD_PIN_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "TOP", "VDD ストリップ")
+    check_strip_clearance(plan, [VSS_PIN_X + o for o in STRIP_OFFSETS],
+                          STRIP_W, "BOTTOM", "GND ストリップ")
 
     # --- パッド <-> 内部バスの渡し方は **V10 と同じ形**（I2C / SCLK_SPI と共通）---
     # 幅 **10 µm** を **ピッチ 12（幅 10 + スペース 2）で 5 本**、フレームの

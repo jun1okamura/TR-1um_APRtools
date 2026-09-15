@@ -35,7 +35,7 @@ PINNAMES = {
     "diode_n":     {0: "A"},          # 保護ダイオードの信号側
 }
 # ラベルが複数付いたネットで、どれを名前に採るか
-PREFER = ("VDD", "VSS", "PAD", "OUT", "HIZ")
+PREFER = ("VDD", "VSS", "PAD", "OUT", "HIZ")  # lint: ok フレームのラベル名。コア側の網ではない
 
 
 def clean(s):

@@ -159,10 +159,11 @@ def main():
          "Vvss VSS 0 DC 0",
          ""]
 
-    inst = []
-    for p in ports:
-        inst.append(p if p in ("VDD", "VSS") else p)
-    L.append("X1 " + " ".join(inst) + f" {cfg.CHIP_TOP_CELL}")
+    # ★ ここは以前 `p if p in ("VDD", "VSS") else p` と書いてあった。
+    #   **どちらの枝も p を返す死んだ分岐**で、電源だけ名前を変えるつもりの
+    #   書きかけが残っていたもの。チップの .subckt はポートを宣言どおりの
+    #   名前で受けるので、そのまま並べるのが正しい。
+    L.append("X1 " + " ".join(ports) + f" {cfg.CHIP_TOP_CELL}")
     L.append("")
 
     for pad, sig in sorted(IN_PADS.items(), key=lambda kv: kv[1]):
