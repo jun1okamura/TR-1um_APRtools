@@ -46,6 +46,28 @@ def main():
         return 1
     line(OK, f"config.py 読み込み / check() 通過  ROOT={cfg.ROOT}")
 
+    # ---- 提出物の命名規則（`info.yaml` の注記）--------------------------
+    #   * "tr_1um_" で始まる
+    #   * GitHub 名を含む（一意にするため）
+    #   * 同じ人が複数出すので**設計の識別子**も要る
+    # -> `tr_1um_<GitHub 名>_<識別子>`。区切りが 2 つ以上あるかを見る。
+    # GitHub 名そのものは APRtools からは分からないので、**形だけ**検査する。
+    # 2026-09-15: TD4 が `tr_1um_jun1okamura`（識別子なし）、SCLK_SPI が
+    # `tr_1um_3wire_SPI`（GitHub 名なし）で提出されていた。
+    import re as _re
+    _top = getattr(cfg, "CHIP_TOP_CELL", "") or ""
+    if not _re.match(r"^tr_1um_[A-Za-z0-9][A-Za-z0-9-]*_[A-Za-z0-9_]+$", _top):
+        line(NG, f"CHIP_TOP_CELL {_top!r} が命名規則に合わない"
+                 "（tr_1um_<GitHub 名>_<設計の識別子>）")
+    else:
+        line(OK, f"CHIP_TOP_CELL  {_top}")
+    _yaml = os.path.join(cfg.ROOT, "info.yaml")
+    if os.path.exists(_yaml):
+        _m = _re.search(r'^\s*top_cell:\s*"([^"]+)"', open(_yaml, encoding="utf-8").read(), _re.M)
+        if _m and _m.group(1) != _top:
+            line(NG, f"info.yaml の top_cell {_m.group(1)!r} と "
+                     f"config.CHIP_TOP_CELL {_top!r} が違う")
+
     print("\n--- 0. 実行環境 ---")
     print(f"       python            {sys.executable}")
     try:

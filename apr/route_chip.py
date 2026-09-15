@@ -147,8 +147,12 @@ LANE_PITCH = 5.4         # M2 3.4 + 最小間隔 2.0。コア内のトラック�
 # リングを外へ寄せる必要が無くなった。TD4 と同じ 884 / 902 に戻してある。
 # フレームの金属は四辺とも実測きっかり 920.0 までなので、ここから
 # さらに R <= 913.0 までは動かせる（混んだときの逃げ）。
-GND_RING_R = 884.0
-VDD_RING_R = 902.0
+# ★ 設計で動かせる。フレームの金属は四辺とも実測きっかり 920.0 までなので、
+#   リング幅 10 の外縁 + M2 間隔 2.0 で **R <= 913.0** まで外へ出せる。
+#   SCLK_SPI はコアを上へ寄せて全信号を上辺から出すためレーンが 13 本要り、
+#   既定の 884 だと帯（最上 880.2）がリングに当たる。
+GND_RING_R = getattr(cfg, "CHIP_GND_RING_R", 884.0)
+VDD_RING_R = getattr(cfg, "CHIP_VDD_RING_R", 902.0)
 RING_W = 10.0
 RING_VIA = 6.8           # 10 µm 同士の重なりに収まる 2x2 カット
 WALL = 920.0             # 開口の内壁（実測。四隅まで同じ）
@@ -857,6 +861,109 @@ def power_ringosc(d, plan, taps, risers, macro_at, ct, cb):
 
 
 
+def power_top_only(d, plan, taps, risers, macro_at, ct, cb):
+    """**コアを上へ寄せて下をロゴに明け渡したチップ**の電源（SCLK_SPI 世代）。
+
+    `ringosc` と同じで **VDD も GND も上辺のタップ**から取る。違うのは
+    RING_OSC が無いことだけなので、帯まわりのバスバーとコア両脇の
+    ストラップを描かない。下のチャネルは**まるごと空く**ので、
+    ロゴを何枚でも積める。
+
+    下辺のタップは開放のまま。TAP 柱（M2）が全行を縦に貫いて上辺と
+    繋がっているので、電気的には全行に届く（IR ドロップが片側ぶん
+    増えるだけ。5 V / 10 MHz なので許容）。
+    """
+
+    # ---- コアの電源 -------------------------------------------------------
+    # I2C 移植 (17): VDD も GND も**上辺のタップ**から、上のチャネルの M1 バスへ。
+    # 下辺のタップは開放（TAP 柱で上辺と繋がっているので電気的には届く）。
+    for net, bus_y, strip_x in (("GND", GND_BUS_Y, GND_STRIP_X),
+                                ("VDD", VDD_BUS_Y, VDD_PIN_X)):
+        xs = taps[net]["TOP"]
+        if len(xs) != 4:
+            raise SystemExit(f"{net} の TOP タップが 4 本でない: {xs}")
+        d.net = net
+        strips = [strip_x + o for o in STRIP_OFFSETS]
+        lo = min(min(xs), min(strips)) - 8.0
+        hi = max(max(xs), max(strips)) + 8.0
+        # マクロのライザもこのバーで受けるので、バーを伸ばす（I2C では空）
+        for rx, _ in risers[net]:
+            lo, hi = min(lo, rx - 8.0), max(hi, rx + 8.0)
+        d.wire("M1", lo, bus_y, hi, bus_y, BUS_W)
+        # --- I2C 移植 (22) の一部: スタブはコアの純正ストラップの端から ----
+        # V10 の `NATIVE_TOP_Y` と同じ理由。コアの TAP 柱は上辺に幅 **3.4**
+        # の M2 ストラップを y=780.2（= コア上端）まで出している。そこより
+        # 内側から描き始めると、同じ金属をわずかに違う幅で二重に描いて
+        # KLayout で輪郭が二重に見える（V10 でユーザが指摘した「M2が2重」）。
+        # 幅も 3.4 ちょうどに合わせて、段差のない継ぎ目にする。
+        for tx in xs:
+            d.wire("M2", tx, ct, tx, bus_y + VIA_STACK_MARGIN, TAP_STUB_W)
+            d.via(tx, bus_y, TAP_STUB_W, 6.8)     # 縦に 2 カット
+        d.net = None
+        print(f"{net} バス M1 y={bus_y} x [{lo:.1f}, {hi:.1f}]、"
+              f"上辺タップ {len(xs)} 本 {xs}")
+        if taps[net].get("BOTTOM"):
+            print(f"    下辺タップ {len(taps[net]['BOTTOM'])} 本は開放"
+                  f"（下はロゴで塞がっている。TAP 柱で上辺と繋がっている）")
+
+    # ---- REG8x16 の電源をバーまで延伸 ------------------------------------
+    for net, bus_y in (("VDD", VDD_BUS_Y), ("GND", GND_BUS_Y)):
+        d.net = net
+        for rx, ry in risers[net]:
+            d.wire("M2", rx, ry, rx, bus_y, MACRO_RISER_W)
+            d.via(rx, bus_y, MACRO_RISER_W, 6.8)
+        d.net = None
+    if macro_at:
+        print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "
+              + "  ".join(f"{k} " + ", ".join(f"x={x} y={y}" for x, y in v)
+                          for k, v in risers.items() if v))
+
+    # --- I2C 移植 (22): V10 と同じ 10 µm x 5 本のストリップ ---------------
+    # VDD: バス(804) -> [リング 902 に via] -> M2 で 914.5 -> M1 でピン 927
+    d.net = "VDD"
+    for o in STRIP_OFFSETS:
+        sx = VDD_PIN_X + o
+        d.via(sx, VDD_BUS_Y, STRIP_VIA, STRIP_VIA)        # M1 バス -> M2
+        d.wire("M2", sx, VDD_BUS_Y, sx, VDD_CROSS_Y, STRIP_W)
+        d.via(sx, VDD_RING_R, STRIP_VIA, STRIP_VIA)       # VDD リングへ
+        d.via(sx, VDD_CROSS_Y, STRIP_VIA, STRIP_VIA)      # M1 へ跳ねる
+        d.wire("M1", sx, VDD_CROSS_Y, sx, VDD_PIN_Y, STRIP_W)
+    d.net = None
+    print(f"VDD ストリップ {len(STRIP_OFFSETS)} 本 幅 {STRIP_W} "
+          f"x={[VDD_PIN_X + o for o in STRIP_OFFSETS]} -> M1 ピン y={VDD_PIN_Y}"
+          f"（M2 は y={VDD_CROSS_Y} で止める）")
+
+    # GND: バス(790) -> M2 5 本 -> GND リング(884)。下辺の VSS 壁ピンへは
+    # リングの下辺から同じ 10 µm x 5 本で降ろす。
+    d.net = "GND"
+    for o in STRIP_OFFSETS:
+        sx = GND_STRIP_X + o
+        d.via(sx, GND_BUS_Y, STRIP_VIA, STRIP_VIA)        # M1 バス -> M2
+        d.wire("M2", sx, GND_BUS_Y, sx, GND_RING_R, STRIP_W)
+        d.via(sx, GND_RING_R, STRIP_VIA, STRIP_VIA)       # GND リングへ
+    # 移植 (23): VSS PAD からの M2 は GND リングで止めず、RING_OSC 下の
+    # VSS バスバーまで伸ばして繋ぐ（ユーザ指示「VSS は VSSPAD からの M2 と
+    # 繋いでください」）。途中で下辺のレーン（M1 水平）を跨ぐが層が違う。
+    for o in STRIP_OFFSETS:
+        sx = VSS_PIN_X + o
+        # RING_OSC が無いので **GND リングの下辺**から壁ピンへ降ろすだけ。
+        d.wire("M2", sx, -GND_RING_R, sx, VSS_LAND_Y, STRIP_W)
+        d.via(sx, -GND_RING_R, STRIP_VIA, STRIP_VIA)
+    # 残り三辺の VSS 壁ピンへ
+    for edge, v in VSS_STRAP:
+        p = (v, 0.0) if edge in ("TOP", "BOTTOM") else (0.0, v)
+        inner = project_to_R(p[0], p[1], edge, GND_RING_R)
+        outer = project_to_R(p[0], p[1], edge, abs(VSS_LAND_Y))
+        d.path([inner, outer], start_layer=ring_layer(edge),
+               end_layer="M2", w=STRAP_W)
+    d.net = None
+    print(f"GND ストリップ {len(STRIP_OFFSETS)} 本 幅 {STRIP_W} "
+          f"x={[GND_STRIP_X + o for o in STRIP_OFFSETS]} -> リング、"
+          f"下辺も {len(STRIP_OFFSETS)} 本 x={[VSS_PIN_X + o for o in STRIP_OFFSETS]}"
+          f" -> VSS 壁ピン y={VSS_LAND_Y}、ほか {len(VSS_STRAP)} 本のストラップ")
+
+
+
 def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
     """**コアだけが開口に入っているチップ**の電源（TD4 世代）。
 
@@ -928,7 +1035,8 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
           f"y={VSS_LAND_Y}、ほか {len(VSS_STRAP)} 本のストラップ")
 
 
-POWER = {"ringosc": power_ringosc, "top_bottom": power_top_bottom}
+POWER = {"ringosc": power_ringosc, "top_bottom": power_top_bottom,
+         "top_only": power_top_only}
 
 
 def main():

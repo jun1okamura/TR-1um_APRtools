@@ -134,6 +134,12 @@ def main():
                     help="k:1 に縮約（既定は config.LOGO_SCALE）")
     ap.add_argument("--cols", default=getattr(cfg, "LOGO_COLS", None),
                     help="切り出す列（既定は config.LOGO_COLS。紋章だけなら 0:64）")
+    # ★ 空きが縦に広い設計（SCLK_SPI はコアを上へ寄せて下を全部明けている）は
+    #   **何枚か積む**。提出済みの 64.8 版も 2 枚積んでいた。
+    ap.add_argument("--rows", type=int, default=getattr(cfg, "LOGO_ROWS", 1),
+                    help="縦に何枚積むか（既定は config.LOGO_ROWS）")
+    ap.add_argument("--gap", type=float, default=getattr(cfg, "LOGO_GAP", 100.0),
+                    help="積むときの間隔 µm（既定は config.LOGO_GAP）")
     a = ap.parse_args()
 
     raw, rw, rh = read_bitmap(a.bitmap)
@@ -159,16 +165,23 @@ def main():
     bad = drc(db.Region(cell.begin_shapes_rec(m2)), ly.dbu, LOGO_CELL)
 
     ax0, ay0, ax1, ay1 = area()
-    if lw > ax1 - ax0 or lh > ay1 - ay0:
-        raise SystemExit(f"ロゴ {lw:.1f} x {lh:.1f} µm が空き "
+    nrows = max(1, a.rows)
+    stack = nrows * lh + (nrows - 1) * a.gap
+    if lw > ax1 - ax0 or stack > ay1 - ay0:
+        raise SystemExit(f"{nrows} 枚で {lw:.1f} x {stack:.1f} µm。空き "
                          f"{ax1-ax0:.1f} x {ay1-ay0:.1f} µm に入らない")
     x = (ax0 + ax1) / 2.0 - lw / 2.0
-    y = (ay0 + ay1) / 2.0 - lh / 2.0
-    top.insert(db.CellInstArray(cell.cell_index(),
-                                db.Trans(db.Vector(int(round(x / ly.dbu)),
-                                                   int(round(y / ly.dbu))))))
-    print(f"\n置いた場所 ({x:.1f}, {y:.1f}) - ({x+lw:.1f}, {y+lh:.1f})"
-          f"   確保した帯 {area()}")
+    cy = (ay0 + ay1) / 2.0
+    placed = []
+    for i in range(nrows):
+        y = cy + stack / 2.0 - lh - i * (lh + a.gap)
+        top.insert(db.CellInstArray(cell.cell_index(),
+                                    db.Trans(db.Vector(int(round(x / ly.dbu)),
+                                                       int(round(y / ly.dbu))))))
+        placed.append(y)
+    print(f"\n置いた場所 x {x:.1f}..{x+lw:.1f}、y " +
+          " / ".join(f"{y:.1f}..{y+lh:.1f}" for y in placed) +
+          f"（{nrows} 枚、間隔 {a.gap:g} µm）   確保した帯 {area()}")
 
     # 置いたあと、チップ全体で**新しい**違反が出ていないこと
     after = db.Region(top.begin_shapes_rec(m2)).merged()

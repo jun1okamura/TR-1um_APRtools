@@ -240,6 +240,8 @@ STA_FALSE_PATH_FROM = ["rst_n"] # recovery/removal を特性化していない�
 STA_NON_SIGNAL_PORTS = ["VDD", "GND"]   # 構造インスタンスの電源ピン用のポート
 LOGO_SCALE = 1                  # ロゴの縮約（1 = 等倍）
 LOGO_COLS = None                # 切り出す列 "0:64" など。None で全幅
+LOGO_ROWS = 1                   # 縦に何枚積むか（空きが縦に広い設計用）
+LOGO_GAP = 100.0                # 積むときの間隔 µm
 UNBONDED = set()
 PAD_ONLY_NETS = {}
 BUFTH_NETS = []
