@@ -62,7 +62,7 @@ import config as cfg                                    # noqa: E402
 
 import klayout.db as db                                     # noqa: E402
 
-OUT_GDS = os.path.join(cfg.CHIP, "step1_assembled.gds")
+OUT_GDS = cfg.CHIP_ASSEMBLED_GDS
 
 
 def measured_inner_wall(layout, cell, x0, x1):

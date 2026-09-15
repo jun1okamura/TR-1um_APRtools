@@ -47,8 +47,8 @@ import config as cfg                                    # noqa: E402
 
 import klayout.db as db                                     # noqa: E402
 
-IN_GDS = os.path.join(cfg.CHIP, "step1b_ringosc.gds")
-OUT_GDS = os.path.join(cfg.CHIP, "step1c_logo.gds")
+IN_GDS = cfg.CHIP_LOGO_IN_GDS
+OUT_GDS = cfg.CHIP_LOGO_OUT_GDS
 BITMAP = cfg.LOGO_BITMAP          # APRtools の art/ を config 経由で
 
 M2_LAYER = (20, 0)

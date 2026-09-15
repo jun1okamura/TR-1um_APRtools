@@ -59,25 +59,17 @@ OUT_PLAN = os.path.join(cfg.CHIP, "signal_routing_plan.json")
 #   OUT   コア（か RING_OSC）の出力ネット -> パッドのドライバ入力
 #         "GND" と書いたらレール直結（SDA のオープンドレイン）
 #   HIZ   "VDD" / "GND" はレール直結。それ以外は**ネット名**で、動的制御
-PAD_MAP = {
-    1:  {"role": "SCL",   "P": "scl",                                  "HIZ": "VDD"},
-    2:  {"role": "SDA",   "P": "sda_in",    "OUT": "GND",              "HIZ": "sda_oe"},
-    3:  {"role": "D0",    "P": "tx_data[0]", "OUT": "rx_data[0]",      "HIZ": "DIS"},
-    4:  {"role": "D1",    "P": "tx_data[1]", "OUT": "rx_data[1]",      "HIZ": "DIS"},
-    5:  {"role": "D2",    "P": "tx_data[2]", "OUT": "rx_data[2]",      "HIZ": "DIS"},
-    6:  {"role": "D3",    "P": "tx_data[3]", "OUT": "rx_data[3]",      "HIZ": "DIS"},
-    7:  {"role": "DIS",   "P": "DIS",                                  "HIZ": "VDD"},
-    9:  {"role": "OSCD",  "OUT": "RING_OSC.OUTD",                      "HIZ": "GND"},
-    10: {"role": "OSC",   "OUT": "RING_OSC.OUT",                       "HIZ": "GND"},
-    11: {"role": "D4",    "P": "tx_data[4]", "OUT": "rx_data[4]",      "HIZ": "DIS"},
-    12: {"role": "D5",    "P": "tx_data[5]", "OUT": "rx_data[5]",      "HIZ": "DIS"},
-    13: {"role": "D6",    "P": "tx_data[6]", "OUT": "rx_data[6]",      "HIZ": "DIS"},
-    14: {"role": "D7",    "P": "tx_data[7]", "OUT": "rx_data[7]",      "HIZ": "DIS"},
-    15: {"role": "RSTN",  "P": ["rst_n", "RING_OSC.ENB"],              "HIZ": "VDD"},
-}
+# ★ **設計ごとの表なので `config.py` から取る**（U20、2026-09-15 に移した）。
+#   ここに literal を置いていたので、TD4 を回すと I2C のパッド表で
+#   「コアに PAD_MAP も UNBONDED も知らないピンがある」で止まった。
+PAD_MAP = dict(getattr(cfg, "PAD_MAP", {}) or {})
+if not PAD_MAP:
+    raise SystemExit(
+        "config.py に PAD_MAP がない。ボンドパッド番号 -> コアのネットの表を\n"
+        "  設計の config.py に書くこと（P / OUT / HIZ。docs/11_frame_io.md §2）")
 
 # パッドに出さないコアの出力。16 パッドに収まらないので V7/V9/V10 と同じく落とす。
-UNBONDED = {"addr_match", "busy", "rw", "rx_valid"}
+UNBONDED = set(getattr(cfg, "UNBONDED", set()) or set())
 
 # パッド端子どうしで閉じるネット（コアを通らない）。
 #   DIS: P7 のセンス線 -> 8 本のデータパッドの HIZ
@@ -146,6 +138,9 @@ def ringosc_pins():
     txt = open(cfg.RING_OSC_LEF).read()
     body = re.search(rf"MACRO {cfg.RING_OSC_CELL}(.*?)END {cfg.RING_OSC_CELL}",
                      txt, re.S).group(1)
+    # RING_OSC を載せない設計（TD4 など）は空で返す。
+    if getattr(cfg, "RING_OSC_ORIGIN", None) is None:
+        return {}
     ox, oy = cfg.RING_OSC_ORIGIN
     out = {}
     for m in re.finditer(r"PIN (\w+)(.*?)END \1", body, re.S):
@@ -303,7 +298,8 @@ def main():
               open(a.conn, "w"), ensure_ascii=False, indent=1)
     json.dump({"core_offset": geom["core_offset"],
                "core_chip_bbox": geom["core_chip_bbox"],
-               "ring_osc_origin": list(cfg.RING_OSC_ORIGIN),
+               "ring_osc_origin": (list(cfg.RING_OSC_ORIGIN)
+                            if getattr(cfg, "RING_OSC_ORIGIN", None) else None),
                "pin_radius": r, "signals": plan, "ties": ties},
               open(a.plan, "w"), ensure_ascii=False, indent=1)
 

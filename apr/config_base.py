@@ -25,6 +25,7 @@
   - DRC 値・レイヤ番号は `rules.py` が単一ソース
   - PDK のデータはコピーせず `TR1UM_PDK` から参照（`pdk/README.md`）
 """
+import math
 import os
 
 import rules
@@ -202,6 +203,8 @@ N_ROWS = getenv("N_ROWS", 2, int)
 CORE_WIDTH_TRACKS = getenv("CORE_WIDTH_TRACKS", 296, int)
 CH_HEIGHTS = None               # 設計が与える。None なら finalize が既定を作る
 NO_BOTTOM_PORTS = getenv("NO_BOTTOM_PORTS", False, bool)
+# ch の上下端がサイトグリッドに乗っていなくても止めない（既提出設計の再現用）
+CH_END_OFF_GRID_OK = getenv("CH_END_OFF_GRID_OK", False, bool)
 DOWN_FACING_INSTS = set()
 PER_ROW_LOCAL_NETS = set()
 PAD_MAP = {}
@@ -247,11 +250,27 @@ def tap_columns(width_um, pitch=TAP_PITCH, tap_w=TAP_W):
         xs.append(round(x, 3))
         x += pitch
     xs.append(last)
-    # 最後の間隔が pitch を超えるなら等間隔に振り直す
-    if len(xs) >= 2 and xs[-1] - xs[-2] > pitch + 1e-6:
-        n = int(last // pitch) + 1
-        step = last / n
-        xs = [round(round(i * step / SITE_UM) * SITE_UM, 3) for i in range(n)] + [last]
+    # 最後の間隔が **広すぎる**（pitch 超え）か **痩せすぎ**（pitch の半分未満）
+    # なら等間隔に振り直す。
+    #
+    # ★ 痩せすぎも直す理由: 行幅 1150.2 だと列が 0 / 534.6 / 1069.2 / 1139.4 に
+    #   なり、最後の区間が 70.2 µm しかない。そこへ回されたセルが入らず
+    #   step3 が「1 個が行に入りきらない」で落ちる（TD4 縦置きで実際に起きた）。
+    #
+    # ★ 刻みは **1 回だけ丸める**（`round(step)` してから掛ける）。i ごとに
+    #   丸めると 2 本目が 761.4 になり、TD4 の実績値 756.0 と合わない。
+    gap = xs[-1] - xs[-2] if len(xs) >= 2 else 0.0
+    if len(xs) >= 2 and (gap > pitch + 1e-6 or gap < pitch / 2):
+        # **区間が全部 pitch 以内に収まる最小の本数**を取る。丸めで最後の
+        # 区間が溢れることがあるので、収まるまで 1 本ずつ増やす。
+        n = max(1, math.ceil(last / pitch))
+        while True:
+            step = round(round(last / n / SITE_UM) * SITE_UM, 3)
+            cand = [round(i * step, 3) for i in range(n)] + [last]
+            if max(b - a for a, b in zip(cand, cand[1:])) <= pitch + 1e-6:
+                break
+            n += 1
+        xs = cand
     return xs
 
 
@@ -272,8 +291,20 @@ def row_y():
     return ys, round(y + ch[-1], 3)
 
 
+def _f(name):
+    """設計が同名の関数を定義していればそちらを返す。
+
+    `from config_base import *` した後に設計が上書きしても、**config_base の
+    中からの呼び出しは base 側を見る**（Python の名前解決はモジュール単位）。
+    `core_size` だけ上書きして `chip_core_box` が base を呼ぶ、のような
+    「途中まで効いている」事故を避けるため、チェーンはここを通す。
+    """
+    fn = _NS.get(name) if _NS else None
+    return fn if callable(fn) else globals()[name]
+
+
 def core_size():
-    _, stack_h = row_y()
+    _, stack_h = _f("row_y")()
     return _g("CORE_WIDTH_UM"), stack_h
 
 
@@ -292,12 +323,12 @@ def power_bars():
 
 
 def chip_core_box():
-    w, h = core_size()
+    w, h = _f("core_size")()
     return (0.0, 0.0, w, h)
 
 
 def chip_core_height():
-    _, b, _, t = chip_core_box()
+    _, b, _, t = _f("chip_core_box")()
     return round(t - b, 3)
 
 
@@ -321,10 +352,21 @@ def check():
 
     if len(ch) != nr + 1:
         msg.append(f"CH_HEIGHTS は {nr+1} 本要る（今 {len(ch)}）")
-    for i, v in ((0, ch[0]), (-1, ch[-1])):
-        if abs(v / site - round(v / site)) > 1e-9:
-            msg.append(f"CH_HEIGHTS の端 {v} が {site} の倍数でない "
-                       "（ch0 の最上トラックが行の M1 に寄って間隔違反が出る）")
+    # ★ ch の上下端はサイトグリッドに乗せる。乗っていないと ch0 の最上
+    #   トラックが行の M1 に寄る（APR_2026 で 131.6/153.2 のまま回して
+    #   M1 間隔違反 3 件が step10 まで残った。docs/22_flow_route.md §…）。
+    #   ただし**必ず違反になるわけではない**（TD4 は 250.0 / 85.4 で DRC 0）。
+    #   既提出設計を再現するときは `CH_END_OFF_GRID_OK = True` で警告に落とす。
+    off_grid = [v for v in (ch[0], ch[-1])
+                if abs(v / site - round(v / site)) > 1e-9]
+    if off_grid:
+        note = (f"CH_HEIGHTS の端 {off_grid} が {site} の倍数でない "
+                "（ch0 の最上トラックが行の M1 に寄って間隔違反が出る）")
+        if _g("CH_END_OFF_GRID_OK"):
+            print(f"  ** config: {note}\n"
+                  f"     -> CH_END_OFF_GRID_OK で承知のうえ。DRC で必ず確かめること")
+        else:
+            msg.append(note)
     if rw > cw + 1e-6:
         msg.append(f"行幅 {rw} がコア幅 {cw} を超える")
     if abs(cw / site - round(cw / site)) > 1e-9:
@@ -367,6 +409,24 @@ def finalize(ns):
     tp = ns.setdefault("TRACK_PITCH", TRACK_PITCH)
     ns["CORE_WIDTH_UM"] = round(ns.setdefault("CORE_WIDTH_TRACKS",
                                               CORE_WIDTH_TRACKS) * tp, 3)
+    # 縦置きマクロは行スタックの**右**に並ぶので、行幅はコア幅から
+    # マクロ本体と帯（縦 M2 バス + 余り）を引いた残り。
+    #   帯 = SIDE_BUS_SLACK + SIDE_BUS_TRACKS x SITE
+    # コア幅 1600 を超えるとフレーム開口が 1840 -> 1600 に落ちるので、
+    # **コア幅は動かさず行幅で吸収する**（docs/11_frame_io.md）。
+    if ns.get("MACRO_MODE") == "portrait":
+        ns["SIDE_BUS_TRACKS"] = ns.get("SIDE_BUS_TRACKS", SIDE_BUS_TRACKS)
+        ns["SIDE_BUS_SLACK"] = ns.get("SIDE_BUS_SLACK", SIDE_BUS_SLACK)
+        # ★ ここは setdefault にしない。`from config_base import *` で
+        #   `MACRO_SIDE_GAP = 0.0` が設計の名前空間に**もう入っている**ので、
+        #   setdefault は必ず空振りして 0.0 のままになる（2026-09-15 に踏んだ）。
+        #   縦置きの帯幅は定義そのものなので、ここで決めてしまう。
+        #   幅を変えたい設計は SIDE_BUS_TRACKS / SIDE_BUS_SLACK を動かす。
+        ns["MACRO_SIDE_GAP"] = round(ns["SIDE_BUS_SLACK"]
+                                     + ns["SIDE_BUS_TRACKS"] * SITE_UM, 3)
+        ns.setdefault("ROW_WIDTH_UM",
+                      round(ns["CORE_WIDTH_UM"] - ns["MACRO_W"]
+                            - ns["MACRO_SIDE_GAP"], 3))
     ns.setdefault("ROW_WIDTH_UM", ns["CORE_WIDTH_UM"])
     ns.setdefault("TAP_X", tap_columns(ns["ROW_WIDTH_UM"],
                                        ns.setdefault("TAP_PITCH", TAP_PITCH),
@@ -428,6 +488,23 @@ def finalize(ns):
     ns.setdefault("RIPUP_GDS", os.path.join(lay, "step7", "route_step_3_ripup_reroute.gds"))
     ns.setdefault("TOPPINS_GDS", os.path.join(lay, "step8", "route_step_4_top_pins.gds"))
     ns.setdefault("POWERPINS_GDS", os.path.join(lay, "step9", "route_step_5_power_pins.gds"))
+    # ---- チップ組み立ての連鎖 -------------------------------------------
+    # 段の順番は**設計で違う**。APR_2026 はロゴを配線の前に置き
+    #   assemble -> ringosc -> logo -> route_chip -> add_top_pins
+    # TD4 はロゴが最後で
+    #   assemble -> route_chip -> add_top_pins -> logo
+    # 各スクリプトが自分のファイル名を直書きしていたので、TD4 を回すと
+    # 「step1c_logo.gds が無い」で止まった（2026-09-15）。ここで名前を持つ。
+    chip = ns.setdefault("CHIP", os.path.join(lay, "chip"))
+    ns.setdefault("CHIP_ASSEMBLED_GDS", os.path.join(chip, "step1_assembled.gds"))
+    ns.setdefault("CHIP_RINGOSC_GDS", os.path.join(chip, "step1b_ringosc.gds"))
+    ns.setdefault("CHIP_LOGO_IN_GDS", ns["CHIP_RINGOSC_GDS"])
+    ns.setdefault("CHIP_LOGO_OUT_GDS", os.path.join(chip, "step1c_logo.gds"))
+    ns.setdefault("CHIP_ROUTE_IN_GDS", ns["CHIP_LOGO_OUT_GDS"])
+    ns.setdefault("CHIP_ROUTED_GDS", os.path.join(chip, "step2_routed.gds"))
+    ns.setdefault("CHIP_TOPPINS_GDS", os.path.join(chip, "step3_top_pins.gds"))
+    # 提出に載せる最終 GDS（ロゴが最後の設計は step4_final）
+    ns.setdefault("CHIP_FINAL_GDS", ns["CHIP_TOPPINS_GDS"])
     ns.setdefault("SQUEEZED_GDS", os.path.join(lay, "step10", "route_step_6_squeezed.gds"))
     ns.setdefault("MACROPWR_GDS", os.path.join(lay, "step11", "route_step_7_macro_power.gds"))
     for key, base in (("PIN_MAP_JSON", "pin_map.json"),

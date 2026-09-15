@@ -394,7 +394,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U17 | コア幅を 296 トラック（1598.4・実績）か 299 トラック（1614.6・4 列の最大）か | 本調査 |
 | U18 | 電源バスバー幅 10.0 µm が `M1W`（`sized(-5.0)` 判定）に入るかが境界。周囲 2.0 µm 確保で回避すべき | 本調査 |
 | ~~U19~~ | ~~TD4 / APR_2026 のフレーム GDS が PDK のどのリビジョンとも一致しない~~（`OSS_DRV` セルのみ差分、レコード数 1016→976）→ **TD4 / I2C_2026 の `OSS_DRV` が正しいと判断し、PDK へ PR 済み**（`fix/oss-drv-gio-frame`）。**マージまでは `pdk/pending-upstream/` を使う** | 本調査（`pdk/README.md` §4 / `pdk/PR-TR-1um-OSS_DRV.md`） |
-| U20 | `PAD_MAP` が `gen_top_routing_plan.py` に直書きのまま APRtools へ移動した。`config.py` へ出す | 本調査 |
+| ~~U20~~ | ~~`PAD_MAP` が `gen_top_routing_plan.py` に直書き~~ → **`config.py` へ移した**（TD4 移行で必要になった。`docs/08_migration_td4.md`） | 本調査 |
 | U22 | PDK に**同名で中身の違うフレーム**が 2 つある（`TR-1um_frame_25x25.gds` は `OSS_FRAME_GIO` を持たない）。設計側は GIO 版を非 GIO と同じ名前で置いていた。APRtools 側は `_GIO` 明示参照で回避済み。**上流にも改名かリードミーを提案**（PR 本文の末尾） | `docs/07_frame_issue.md` §1 |
 | U21 | チップ側のレール名が `VDD`/`GND` のまま。コアのラベルは `route_chip.core_power_pins()` が境界で写像している（動作確認済み）。`route_chip` の描画・`mkchipnet` の `RAIL`・`verify_chip` のプローブを揃えるのは LVS を回せる環境で | 2026-09-15 |
 | ~~U23~~ | **`apr/lint.py` で解決**（`escape-apr` / `moved-dir` / `baked-path`）。旧: `apr/selfcheck.py` は設定と入力しか見ていない。**移行で壊れたのは全て「パスと名前」**（4 件、`docs/06_verify_migration.md` §5-d）なので、`apr/` 内の相対パス前提（`os.path.dirname(HERE)` で外を見る、`cfg.ROOT/lef/…` 直書き）を静的に検出する検査を足す | 2026-09-15 |
@@ -404,3 +404,5 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | ~~U27~~ | **`apr/lint.py` の `rail-map` で解決**（残り 9 件が U21 の作業リスト）。旧: 電源名の写像漏れが 5 件目（`verify_port_connectivity.py`）。**`rules.PWR_NET` を参照せず素の `VDD`/`GND` を書いている箇所**を機械的に洗う検査を `selfcheck.py` に足す（U23 と同じ動機） | 2026-09-15 |
 | U28 | `macro/regfile/mkmemport.py` が `cfg.ROOT/lef/TR-1um_PNR.{gds,lef}` に**書く**のに、フローは `cfg.CELL_GDS` / `cfg.LEF_PATH`（= APRtools の STDCELL）を**読む**。マクロを混ぜた版が無視される。**TD4 の移行で決着させる**（`mklvsnet` と同じ「生産者と消費者が別の場所」） | 2026-09-15（`apr/lint.py` moved-dir） |
 | U29 | `apr/lint.py` の warn 31 件が残りの作業リスト: `env-knob` 17（`APR_*` 直読み → `getenv()`）/ `rail-map` 9（= U21 チップ側レール名）/ `moved-dir` 5（`from_sclk_spi/` 統合時と U28） | 2026-09-15 |
+| **U30** | **`route_chip.py` が I2C のチップ床を実測値で直書きしている**（`RO_STRAP_X` / `RO_M2_TOP` / `RO_VDD_BAR_Y` / `VDD_BUS_Y` / `GND_RING_R` …）。TD4 で回すと**存在しない RING_OSC の電源バーを描く**。コア段は設計非依存になったが、チップ段は 4 世代のうち I2C 1 世代ぶんしか入っていない | 2026-09-15（`docs/08_migration_td4.md`） |
+| U31 | TD4 の `out/*.v` は**古い Liberty**（`tr1um_typ_5v0_25c.lib` が APRtools 正本と不一致）で合成されている。再合成するとネットリストが変わるので、再現時は触らない。いつ揃えるか決める | 2026-09-15 |

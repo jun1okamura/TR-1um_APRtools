@@ -93,6 +93,7 @@ python3 $APRTOOLS/apr/route.py
 | [`docs/05_migration_log.md`](docs/05_migration_log.md) | **データ移動の記録** — 何を移し、何を移さなかったか |
 | [`docs/06_verify_migration.md`](docs/06_verify_migration.md) | **移行の検証** — md5 一致の手順と結果 |
 | [`pdk/README.md`](pdk/README.md) | **PDK は参照しコピーしない** — 対象一覧 |
+| [`docs/08_migration_td4.md`](docs/08_migration_td4.md) | **TD4 の移行** — コアは再現。チップは U30 待ち |
 | [`docs/07_frame_issue.md`](docs/07_frame_issue.md) | **フレーム GDS の問題（U19 / U22）** — 同名ファイル 2 つと `OSS_DRV` のずれ、および決定 |
 | [`pdk/PR-TR-1um-OSS_DRV.md`](pdk/PR-TR-1um-OSS_DRV.md) | **PDK への PR 本文**（`fix/oss-drv-gio-frame`・push 済み、CI 確認中） |
 | [`pdk/pending-upstream/README.md`](pdk/pending-upstream/README.md) | 上流 PR 待ちのデータ（マージされたら消す） |

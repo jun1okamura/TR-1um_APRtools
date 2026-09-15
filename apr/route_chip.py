@@ -115,8 +115,8 @@ sys.path.insert(0, cfg.pdk_tech_python())
 import pya                                                  # noqa: E402
 from cells import tr_1um                                    # noqa: E402
 
-IN_GDS = os.path.join(cfg.CHIP, "step1c_logo.gds")
-OUT_GDS = os.path.join(cfg.CHIP, "step2_routed.gds")
+IN_GDS = cfg.CHIP_ROUTE_IN_GDS
+OUT_GDS = cfg.CHIP_ROUTED_GDS
 PLAN = os.path.join(cfg.CHIP, "signal_routing_plan.json")
 
 M1_LAYER = (13, 0)

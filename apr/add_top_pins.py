@@ -55,8 +55,8 @@ import config as cfg                                    # noqa: E402
 
 import klayout.db as db                                     # noqa: E402
 
-IN_GDS = os.path.join(cfg.CHIP, "step2_routed.gds")
-OUT_GDS = os.path.join(cfg.CHIP, "step3_top_pins.gds")
+IN_GDS = cfg.CHIP_ROUTED_GDS
+OUT_GDS = cfg.CHIP_TOPPINS_GDS
 
 M2PIN_LAYER = (49, 1)
 TXM2_LAYER = (49, 0)
