@@ -416,7 +416,7 @@ PLACE_SEED = 4
 `RING_OSC.spice` にこう入った:
 
 ```
-*   FILL2 の個数だけ ../../91_OpenPDK/TR-1um_APRtools/macro/ringosc/RING_OSC.gds から数えた
+*   FILL2 の個数だけ ../../HogeHoge/TR-1um_APRtools/macro/ringosc/RING_OSC.gds から数えた
 ```
 
 **設計と APRtools をどこに置いているかが、コミットされるファイルに残る。**

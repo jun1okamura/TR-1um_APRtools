@@ -342,7 +342,7 @@ RING_OSC 入りの `_sim.spice` を使う**（14 項目回帰の方は `--no-rin
 
 | 5 | `route.py` の最終段が `FAIL GND / FAIL VDD  no PIN marker` | ポート名は RTL 由来の `VDD`/`GND`、PIN マーカのラベルは `rules` 由来の `vdd`/`vss`。`verify_port_connectivity.py` がポート名のままマーカを探していた | 境界で写像（`PWR_ALIAS`）。**`step10` の GDS は基準と md5 完全一致だった** |
 
-| 6 | （壊れる前に見つけた）`RING_OSC.spice` の由来コメントが `../../91_OpenPDK/...` になる | `os.path.relpath(x, cfg.ROOT)` — 設計の外にあるものは機械依存のパスになる | `config_base.disp()`（`$APRTOOLS/...` と書く）。あわせて `mkringoscnet.SIM_DIR` も STDCELL 正本へ |
+| 6 | （壊れる前に見つけた）`RING_OSC.spice` の由来コメントが `../../HogeHoge/...` になる | `os.path.relpath(x, cfg.ROOT)` — 設計の外にあるものは機械依存のパスになる | `config_base.disp()`（`$APRTOOLS/...` と書く）。あわせて `mkringoscnet.SIM_DIR` も STDCELL 正本へ |
 
 **この 6 件はいずれも「パスと名前」で、回路の話が 1 つも無い。**
 移行で壊れるのはそこだと分かったので、`apr/selfcheck.py` に

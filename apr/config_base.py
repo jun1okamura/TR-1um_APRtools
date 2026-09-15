@@ -56,7 +56,7 @@ def disp(path, root=None):
     """ログや生成ファイルに**書き残してよい形**のパス。
 
     `os.path.relpath(x, cfg.ROOT)` を直に使うと、設計の外にあるものが
-    `../../91_OpenPDK/TR-1um_APRtools/...` になる。**その機械の置き方が
+    `../../HogeHoge/TR-1um_APRtools/...` になる。**その機械の置き方が
     生成物に焼き付く**ので、リポジトリをまたぐものは `$APRTOOLS/...` と
     書く（2026-09-15、`RING_OSC.spice` の由来コメントで実際に出た）。
     """
