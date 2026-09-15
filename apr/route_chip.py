@@ -132,7 +132,7 @@ VIA_PAD = 3.4
 # 左右の辺のレーン（垂直 = M2）が 810 では帯の電源レールに乗ってしまう。
 # 1 トラック分（5.4）外に出して 815.4 から。M2 の縁 813.7 と帯の M2 809.0 で
 # 4.7 µm 空く（要 2.0）。M1 レール 810.0 とは層が違うので当たらない。
-LANE_R0 = 815.4
+LANE_R0 = getattr(cfg, "CHIP_LANE_R0", 815.4)
 LANE_PITCH = 5.4         # M2 3.4 + 最小間隔 2.0。コア内のトラックと同じ
 # --- I2C 移植 (18): リングを外へ寄せてレーン帯を 14 本ぶん確保 -------------
 # TD4 は 12 レーンで足りたが、I2C は DIS が 9 本に枝分かれするぶん混み、
@@ -169,8 +169,8 @@ WALL = 920.0             # 開口の内壁（実測。四隅まで同じ）
 # M1 バスを 2 本入れる: GND を内側（790.0）、VDD を外側（804.0）。
 BUS_W = 10.0
 TAP_STUB_W = 3.4         # コア側の M2 ポート幅そのまま。段差を作らない
-VDD_BUS_Y = 804.0        # M1 799.0…809.0。レーン 0 の M1 縁 814.5 と 5.5 空く
-GND_BUS_Y = 790.0        # M1 785.0…795.0。コア上端 780.2 と 4.8 空く
+VDD_BUS_Y = getattr(cfg, "CHIP_VDD_BUS_Y", 804.0)        # M1 799.0…809.0。レーン 0 の M1 縁 814.5 と 5.5 空く
+GND_BUS_Y = getattr(cfg, "CHIP_GND_BUS_Y", 790.0)        # M1 785.0…795.0。コア上端 780.2 と 4.8 空く
 # --- I2C 移植 (22): バー <-> フレームの電源ピンは V10 と同じ形 ------------
 # V10（`from_async_i2c/route_gio_core_v10.py` 108.64）はユーザ指示で
 # 「VSS/VDD の M1 バーと電源 PAD を繋いでいる 10 µm の配線を、左右 2 本ずつ
@@ -183,6 +183,15 @@ GND_BUS_Y = 790.0        # M1 785.0…795.0。コア上端 780.2 と 4.8 空く
 #
 # TD4 版は 3.4 幅を 60 µm ピッチで 5 本ばらまいていた（電流容量が V10 の
 # 1/3）。ここを V10 に合わせる。
+# ---- top_bottom 方式（TD4 世代）の寸法 -----------------------------------
+# コアだけが開口に入っているチップ。VDD は上辺のバスから 5 本のライザで
+# フレームの M1 ピンへ、GND は下辺のバスから 5 本のストリップで下辺中央の
+# VSS 壁ピンへ、まっすぐ降ろす。
+VDD_RISER_W = 3.4
+VDD_RISER_X = (80.0, 140.0, 200.0, 260.0, 320.0)
+VSS_STRIP_W = 10.0
+VSS_STRIP_X = (-400.0, -300.0, -200.0, -100.0, 0.0)
+
 STRIP_W = 10.0
 STRIP_OFFSETS = (-24.0, -12.0, 0.0, 12.0, 24.0)
 STRIP_VIA = 6.8          # 10 µm どうしの重なりに収まる 2x2 カット
@@ -191,7 +200,7 @@ STRIP_VIA = 6.8          # 10 µm どうしの重なりに収まる 2x2 カッ�
 # M1 に跳ねる（920 から上はフレームの VSS が M2 で寝ている）。
 VDD_PIN_X = 200.0
 VDD_PIN_Y = 927.0
-VDD_CROSS_Y = 914.5      # V10 と同じ。M2 の上端が壁 920 から 5.5 µm
+VDD_CROSS_Y = getattr(cfg, "CHIP_VDD_CROSS_Y", 914.5)      # V10 と同じ。M2 の上端が壁 920 から 5.5 µm
 # GND バス -> GND リングの M2 ストリップ。上辺で空いているのは
 # x -94.5（rx_data[0]）と 116.1（sda_in）の間だけなので、そのまん中の
 # x=0 を中心に 5 本（-29…29 を占める。両隣まで 63.8 / 85.4 µm）。
@@ -691,87 +700,14 @@ def core_power_pins(gds, dx, dy):
 
 
 # --------------------------------------------------------------------------
-def main():
-    ap = argparse.ArgumentParser(description=__doc__,
-                                 formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("-o", "--out", default=OUT_GDS)
-    ap.add_argument("--in-gds", default=IN_GDS)
-    ap.add_argument("--plan", default=PLAN)
-    ap.add_argument("--core-gds", default=None)
-    a = ap.parse_args()
+def power_ringosc(d, plan, taps, risers, macro_at, ct, cb):
+    """**RING_OSC の帯を下に敷いたチップ**の電源（APR_2026 世代）。
 
-    plan = json.load(open(a.plan, encoding="utf-8"))
-    core_gds = a.core_gds or cfg.CHIP_CORE_GDS
-    cl, cb, cr, ct = plan["core_chip_bbox"]
-    dx, dy = plan["core_offset"]
-
-    layout = db.Layout()
-    layout.read(a.in_gds)
-    top = layout.cell(cfg.CHIP_TOP_CELL)
-    if top is None:
-        raise SystemExit(f"{cfg.CHIP_TOP_CELL} が {a.in_gds} に無い")
-    d = Drawer(layout, top)
-
-    # ---- 信号 -------------------------------------------------------------
-    # I2C 移植 (16): 1 ネットが何本にも分かれるので、まず 1 本ずつに名前を振る。
-    # I2C 移植 (21): 同じネット / 同じ端子の端点は 1 群 = 幹 1 本にまとめる。
-    groups = group_signals(plan["signals"])
-    multi = {k: len(v) for k, v in groups.items() if len(v) > 2}
-    print(f"{len(plan['signals'])} 本の結線 -> {len(groups)} 群")
-    if multi:
-        print("  多端点の群: "
-              + ", ".join(f"{k}（端点 {n}）" for k, n in sorted(multi.items())))
-
-    pairs, unfixable = stub_order(
-        {k: [ep_tuple(d) for d in v] for k, v in groups.items()})
-    if unfixable:
-        raise SystemExit("同じ辺で近すぎる同種の足がある"
-                         f"（レーンでは解けない）: {unfixable}")
-    if pairs:
-        print("足の順番の制約（内側 -> 外側）: "
-              + ", ".join(f"{i}<{o}" for i, o in pairs))
-    cut, cost = choose_cut(groups)
-    routes, interval, order, lane_of, n_lanes = build_plan(groups, cut)
-    top_lane_r = LANE_R0 + (n_lanes - 1) * LANE_PITCH
-    room = GND_RING_R - RING_W / 2 - 2.0 - (M2_WIRE_W / 2)
-    print(f"継ぎ目 s={cut:.0f}（総長 {cost[1]:.0f} µm）、"
-          f"{len(routes)} 群を {n_lanes} レーン "
-          f"R {LANE_R0:.1f}..{top_lane_r:.1f}（上限 {room:.1f}）")
-    if top_lane_r > room:
-        raise SystemExit(f"レーン帯が GND リング（R={GND_RING_R}）に当たる: "
-                         f"最上レーン {top_lane_r}")
-    if LANE_R0 - M2_WIRE_W / 2 < max(abs(cl), abs(cr)) + 2.0:
-        raise SystemExit(f"レーン 0（R={LANE_R0}）がコアに近すぎる")
-
-    for name in sorted(routes):
-        R = LANE_R0 + lane_of[name] * LANE_PITCH
-        n = draw_trunk(d, name, order[name], R)
-        print(f"  {name:<26} lane={lane_of[name]:<3} R={R:6.1f} "
-              f"端点 {len(order[name])}  幹 {n} 点")
-
-    # ---- 電源リング -------------------------------------------------------
-    draw_ring(d, "GND", GND_RING_R)
-    draw_ring(d, "VDD", VDD_RING_R)
-    print(f"VDD リング R={VDD_RING_R}、GND リング R={GND_RING_R}（幅 {RING_W}）")
-
-    # ---- HIZ / 浮いた OUT をレールに落とす --------------------------------
-    # I2C 版の gen_top_routing_plan は HIZ タイも浮いた OUT も 1 つの
-    # `ties` に入れて `why` で区別している。
-    ties = plan.get("ties")
-    if ties is None:
-        ties = plan["hiz_ties"] + plan["float_ties"]
-    for t in sorted(ties, key=lambda t: t["terminal"]):
-        rail = t["tie"]
-        R = VDD_RING_R if rail == "VDD" else GND_RING_R
-        d.net = rail
-        d.path([(t["x"], t["y"]), project_to_R(t["x"], t["y"], t["edge"], R)],
-               start_layer=edge_layer(t["edge"]), end_layer=ring_layer(t["edge"]))
-        d.net = None
-    print(f"{len(ties)} 本の HIZ / 浮いた OUT をリングへ")
-
+    下のチャネルが RING_OSC の帯とロゴで埋まっているので、VDD も GND も
+    **上辺のタップ**から取り、RING_OSC の上下に置いた M1 バスバーで
+    帯とコアの両脇を拾う。`docs/23_flow_chip.md`。
+    """
     # ---- コアの電源 -------------------------------------------------------
-    taps = core_power_pins(core_gds, dx, dy)
-    risers, macro_at = macro_risers(core_gds, dx, dy)
     # I2C 移植 (17): VDD も GND も**上辺のタップ**から、上のチャネルの M1 バスへ。
     # 下辺のタップは開放（TAP 柱で上辺と繋がっているので電気的には届く）。
     for net, bus_y, strip_x in (("GND", GND_BUS_Y, GND_STRIP_X),
@@ -912,6 +848,171 @@ def main():
               + ("GND リング（y=%.1f の M1 タイ）" % CORE_GND_TIE_Y if net == "GND"
                  else "RING_OSC 上の VDD バー（y=%.1f で M1 に、ロゴの上を縦断）"
                       % CORE_VDD_SWITCH_Y))
+
+
+
+def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
+    """**コアだけが開口に入っているチップ**の電源（TD4 世代）。
+
+    上下のチャネルが両方空いているので、VDD は上辺のタップから上のバスへ、
+    GND は下辺のタップから下のバスへ、とまっすぐ取れる。RING_OSC の
+    バスバーもコア両脇のストラップも要らない。
+    """
+    for net, bus_y, edge in (("VDD", VDD_BUS_Y, "TOP"), ("GND", GND_BUS_Y, "BOTTOM")):
+        xs = taps[net][edge]
+        if len(xs) != 4:
+            raise SystemExit(f"{net} の {edge} タップが 4 本でない: {xs}")
+        d.net = net
+        lo, hi = min(xs) - 8.0, max(xs) + 8.0
+        if net == "VDD":
+            hi = max(hi, max(VDD_RISER_X) + 8.0)
+        else:
+            lo = min(lo, min(VSS_STRIP_X) - 8.0)
+            hi = max(hi, max(VSS_STRIP_X) + 8.0)
+        # マクロのライザもこのバーで受けるので、バーを伸ばす
+        for rx, _ in risers[net]:
+            lo, hi = min(lo, rx - 8.0), max(hi, rx + 8.0)
+        d.wire("M1", lo, bus_y, hi, bus_y, BUS_W)
+        y_in = ct - 1.5 if edge == "TOP" else cb + 1.5
+        y_out = bus_y + 3.5 if edge == "TOP" else bus_y - 3.5
+        for tx in xs:
+            d.wire("M2", tx, y_in, tx, y_out, TAP_STUB_W)
+            d.via(tx, bus_y, TAP_STUB_W, 6.8)
+        d.net = None
+        print(f"{net} バス M1 y={bus_y} x [{lo:.1f}, {hi:.1f}]、"
+              f"タップ {len(xs)} 本 {xs}")
+
+    for net, bus_y in (("VDD", VDD_BUS_Y), ("GND", GND_BUS_Y)):
+        d.net = net
+        for rx, ry in risers[net]:
+            d.wire("M2", rx, ry, rx, bus_y, MACRO_RISER_W)
+            d.via(rx, bus_y, MACRO_RISER_W, 6.8)
+        d.net = None
+    if macro_at:
+        print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "
+              + "  ".join(f"{k} " + ", ".join(f"x={x} y={y}" for x, y in v)
+                          for k, v in risers.items() if v))
+
+    # VDD: バス -> リング -> M1 でフレームのピンへ
+    d.net = "VDD"
+    for rx in VDD_RISER_X:
+        d.via(rx, VDD_BUS_Y, VDD_RISER_W, 6.8)
+        d.wire("M2", rx, VDD_BUS_Y, rx, VDD_CROSS_Y, VDD_RISER_W)
+        d.via(rx, VDD_RING_R, VDD_RISER_W, 6.8)           # リングへ
+        d.via(rx, VDD_CROSS_Y, VDD_RISER_W, VDD_RISER_W)  # M1 へ跳ねる
+        d.wire("M1", rx, VDD_CROSS_Y, rx, VDD_PIN_Y, VDD_RISER_W)
+    d.net = None
+    print(f"VDD ライザ {len(VDD_RISER_X)} 本 x={list(VDD_RISER_X)} -> "
+          f"M1 ピン y={VDD_PIN_Y}（M2 は y={VDD_CROSS_Y} で止める）")
+
+    # GND: バス -> リング -> 下辺中央の VSS 壁ピンへ
+    d.net = "GND"
+    for sx in VSS_STRIP_X:
+        d.via(sx, GND_BUS_Y, VSS_STRIP_W, 6.8)
+        d.wire("M2", sx, GND_BUS_Y, sx, VSS_LAND_Y, VSS_STRIP_W)
+        d.via(sx, -GND_RING_R, VSS_STRIP_W, 6.8)
+    for edge, v in VSS_STRAP:
+        p = (v, 0.0) if edge in ("TOP", "BOTTOM") else (0.0, v)
+        inner = project_to_R(p[0], p[1], edge, GND_RING_R)
+        outer = project_to_R(p[0], p[1], edge, abs(VSS_LAND_Y))
+        d.path([inner, outer], start_layer=ring_layer(edge),
+               end_layer="M2", w=STRAP_W)
+    d.net = None
+    print(f"GND ストリップ {len(VSS_STRIP_X)} 本 -> 下辺の VSS 壁ピン "
+          f"y={VSS_LAND_Y}、ほか {len(VSS_STRAP)} 本のストラップ")
+
+
+POWER = {"ringosc": power_ringosc, "top_bottom": power_top_bottom}
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("-o", "--out", default=OUT_GDS)
+    ap.add_argument("--in-gds", default=IN_GDS)
+    ap.add_argument("--plan", default=PLAN)
+    ap.add_argument("--core-gds", default=None)
+    a = ap.parse_args()
+
+    plan = json.load(open(a.plan, encoding="utf-8"))
+    core_gds = a.core_gds or cfg.CHIP_CORE_GDS
+    cl, cb, cr, ct = plan["core_chip_bbox"]
+    dx, dy = plan["core_offset"]
+
+    layout = db.Layout()
+    layout.read(a.in_gds)
+    top = layout.cell(cfg.CHIP_TOP_CELL)
+    if top is None:
+        raise SystemExit(f"{cfg.CHIP_TOP_CELL} が {a.in_gds} に無い")
+    d = Drawer(layout, top)
+
+    # ---- 信号 -------------------------------------------------------------
+    # I2C 移植 (16): 1 ネットが何本にも分かれるので、まず 1 本ずつに名前を振る。
+    # I2C 移植 (21): 同じネット / 同じ端子の端点は 1 群 = 幹 1 本にまとめる。
+    groups = group_signals(plan["signals"])
+    multi = {k: len(v) for k, v in groups.items() if len(v) > 2}
+    print(f"{len(plan['signals'])} 本の結線 -> {len(groups)} 群")
+    if multi:
+        print("  多端点の群: "
+              + ", ".join(f"{k}（端点 {n}）" for k, n in sorted(multi.items())))
+
+    pairs, unfixable = stub_order(
+        {k: [ep_tuple(d) for d in v] for k, v in groups.items()})
+    if unfixable:
+        raise SystemExit("同じ辺で近すぎる同種の足がある"
+                         f"（レーンでは解けない）: {unfixable}")
+    if pairs:
+        print("足の順番の制約（内側 -> 外側）: "
+              + ", ".join(f"{i}<{o}" for i, o in pairs))
+    cut, cost = choose_cut(groups)
+    routes, interval, order, lane_of, n_lanes = build_plan(groups, cut)
+    top_lane_r = LANE_R0 + (n_lanes - 1) * LANE_PITCH
+    room = GND_RING_R - RING_W / 2 - 2.0 - (M2_WIRE_W / 2)
+    print(f"継ぎ目 s={cut:.0f}（総長 {cost[1]:.0f} µm）、"
+          f"{len(routes)} 群を {n_lanes} レーン "
+          f"R {LANE_R0:.1f}..{top_lane_r:.1f}（上限 {room:.1f}）")
+    if top_lane_r > room:
+        raise SystemExit(f"レーン帯が GND リング（R={GND_RING_R}）に当たる: "
+                         f"最上レーン {top_lane_r}")
+    if LANE_R0 - M2_WIRE_W / 2 < max(abs(cl), abs(cr)) + 2.0:
+        raise SystemExit(f"レーン 0（R={LANE_R0}）がコアに近すぎる")
+
+    for name in sorted(routes):
+        R = LANE_R0 + lane_of[name] * LANE_PITCH
+        n = draw_trunk(d, name, order[name], R)
+        print(f"  {name:<26} lane={lane_of[name]:<3} R={R:6.1f} "
+              f"端点 {len(order[name])}  幹 {n} 点")
+
+    # ---- 電源リング -------------------------------------------------------
+    draw_ring(d, "GND", GND_RING_R)
+    draw_ring(d, "VDD", VDD_RING_R)
+    print(f"VDD リング R={VDD_RING_R}、GND リング R={GND_RING_R}（幅 {RING_W}）")
+
+    # ---- HIZ / 浮いた OUT をレールに落とす --------------------------------
+    # I2C 版の gen_top_routing_plan は HIZ タイも浮いた OUT も 1 つの
+    # `ties` に入れて `why` で区別している。
+    ties = plan.get("ties")
+    if ties is None:
+        ties = plan["hiz_ties"] + plan["float_ties"]
+    for t in sorted(ties, key=lambda t: t["terminal"]):
+        rail = t["tie"]
+        R = VDD_RING_R if rail == "VDD" else GND_RING_R
+        d.net = rail
+        d.path([(t["x"], t["y"]), project_to_R(t["x"], t["y"], t["edge"], R)],
+               start_layer=edge_layer(t["edge"]), end_layer=ring_layer(t["edge"]))
+        d.net = None
+    print(f"{len(ties)} 本の HIZ / 浮いた OUT をリングへ")
+
+    # ---- コアとチップの電源 ------------------------------------------------
+    # **チップ床は設計で違う**ので、電源の描き方を config が選ぶ（U30）。
+    #   ringosc     下に RING_OSC の帯とロゴがあり、上辺からしか取れない
+    #   top_bottom  開口にコアだけ。上下からまっすぐ取れる
+    taps = core_power_pins(core_gds, dx, dy)
+    risers, macro_at = macro_risers(core_gds, dx, dy)
+    scheme = getattr(cfg, "CHIP_POWER", "ringosc")
+    if scheme not in POWER:
+        raise SystemExit(f"config.CHIP_POWER が不明: {scheme}（{sorted(POWER)}）")
+    POWER[scheme](d, plan, taps, risers, macro_at, ct, cb)
 
     with open(a.out.replace(".gds", "_net_shapes.json"), "w") as f:
         json.dump(dict(d.shapes), f, indent=1)

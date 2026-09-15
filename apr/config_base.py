@@ -208,6 +208,9 @@ CH_END_OFF_GRID_OK = getenv("CH_END_OFF_GRID_OK", False, bool)
 DOWN_FACING_INSTS = set()
 PER_ROW_LOCAL_NETS = set()
 PAD_MAP = {}
+LOGO_BOX = None                 # 設計が空き地を指定するとき (x0,y0,x1,y1)
+LOGO_SCALE = 1                  # ロゴの縮約（1 = 等倍）
+LOGO_COLS = None                # 切り出す列 "0:64" など。None で全幅
 UNBONDED = set()
 PAD_ONLY_NETS = {}
 BUFTH_NETS = []
@@ -666,7 +669,14 @@ def ringosc_box():
 
 
 def logo_box():
-    """ロゴの帯。RING_OSC を載せる設計ではその上、そうでなければコアの下。"""
+    """ロゴの帯。RING_OSC を載せる設計ではその上、そうでなければコアの下。
+
+    **空き地の位置は設計で違う**ので、`config.py` が `LOGO_BOX` を持っていれば
+    それを使う（TD4 はコア右下の空き (410,-680)-(790,-470)。U30）。
+    """
+    box = _g("LOGO_BOX")
+    if box:
+        return tuple(box)
     w, h = logo_size()
     ro = ringosc_box()
     y0 = round(ro[3] + _g("LOGO_GAP", 20.0), 3) if ro else _g("LOGO_Y0", 0.0)

@@ -128,10 +128,12 @@ def main():
     ap.add_argument("-i", "--in-gds", default=IN_GDS)
     ap.add_argument("-o", "--out", default=OUT_GDS)
     ap.add_argument("-b", "--bitmap", default=BITMAP)
-    ap.add_argument("--scale", type=int, default=1,
-                    help="k:1 に縮約（既定 1 = 等倍。V10 と同じ）")
-    ap.add_argument("--cols", default=None,
-                    help="切り出す列（既定は全部。紋章だけなら 0:64）")
+    # ★ 既定は `config.py` から。APR_2026 は全幅を等倍、TD4 は紋章だけを
+    #   1/2 にしてコア右下の空きへ入れる（U30）。
+    ap.add_argument("--scale", type=int, default=getattr(cfg, "LOGO_SCALE", 1),
+                    help="k:1 に縮約（既定は config.LOGO_SCALE）")
+    ap.add_argument("--cols", default=getattr(cfg, "LOGO_COLS", None),
+                    help="切り出す列（既定は config.LOGO_COLS。紋章だけなら 0:64）")
     a = ap.parse_args()
 
     raw, rw, rh = read_bitmap(a.bitmap)
