@@ -44,7 +44,8 @@ import config as cfg                                    # noqa: E402
 
 SIM = os.path.join(cfg.CHIP, "simulation")
 NETLIST = os.path.join(SIM, cfg.CHIP_TOP_CELL + "_sim.spice")
-MODELS = os.path.join(cfg.ROOT, "scripts", "char", "models", "ip62_models")
+# ★ モデルは **PDK から参照する**（設計の写しではない）。
+MODELS = os.path.join(cfg.pdk_spice_models(), "ip62_models")
 OUT = os.path.join(SIM, "tb_" + cfg.CHIP_TOP_CELL + ".spi")
 
 VDD = 5.0

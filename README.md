@@ -36,12 +36,13 @@ STDCELL は **v59_4（行高 59.4）** / コア幅は **トラックピッチ 5.
 ## 構成
 
 ```
-apr/          P&R エンジン（81 + from_sclk_spi/ 9 ファイル）
+apr/          P&R エンジン（82 + from_sclk_spi/ 9 ファイル）
               config_base.py  設計非依存の既定値と導出 + check()
               rules.py        DRC 値・レイヤ番号・グリッドの単一ソース
               apr_path.py     設計ルートを sys.path に足す
               selfcheck.py    実行環境と下ごしらえを点検（KLayout 不要）
               cmp_gds.py      GDS を正規化 md5 + 幾何 XOR で比べる
+              lint.py         「パスと名前」を静的に検査する
 syn/          合成・STA（syn.sh / abc.constr / tr1um.genlib / sta/）
 char/         セル特性化（スクリプト + 特性化結果）
 stdcell/      v59_4（正本） / v64_8（凍結） / CELLS.md

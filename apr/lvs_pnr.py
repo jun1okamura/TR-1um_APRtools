@@ -26,7 +26,6 @@ import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-sys.path.insert(0, os.path.join(os.path.dirname(HERE)))   # scripts/
 import rules  # noqa: E402  プロセス定数の単一ソース
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402

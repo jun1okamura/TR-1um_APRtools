@@ -58,7 +58,7 @@ CHIP_GIO_CELL = cfg.FRAME_CELL_CHIP  # チップ GDS / LVS での名前（OSS_FR
 # combine 済みのフレームを混ぜると素子数が 316 個ずれる（2026-09-14 に実測:
 # レイアウト 4225 vs ソース 3909）。`lef/simulation/OSS_FRAME_GIO.spice` は
 # ngspice 用の combine 済みで、そちらは触らない。
-GIO_SPICE = os.path.join(cfg.ROOT, "lef", "simulation",
+GIO_SPICE = os.path.join(cfg.ROOT, "lef", "simulation",   # lint: ok フレームは PDK 由来で STDCELL に無い
                          GIO_CELL + "_nocombine.spice")
 SIM_DIR_EARLY = os.path.join(cfg.CHIP, "simulation")
 CORE_SPICE = os.path.join(SIM_DIR_EARLY, cfg.TOP_CELL_NAME + ".spice")

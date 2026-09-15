@@ -315,6 +315,48 @@ PDK 既定の `AS/AD = w*sdwidth`、`PS/PD = 2*(sdwidth+w)` は
 ## 4. 配置・配線
 
 
+### 4-0z. 「パスと名前」を機械で洗う — `apr/lint.py`
+
+移行で壊れた **7 件が全部「パスと名前」**だった（回路の話は 1 件も無い）ので、
+壊れ方そのものを静的に検出する。
+
+```sh
+python3 apr/lint.py          # NG があれば 1 で終わる
+python3 apr/lint.py -v       # warn も全部出す
+```
+
+`selfcheck.py` が `--- 0. 実行環境 ---` で `NG n / warn n` を出すので、
+設計を回す前に目に入る。
+
+| id | 重さ | 何を見るか | 由来した事故 |
+|---|---|---|---|
+| `escape-apr` | NG | `os.path.dirname(HERE)` で `apr/` の外を見る | `gen_chip_sim_ready` が `../klayout_extract.py` |
+| `moved-dir` | NG | `cfg.ROOT` + APRtools へ移したディレクトリ名 | `place_logo` の `cfg.ROOT/lef/opensusi_logo.txt` |
+| `baked-path` | NG | `os.path.relpath(x, cfg.ROOT)` が `print` の外 | 提出物に `../apr_root/stdcell/…` |
+| `env-direct` | NG | 外部ツール以外の環境変数を直読み | — |
+| `env-knob` | warn | `APR_*` の直読み（`getenv()` へ） | 変数名の一覧が散る |
+| `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない | `POWER_NETS = {"VDD","GND"}` / `KeyError: 'GND'` |
+
+### ★ ノイズを出すリンタは 2 回目に誰も回さない
+
+最初は「電源名の文字列」を全部挙げる形で書いたら **121 件**出た。
+大半は正しい（チップ側のレール名は意図して大文字。U21）。
+**壊れ方そのものの形**だけを見るように絞って、NG 5 / warn 33 になった。
+
+同じ理由で、例外は**行末の `# lint: ok <理由>`** で消す（理由を書かせる）。
+いま入っている 2 件:
+
+- `mkchipnet.py` のフレーム spice — PDK 由来で STDCELL には無い
+- `selfcheck.py` の `cfg.ROOT/lef/` — 設計の写しと正本を突き合わせる検査そのもの
+
+### ★ リンタ自身が最初の指摘で嘘をついた
+
+`os.environ` の変数名を**行を引用符で split して**取っていたので、
+`ap.add_argument("--ys", default=os.environ.get("YOSYS", "yosys"))` から
+`'--ys'` を掴んで NG を出した。AST から取るように直した。
+
+> **検査の側こそ、その検査で落ちる書き方をしていないか見る。**
+
 ### 4-0. ★★★ 再現がフラグ頼みだと、**良い方に外れて気づけない**
 
 2026-09-15、移行の再現確認で `APR_PAD_WEIGHT=16` を export し忘れた 1 回が

@@ -179,7 +179,7 @@ def main():
     header = [
         f"* {a.top} -- ngspice 用（**レイアウト抽出から**）",
         "* scripts/pnr/gen_chip_sim_ready.py が生成。手で編集しないこと。",
-        f"*   もと : {os.path.relpath(a.gds, cfg.ROOT)}",
+        f"*   もと : {cfg.disp(a.gds)}",
         "*   W/L と AS/AD/PS/PD は抽出した実物の寸法。拡散容量は実測。",
         "*",
         "* 使うときは PDK のモデルを先に読むこと:",

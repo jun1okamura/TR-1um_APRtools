@@ -90,7 +90,7 @@ def main(gds=None, place_json=None, out=None, zoom=None):
     axL.set_xlim(x0 - 20, x1 + 20)
     axL.set_ylim(y0 - 10, y1 + 10)
     axL.set_aspect("equal")
-    axL.set_title(f"{os.path.relpath(gds, cfg.ROOT)}   "
+    axL.set_title(f"{cfg.disp(gds)}   "
                   f"{x1-x0:.1f} x {y1-y0:.1f} um   "
                   f"{len(blocks)} priority corridors ({cfg.PRI_CELL}, "
                   f"{cfg.PRI_W} um = {round(cfg.PRI_W/X_GRID)} tracks)",

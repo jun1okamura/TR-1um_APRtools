@@ -66,7 +66,7 @@ def main(paths, out, figsize=None):
                              figsize=figsize or (14, 3.1 * len(paths)),
                              squeeze=False)
     for ax, p in zip(axes[:, 0], paths):
-        draw(ax, p, os.path.relpath(p, cfg.ROOT))
+        draw(ax, p, cfg.disp(p))
     handles = [plt.Rectangle((0, 0), 1, 1, facecolor=STYLE[k][0],
                              alpha=STYLE[k][1]) for k in NAMES]
     fig.legend(handles, list(NAMES.values()), loc="lower center",

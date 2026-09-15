@@ -66,6 +66,21 @@ def main():
     _ng = shutil.which("ngspice")
     line(OK if _ng else WARN,
          f"ngspice               {_ng or '見つからない（機能回帰で要る）'}")
+    # APRtools 自身の「パスと名前」を静的に見る（移行で壊れたのは全部そこ）
+    try:
+        import subprocess as _sp
+        _r = _sp.run([sys.executable, os.path.join(HERE, "lint.py")],
+                     capture_output=True, text=True)
+        _sum = next((l for l in _r.stdout.splitlines()
+                     if l.startswith("SUMMARY ")), "SUMMARY NG=? warn=?")
+        _kv = dict(kv.split("=", 1) for kv in _sum.split()[1:])
+        line(OK if _r.returncode == 0 else NG,
+             f"apr/lint.py            NG {_kv.get('NG')} / warn {_kv.get('warn')}"
+             f"（{_kv.get('files')} ファイル）")
+        if _r.returncode != 0:
+            print("       python3 " + os.path.join(HERE, "lint.py") + " で詳細")
+    except Exception as _e:                       # lint 自体で止めない
+        line(WARN, f"apr/lint.py            回せなかった: {_e}")
 
     print("\n--- 1. フロアプラン ---")
     print(f"       TOP_CELL_NAME     {cfg.TOP_CELL_NAME}")
@@ -113,7 +128,7 @@ def main():
              ("TR-1um_PNR.lef", cfg.LEF_PATH), ("TR-1um_PNR.gds", cfg.CELL_GDS),
              ("tr1um_typ_5v0_25c.lib", cfg.LIBERTY)]
     for base, newp in pairs:
-        oldp = os.path.join(cfg.ROOT, "lef", base)
+        oldp = os.path.join(cfg.ROOT, "lef", base)   # lint: ok 設計の写しと STDCELL 正本を突き合わせる検査そのもの
         if not os.path.exists(oldp):
             line(WARN, f"{base:24s} 設計側に無い（比較省略）")
         elif not os.path.exists(newp):
