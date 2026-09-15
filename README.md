@@ -9,29 +9,40 @@ TR-1um（OpenSUSI / IP62、1 µm CMOS・M1/M2 の 2 層配線）向けの**自�
 
 ## 状態
 
-**データ移動・ドキュメント整備・命名の正規化まで完了し、提出物が再生成できることを確認済み。**
+**I2C_2026 と TD4 の 2 設計が、全段そろって APRtools で再現する。**
 
-> - `TR-1um_I2C_2026` の `step10/route_step_6_squeezed.gds` が提出済みの原本と
->   **ビット単位で一致**（GDS 9 本 + JSON 16 本、全 25 項目）
-> - `vdd`/`vss` 統一後もチップ 5 本の GDS が **幾何 XOR 空**（差はラベル 16 個のみ）、
->   `pre_check.py` OK
-> - 抽出ネットリストで **ngspice 14 項目回帰 All PASSED**（RING_OSC も記録どおり）
-> - 設計機（macOS/arm64）でも**全段が再現**。step10 の md5 がクラウドと一致
-> - **PDK 公式デッキで DRC 0 件（MDP マスクも 0）/ LVS 全回路ペア Match**
->
-> → [`docs/06_verify_migration.md`](docs/06_verify_migration.md)
->   / [`docs/30_verify_drc_lvs.md`](docs/30_verify_drc_lvs.md) §0
+| | TR-1um_I2C_2026 | TR-1um_TD4（縦置き・提出版） |
+|---|---|---|
+| 配置 step1〜4 | 生バイトで提出時と同一 | マクロ・行幅・TAP まで一致 |
+| コア最終 | step10 **幾何完全一致** | step11 **幾何完全一致** |
+| チップ | step2/3 **幾何完全一致** | step2/3/4 **幾何完全一致** |
+| DRC（公式デッキ・MDP 含む） | **0 件** | **0 件** |
+| LVS（公式デッキ） | **全回路ペア Match** | **一致**（3597/1386/16・4225/1503/16） |
+| ngspice | **14 項目 All PASSED** | **12 サイクル期待どおり** |
+
+**差は両設計とも電源ラベル 16 個だけ**（`GND`/`VDD` → `vss`/`vdd`）。
+図形は 1 つも動いていない。
+→ [`docs/06_verify_migration.md`](docs/06_verify_migration.md)（I2C）
+／ [`docs/08_migration_td4.md`](docs/08_migration_td4.md)（TD4）
+／ [`docs/30_verify_drc_lvs.md`](docs/30_verify_drc_lvs.md) §0
+
+**引数も再現用の環境変数も要らない。** 再現に効く値（`PAD_WEIGHT` /
+`PLACE_SEED` / チップ電源の方式 / ロゴの置き場 / 段の順番）は全部
+設計の `config.py` にある。
+
+### SCLK_SPI は「再現」ではなく**作り直し**
+
+`TR-1um_SCLK_SPI` は **64.8 µm 行高の旧 STDCELL** で作られている
+（正本は 59.4。`docs/02_stdcell_diff.md`）。**行高が違うので配置も配線も
+別物**になり、GDS の突き合わせでは検証できない。59.4 版で合成からやり直し、
+**DRC / LVS / ngspice で判定する**。TAP 最終間隔が 534.6 を超えている件
+（U15）も、このとき一緒に直る。
 
 決定済み: 参照は **git submodule** / P&R の正本は `TR-1um_I2C_2026` 世代 /
-STDCELL は **v59_4（行高 59.4）** / コア幅は **トラックピッチ 5.4 µm の整数倍** /
-電源ピン名は **`vdd`・`vss`**（**コア側のみ完了**。チップ側は U21） / **`*_nrow_fm` を剥がす** /
-環境変数は **`APR_*`** / `legacy/` は同梱 / `OSS_DRV` を含むフレームは**上流に PR 済み**
-（マージまで `pdk/pending-upstream/` を使う）。
-
-**TR-1um_I2C_2026 の移行はこれで完了。**
-残りは `apr/from_sclk_spi/` の統合・`apr/` のサブディレクトリ分割・
-チップ側レール名（U21）・TD4 / SCLK_SPI での同一検証
-（`docs/90_improvement_notes.md` §7）。
+STDCELL は **v59_4** / コア幅は **トラックピッチ 5.4 µm の整数倍** /
+電源ピン名は **`vdd`・`vss`**（コア側完了。チップ側は U21） /
+**`*_nrow_fm` を剥がす** / 環境変数は **`APR_*`** / `legacy/` は同梱 /
+`OSS_DRV` を含むフレームは**上流に PR 済み・CI 通過**。
 
 ## 構成
 
