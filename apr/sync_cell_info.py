@@ -4,8 +4,8 @@
 Run this after ANY change to lef/TR-1um_STDCELL.gds (a new cell, a resized
 cell, a fixed abutment).  It re-measures every cell's bounding box from the
 GDS, refreshes transistor counts from the cells' extracted SPICE when those
-are reachable, and merges the result into lef/cell_info.json -- which is what
-scripts/gen_liberty.py and scripts/gate_count.py both read, so one run keeps
+are reachable, and merges the result into stdcell/<世代>/cell_char.json -- which is what
+apr/gen_liberty.py and apr/gate_count.py both read, so one run keeps
 synthesis and the area report in step with the library.
 
 Logic functions cannot be measured, so they come from the table below; a new
@@ -14,10 +14,10 @@ combinational cell that is not in it is reported and left without a function
 until a function is added here).
 
   usage:
-    scripts/sync_cell_info.py
-    scripts/sync_cell_info.py --gds lef/TR-1um_STDCELL.gds \
+    apr/sync_cell_info.py
+    apr/sync_cell_info.py --gds lef/TR-1um_STDCELL.gds \
         --extracted-dir ../TR-1um_Async_I2C/LEF
-    scripts/sync_cell_info.py --set BUF_X2:transistors=6      # manual override
+    apr/sync_cell_info.py --set BUF_X2:transistors=6      # manual override
 """
 import argparse
 import glob
@@ -25,11 +25,21 @@ import json
 import os
 import sys
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-GDS = os.path.join(ROOT, "lef", "TR-1um_STDCELL.gds")
-LEF = os.path.join(ROOT, "lef", "TR-1um_STDCELL.lef")
-INFO = os.path.join(ROOT, "lef", "cell_info.json")
-EXTRACTED = os.path.join(ROOT, "..", "TR-1um_Async_I2C", "LEF")
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
+
+# ★ 出力は **cell_char.json**。`cell_info.json` とは別物で、同じ名前を
+#   使っていたのが混乱のもとだった（2026-09-15）:
+#     layout/cell_info.json          `mkcellinfo.py` が作る**幾何だけ**（設計ごと）
+#     stdcell/<世代>/cell_char.json  こちらが作る**特性化の台帳**
+#       （area_um2 / transistors / kind / in_pins / out_pin / function）
+#   `gen_liberty.py` が要るのは後者。前者を渡すと KeyError: 'kind' になる。
+GDS = cfg.stdcell_file("TR-1um_STDCELL.gds")
+LEF = cfg.stdcell_file("TR-1um_STDCELL.lef")
+INFO = cfg.stdcell_file("cell_char.json")
+EXTRACTED = cfg.stdcell_file("extracted")
 
 # (output pin, liberty function, input pins) -- extend when a cell is added
 FUNCS = {
@@ -129,7 +139,7 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
          lef_path=LEF):
     if lef_path and os.path.exists(lef_path):
         geo = measure_lef(lef_path)
-        src = os.path.relpath(lef_path, ROOT) + " MACRO SIZE"
+        src = cfg.disp(lef_path) + " MACRO SIZE"
         if os.path.exists(gds_path):                 # cross-check
             gg = measure(gds_path)
             missing = sorted(set(gg) - set(geo))
@@ -141,7 +151,7 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
                         (gg[n]['width_um'] - 12.6) * (gg[n]['height_um'] - 4.0), 1))
     else:
         geo = measure(gds_path)
-        src = os.path.relpath(gds_path, ROOT) + " bounding boxes (NOT the footprint)"
+        src = cfg.disp(gds_path) + " bounding boxes (NOT the footprint)"
     tr = transistors(extracted_dir)
     old = json.load(open(info_path)) if os.path.exists(info_path) else {}
     meta = {k: v for k, v in old.items() if k.startswith("_")}
@@ -218,7 +228,7 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
         for macro, foreign in no_geom:
             print(f"       MACRO {macro} -> FOREIGN {foreign}")
     if added or changed:
-        print("\n  next: scripts/gen_liberty.py && scripts/build.sh && "
+        print("\n  next: apr/gen_liberty.py && scripts/build.sh && "
               "scripts/run_tests.sh")
     return new
 

@@ -407,3 +407,6 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | ~~U30~~ | **解決**（`CHIP_POWER` で電源の描き方を選ぶ + チップ床の値を config へ）。旧: `route_chip.py` が I2C のチップ床を実測値で直書きしている（`RO_STRAP_X` / `RO_M2_TOP` / `RO_VDD_BAR_Y` / `VDD_BUS_Y` / `GND_RING_R` …）。TD4 で回すと**存在しない RING_OSC の電源バーを描く**。コア段は設計非依存になったが、チップ段は 4 世代のうち I2C 1 世代ぶんしか入っていない | 2026-09-15（`docs/08_migration_td4.md`） |
 | U31 | TD4 の `out/*.v` は**古い Liberty**（`tr1um_typ_5v0_25c.lib` が APRtools 正本と不一致）で合成されている。再合成するとネットリストが変わるので、再現時は触らない。いつ揃えるか決める | 2026-09-15 |
 | U32 | **SCLK_SPI は旧 STDCELL（行高 64.8）で作られているので、59.4 版では配置も配線も別物**。GDS の突き合わせでは検証できない — 合成からやり直して **DRC / LVS / ngspice で判定する**。U15（TAP 最終間隔 540.0 > 534.6）もこのとき直る | 2026-09-15（`docs/02_stdcell_diff.md` §3） |
+| ~~U29 の一部~~ | **`apr/from_sclk_spi/` 9 本を `apr/` へ統合**（2026-09-15）。セルライブラリを指していた `cfg.ROOT/lef/…` は `cfg.stdcell_file()` へ。`moved-dir` の warn が 4 件減って 27 件に | `docs/50_char.md` |
+| U33 | `cell_char.json` でトランジスタ数が拾えないセルが 12 個（`stdcell/v59_4/extracted/` に `.extracted` が無い）。`DEC16` / `REGBUF4` / `REGBUF8` / `TAP2S` / `TLAT*`。`gate_count.py` の等価ゲート換算が効かない | 2026-09-15 |
+| U34 | 論理関数が定義されていないセルが 17 個（`gen_liberty.py` の `FUNCS` に無い）。マクロと latch は意図どおりだが、`DEL1` / `ADDBUF` / `REGBUF` は合成に出したいなら足す | 2026-09-15 |

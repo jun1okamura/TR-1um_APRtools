@@ -244,6 +244,16 @@ LOGO_DOT = rules.LOGO_DOT
 
 
 # ---- TAP 列（`docs/03_core_geometry.md` §2）-----------------------------
+def stdcell_file(name):
+    """STDCELL 正本の中のファイル。`stdcell/<世代>/<name>`。
+
+    セルライブラリそのもの（`.lef` / `.gds` / `.spice` / `.lib` /
+    `simulation/`）は**設計ではなく APRtools のもの**。設計の `lef/` を
+    指していた箇所はここへ寄せる（`apr/lint.py` の `moved-dir`）。
+    """
+    return os.path.join(stdcell_dir(), name)
+
+
 def tap_columns(width_um, pitch=TAP_PITCH, tap_w=TAP_W):
     """x=0 から pitch 刻み + 行末（W - tap_w）。最後の間隔が pitch を超えたら
     列を 1 本増やす。返り値はサイトグリッドに乗った x のリスト。"""

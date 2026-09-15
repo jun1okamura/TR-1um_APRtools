@@ -164,3 +164,34 @@ PDK モデル（`models_IP62_mos_v2.lib` の `.subckt PMOS` → `M1 … ps=ps pd
 | `mkcellverilog.py --power --delay 1` | `tr1um_cells.v`（26 セルの振る舞いモデル。合成の段 0） |
 | `mkmemsrc.py` | メモリ特性化用の刺激 |
 | `cellspec.py` | **セル仕様の唯一の出典**（ピン・方向・機能） |
+
+## セル台帳と Liberty（2026-09-15、`from_sclk_spi/` 統合で `apr/` へ）
+
+```sh
+python3 apr/sync_cell_info.py     # -> stdcell/<世代>/cell_char.json
+python3 apr/gen_liberty.py        # -> stdcell/<世代>/TR1um_5_stdcell_area.lib
+python3 apr/drc_check_cells.py    # セル単体 DRC（v59_4 は 52/52 clean）
+```
+
+### ★ `cell_info.json` と `cell_char.json` は**別物**
+
+同じ名前を使っていたので `gen_liberty.py` に幾何だけの JSON が渡って
+`KeyError: 'kind'` で落ちた（統合してすぐ踏んだ）。
+
+| | 作る人 | 中身 | 置き場 |
+|---|---|---|---|
+| `cell_info.json` | `apr/mkcellinfo.py` | **幾何だけ**（`width_um` / `height_um` / `sites` / `cls`） | **設計の** `layout/` |
+| `cell_char.json` | `apr/sync_cell_info.py` | **特性化の台帳**（`area_um2` / `transistors` / `kind` / `in_pins` / `out_pin` / `function`） | **APRtools の** `stdcell/<世代>/` |
+
+配置配線が要るのは前者、Liberty が要るのは後者。
+`gen_liberty.py` は `kind` が無ければ**何が足りないかを言って止まる**。
+
+### v59_4 の実績（2026-09-15）
+
+- `cell_char.json` **48 セル**
+- `TR1um_5_stdcell_area.lib` **21 セル**（論理関数が定義されているもの）
+- 論理関数が無い 17 セル（`REG8x16` / `TLAT*` / `DEC*` / `ADDBUF` …）は
+  ABC が使えないので Liberty に出ない。**マクロと latch は合成に出さない**
+  方針どおり
+- トランジスタ数が拾えない 12 セルは `stdcell/v59_4/extracted/` に
+  `.extracted` が無いもの。`--set CELL:transistors=N` で補える

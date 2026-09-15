@@ -12,7 +12,7 @@ catch the two classes of error this project has already hit, up front:
   2. a netlist that has drifted from the placement -- an instance the router
      placed and the netlist does not mention, or the reverse.
 
-CHECK 1 -- cell bodies (lef/TR-1um_STDCELL.spice vs lef/TR-1um_STDCELL.gds)
+CHECK 1 -- cell bodies (stdcell/<世代>/TR-1um_STDCELL.spice vs lef/TR-1um_STDCELL.gds)
     A crude device extractor pulls every poly-over-active gate out of the cell
     geometry and works out each one's W and L.  It deliberately compares
     FOLD-INVARIANT quantities -- device count is *not* one of them: BUFTH draws
@@ -25,7 +25,7 @@ CHECK 2 -- instance census (the generated .spice vs the routed GDS)
     Counts cell instances of each type in layout/step10's GDS and compares them
     against the cell calls plus inline fill devices in the netlist.
 
-  usage:  scripts/check_cell_spice.py [--gds layout/step10/route_step_6_squeezed.gds]
+  usage:  apr/check_cell_spice.py [--gds layout/step10/route_step_6_squeezed.gds]
 """
 import argparse
 import collections
@@ -40,11 +40,12 @@ sys.path.insert(0, _HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as _cfg
 
-CELL_SPICE = os.path.join(_cfg.ROOT, "lef", "TR-1um_STDCELL.spice")
+# セルライブラリは APRtools の STDCELL 正本（設計の lef/ の写しではない）
+CELL_SPICE = _cfg.stdcell_file("TR-1um_STDCELL.spice")
 LVS_SPICE = os.path.join(_cfg.LAYOUT, _cfg.TOP_CELL_NAME + ".spice")
 DEFAULT_ROUTED_GDS = os.path.join(_cfg.LAYOUT, "step10", "route_step_6_squeezed.gds")
 
-# process layers, same numbering scripts/drc_check_cells.py uses
+# process layers, same numbering apr/drc_check_cells.py uses
 POLY = (8, 1)
 PACT = (3, 1)          # p+ implant: PMOS source/drain and the substrate taps
 NACT = (3, 2)          # n+ implant: NMOS source/drain and the n-well taps

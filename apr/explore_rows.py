@@ -21,7 +21,7 @@ pitch).  The real flow then removes genuinely unused tracks, which on the I2C
 chip cut core height substantially, so treat these as an upper bound and use
 them to COMPARE N, not as an absolute prediction.
 
-  usage:  scripts/explore_rows.py [--rows 2 3 4 5 6] [--restarts 400]
+  usage:  apr/explore_rows.py [--rows 2 3 4 5 6] [--restarts 400]
 """
 import argparse
 import json

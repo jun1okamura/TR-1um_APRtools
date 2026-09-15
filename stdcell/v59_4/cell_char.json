@@ -1,0 +1,471 @@
+{
+ "_source": {
+  "areas": "$APRTOOLS/stdcell/v59_4/TR-1um_STDCELL.gds bounding boxes (NOT the footprint)",
+  "transistors": "counted from <cell>.extracted",
+  "gate_equivalent_ref": "NAND2 = 4 transistors = 1981 um2 = 1 equivalent gate"
+ },
+ "ADDBUF": {
+  "width_um": 99.0,
+  "height_um": 63.4,
+  "area_um2": 6277,
+  "transistors": 20,
+  "kind": "other"
+ },
+ "AND2_X1": {
+  "width_um": 34.2,
+  "height_um": 63.4,
+  "area_um2": 2168,
+  "transistors": 6,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A*B",
+  "in_pins": [
+   "A",
+   "B"
+  ]
+ },
+ "AND3_X1": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 8,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A*B*C",
+  "in_pins": [
+   "A",
+   "B",
+   "C"
+  ]
+ },
+ "AND4_X1": {
+  "width_um": 45.0,
+  "height_um": 63.4,
+  "area_um2": 2853,
+  "transistors": 10,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A*B*C*D",
+  "in_pins": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ]
+ },
+ "BUFTH": {
+  "width_um": 45.0,
+  "height_um": 63.4,
+  "area_um2": 2853,
+  "transistors": 8,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A",
+  "in_pins": [
+   "A"
+  ]
+ },
+ "BUF_X1": {
+  "width_um": 28.8,
+  "height_um": 63.4,
+  "area_um2": 1826,
+  "transistors": 4,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A",
+  "in_pins": [
+   "A"
+  ]
+ },
+ "BUF_X2": {
+  "width_um": 28.8,
+  "height_um": 63.4,
+  "area_um2": 1826,
+  "transistors": 4,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A",
+  "in_pins": [
+   "A"
+  ]
+ },
+ "DEC0": {
+  "width_um": 66.7,
+  "height_um": 86.4,
+  "area_um2": 5763,
+  "transistors": 16,
+  "kind": "other"
+ },
+ "DEC16": {
+  "width_um": 878.4,
+  "height_um": 86.4,
+  "area_um2": 75894,
+  "transistors": null,
+  "kind": "other"
+ },
+ "DEC2": {
+  "width_um": 114.0,
+  "height_um": 86.4,
+  "area_um2": 9850,
+  "transistors": 26,
+  "kind": "other"
+ },
+ "DEL1": {
+  "width_um": 45.0,
+  "height_um": 63.4,
+  "area_um2": 2853,
+  "transistors": 8,
+  "kind": "other"
+ },
+ "DFF": {
+  "width_um": 77.4,
+  "height_um": 63.4,
+  "area_um2": 4907,
+  "transistors": 24,
+  "kind": "ff"
+ },
+ "DFFRB": {
+  "width_um": 77.4,
+  "height_um": 63.4,
+  "area_um2": 4907,
+  "transistors": 26,
+  "kind": "ff"
+ },
+ "DFFS": {
+  "width_um": 77.4,
+  "height_um": 63.4,
+  "area_um2": 4907,
+  "transistors": 28,
+  "kind": "ff"
+ },
+ "FILL1": {
+  "width_um": 18.0,
+  "height_um": 63.4,
+  "area_um2": 1141,
+  "transistors": 0,
+  "kind": "physical"
+ },
+ "FILL2": {
+  "width_um": 23.4,
+  "height_um": 63.4,
+  "area_um2": 1484,
+  "transistors": 2,
+  "kind": "physical"
+ },
+ "FILL3": {
+  "width_um": 28.8,
+  "height_um": 63.4,
+  "area_um2": 1826,
+  "transistors": 2,
+  "kind": "physical"
+ },
+ "INV_X1": {
+  "width_um": 23.4,
+  "height_um": 63.4,
+  "area_um2": 1484,
+  "transistors": 2,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A'",
+  "in_pins": [
+   "A"
+  ]
+ },
+ "INV_X2": {
+  "width_um": 23.4,
+  "height_um": 63.4,
+  "area_um2": 1484,
+  "transistors": 2,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A'",
+  "in_pins": [
+   "A"
+  ]
+ },
+ "MUX2": {
+  "width_um": 45.0,
+  "height_um": 63.4,
+  "area_um2": 2853,
+  "transistors": 12,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "(A*!S)+(B*S)",
+  "in_pins": [
+   "A",
+   "B",
+   "S"
+  ]
+ },
+ "MUXDFFRB": {
+  "width_um": 109.8,
+  "height_um": 63.4,
+  "area_um2": 6961,
+  "transistors": 38,
+  "kind": "muxff"
+ },
+ "NAND2": {
+  "width_um": 28.8,
+  "height_um": 63.4,
+  "area_um2": 1826,
+  "transistors": 4,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A*B)",
+  "in_pins": [
+   "A",
+   "B"
+  ]
+ },
+ "NAND3": {
+  "width_um": 34.2,
+  "height_um": 63.4,
+  "area_um2": 2168,
+  "transistors": 6,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A*B*C)",
+  "in_pins": [
+   "A",
+   "B",
+   "C"
+  ]
+ },
+ "NAND4": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 8,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A*B*C*D)",
+  "in_pins": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ]
+ },
+ "NOR2": {
+  "width_um": 28.8,
+  "height_um": 63.4,
+  "area_um2": 1826,
+  "transistors": 4,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A+B)",
+  "in_pins": [
+   "A",
+   "B"
+  ]
+ },
+ "NOR3": {
+  "width_um": 34.2,
+  "height_um": 63.4,
+  "area_um2": 2168,
+  "transistors": 6,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A+B+C)",
+  "in_pins": [
+   "A",
+   "B",
+   "C"
+  ]
+ },
+ "NOR4": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 8,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A+B+C+D)",
+  "in_pins": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ]
+ },
+ "OR2": {
+  "width_um": 34.2,
+  "height_um": 63.4,
+  "area_um2": 2168,
+  "transistors": 6,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A+B",
+  "in_pins": [
+   "A",
+   "B"
+  ]
+ },
+ "OR3": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 8,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A+B+C",
+  "in_pins": [
+   "A",
+   "B",
+   "C"
+  ]
+ },
+ "OR4": {
+  "width_um": 45.0,
+  "height_um": 63.4,
+  "area_um2": 2853,
+  "transistors": 10,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A+B+C+D",
+  "in_pins": [
+   "A",
+   "B",
+   "C",
+   "D"
+  ]
+ },
+ "REG4x16": {
+  "width_um": 254.7,
+  "height_um": 937.0,
+  "area_um2": 238654,
+  "transistors": 72,
+  "kind": "other"
+ },
+ "REG8x16": {
+  "width_um": 405.9,
+  "height_um": 937.0,
+  "area_um2": 380328,
+  "transistors": 72,
+  "kind": "other"
+ },
+ "REGBUF": {
+  "width_um": 50.4,
+  "height_um": 63.4,
+  "area_um2": 3195,
+  "transistors": 8,
+  "kind": "other"
+ },
+ "REGBUF4": {
+  "width_um": 168.3,
+  "height_um": 63.4,
+  "area_um2": 10670,
+  "transistors": null,
+  "kind": "other"
+ },
+ "REGBUF8": {
+  "width_um": 319.5,
+  "height_um": 63.4,
+  "area_um2": 20256,
+  "transistors": null,
+  "kind": "other"
+ },
+ "RSLATCH": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 8,
+  "kind": "latch"
+ },
+ "TAP2": {
+  "width_um": 23.4,
+  "height_um": 63.4,
+  "area_um2": 1484,
+  "transistors": null,
+  "kind": "physical"
+ },
+ "TAP2S": {
+  "width_um": 10.8,
+  "height_um": 59.4,
+  "area_um2": 642,
+  "transistors": null,
+  "kind": "physical"
+ },
+ "TAP3": {
+  "width_um": 28.8,
+  "height_um": 63.4,
+  "area_um2": 1826,
+  "transistors": null,
+  "kind": "physical"
+ },
+ "TLAT": {
+  "width_um": 50.5,
+  "height_um": 63.4,
+  "area_um2": 3202,
+  "transistors": 12,
+  "kind": "other"
+ },
+ "TLAT128": {
+  "width_um": 319.5,
+  "height_um": 878.4,
+  "area_um2": 280649,
+  "transistors": null,
+  "kind": "other"
+ },
+ "TLAT4": {
+  "width_um": 168.3,
+  "height_um": 63.4,
+  "area_um2": 10670,
+  "transistors": null,
+  "kind": "other"
+ },
+ "TLAT4B": {
+  "width_um": 168.3,
+  "height_um": 114.0,
+  "area_um2": 19186,
+  "transistors": null,
+  "kind": "other"
+ },
+ "TLAT64": {
+  "width_um": 168.3,
+  "height_um": 878.4,
+  "area_um2": 147835,
+  "transistors": null,
+  "kind": "other"
+ },
+ "TLAT8": {
+  "width_um": 319.5,
+  "height_um": 63.4,
+  "area_um2": 20256,
+  "transistors": null,
+  "kind": "other"
+ },
+ "TLAT8B": {
+  "width_um": 319.5,
+  "height_um": 114.0,
+  "area_um2": 36423,
+  "transistors": null,
+  "kind": "other"
+ },
+ "XNOR2": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 10,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "!(A^B)",
+  "in_pins": [
+   "A",
+   "B"
+  ]
+ },
+ "XOR2": {
+  "width_um": 39.6,
+  "height_um": 63.4,
+  "area_um2": 2511,
+  "transistors": 10,
+  "kind": "comb",
+  "out_pin": "Y",
+  "function": "A^B",
+  "in_pins": [
+   "A",
+   "B"
+  ]
+ }
+}

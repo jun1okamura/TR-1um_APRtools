@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """gate_count.py -- cell / transistor / area / equivalent-gate report.
 
-Reads a gate-level netlist plus lef/cell_info.json (areas measured from
+Reads a gate-level netlist plus stdcell/<世代>/cell_char.json (areas measured from
 lef/TR-1um_STDCELL.gds, transistor counts from the cells' extracted SPICE)
 and prints the size of the design in the units this project quotes:
 
@@ -12,7 +12,7 @@ default 0.278 is the measured density of the TR-1um_Async_I2C chip
 (0.2985 mm2 of logic cells inside a 1.533 mm2 core, LEF footprints), i.e. what this
 project's own nrow placement + channel routing actually achieves.
 
-  usage:  scripts/gate_count.py NETLIST.v [NETLIST2.v ...] [--density 0.278]
+  usage:  apr/gate_count.py NETLIST.v [NETLIST2.v ...] [--density 0.278]
 """
 import argparse
 import json

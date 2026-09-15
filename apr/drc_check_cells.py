@@ -10,7 +10,7 @@ while the netlist said BUF_X2.
 Rules match scripts/drc_check.py (M1/M2 width and space, V1 space and
 enclosure).  Run it after ANY change to lef/TR-1um_STDCELL.gds.
 
-  usage:  scripts/drc_check_cells.py [--gds lef/TR-1um_STDCELL.gds] [CELL ...]
+  usage:  apr/drc_check_cells.py [--gds lef/TR-1um_STDCELL.gds] [CELL ...]
 """
 import argparse
 import os
@@ -64,7 +64,7 @@ def main(gds=cfg.CELL_GDS, only=()):
     names = sorted(c.name for c in ly.each_cell()
                    if not only or c.name in only)
     bad = 0
-    print(f"=== {os.path.relpath(gds, cfg.ROOT)} : {len(names)} cell(s) ===")
+    print(f"=== {cfg.disp(gds)} : {len(names)} cell(s) ===")
     for n in names:
         v = check_cell(ly, ly.cell(n), dbu)
         if not v:
