@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """drc_pdk.py -- **PDK の本物の DRC デッキ**を当てて結果を要約する。
 
-  usage: python3 scripts/pnr/drc_pdk.py <gds> [top_cell] [-r report.lyrdb]
-         python3 scripts/pnr/drc_pdk.py layout/chip/step1c_logo.gds
+  usage: python3 apr/drc_pdk.py <gds> [top_cell] [-r report.lyrdb]
+         python3 apr/drc_pdk.py layout/chip/step1c_logo.gds
+         python3 apr/drc_pdk.py src/<top>.gds --mdp     # マスクデータまで
 
 `scripts/pnr/drc_check.py` は **M1 / M2 / V1 の幅と間隔しか見ない**。
 ルータが自分の引いた線を検算するためのもので、拡散もコンタクトもゲートも
@@ -135,6 +136,12 @@ def main():
     ap.add_argument("-r", "--report", default=None)
     ap.add_argument("--allow-old-klayout", action="store_true",
                     help="0.29 未満でも size_inside を外した写しで流す")
+    # MDP（マスクデータ）。提出 GDS からマスクを起こして、そのマスクに
+    # `run_IP62.drc` を当てる。**描画ルールと別物**なので提出前に 1 回は通す。
+    ap.add_argument("--mdp", action="store_true",
+                    help="run_mdp.drc でマスクを起こし run_IP62.drc を当てる")
+    ap.add_argument("--mdp-gds", default=None,
+                    help="起こしたマスクの置き場（既定: <gds>_mdp.gds）")
     a = ap.parse_args()
 
     top = a.top_cell or (cfg.CHIP_TOP_CELL if "/chip/" in a.gds else cfg.TOP_CELL_NAME)
@@ -160,7 +167,40 @@ def main():
         print(r.stdout[-2000:]); print(r.stderr[-2000:])
         raise SystemExit(f"  ** klayout が {r.returncode} で終了した")
     print(f"  レポート {os.path.relpath(rep, cfg.ROOT)}")
-    return summarize(rep)
+    rc = summarize(rep)
+    if a.mdp:
+        rc |= run_mdp(exe, deck, gds, top, a, rc_drawing=rc)
+    return rc
+
+
+def run_mdp(exe, deck, gds, top, a, rc_drawing=0):
+    """`run_mdp.drc` -> マスク GDS -> `run_IP62.drc`。
+
+    描画ルール（`run.drc`）が 0 でも、マスクデータで落ちることはある
+    （OPC 的な加工が入るので形が変わる）。**提出前に 1 回は通す。**
+
+    デッキの変数名が `run.drc` と違う: `run_mdp.drc` は
+    `$input` / `$cellname` / `$output`、`run_IP62.drc` は
+    `$input` / `$top_cell` / `$report`。"""
+    mdp = os.path.abspath(a.mdp_gds or os.path.splitext(gds)[0] + "_mdp.gds")
+    rep2 = os.path.abspath(os.path.splitext(gds)[0] + "_mdp.lyrdb")
+    print(f"\n=== MDP: マスクを起こす -> {os.path.relpath(mdp, cfg.ROOT)}")
+    r = subprocess.run([exe, "-b", "-r", os.path.join(deck, "run_mdp.drc"),
+                        "-rd", f"input={gds}", "-rd", f"cellname={top}",
+                        "-rd", f"output={mdp}"], capture_output=True, text=True)
+    if r.returncode != 0 or not os.path.exists(mdp) or os.path.getsize(mdp) < 1024:
+        print(r.stdout[-2000:]); print(r.stderr[-2000:])
+        raise SystemExit("  ** run_mdp.drc が失敗した（マスクが出ていない）")
+    print(f"  {os.path.getsize(mdp) // 1024} KB")
+    print("=== MDP: マスクに run_IP62.drc を当てる")
+    r = subprocess.run([exe, "-b", "-r", os.path.join(deck, "run_IP62.drc"),
+                        "-rd", f"input={mdp}", "-rd", f"top_cell={top}",
+                        "-rd", f"report={rep2}"], capture_output=True, text=True)
+    if r.returncode != 0:
+        print(r.stdout[-2000:]); print(r.stderr[-2000:])
+        raise SystemExit(f"  ** klayout が {r.returncode} で終了した")
+    print(f"  レポート {os.path.relpath(rep2, cfg.ROOT)}")
+    return summarize(rep2)
 
 
 if __name__ == "__main__":

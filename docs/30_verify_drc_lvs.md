@@ -4,6 +4,121 @@
 > 最終判断は **PDK 公式デッキ（`drc_pdk.py` / `lvs_pdk.py`）と CI** の結果で取る。
 > 実害が出た事例は `docs/40_gotchas.md` §1・§2。
 
+## 0. 進め方（サインオフの手順）
+
+### 下ごしらえ
+
+```sh
+export TR1UM_PDK=$HOME/Dropbox/91_OpenPDK/TR-1um
+export APRTOOLS=$HOME/Dropbox/91_OpenPDK/TR-1um_APRtools
+export PYTHONPATH=$APRTOOLS/apr
+export KLAYOUT=/Applications/klayout.app/Contents/MacOS/klayout   # ★
+cd $HOME/Dropbox/98_LSI_Design/<design>
+python3 $APRTOOLS/apr/selfcheck.py      # klayout モジュール / klayout コマンド / 版
+```
+
+> **★ `KLAYOUT` を export する。** `drc_pdk.py` / `lvs_pdk.py` は
+> `subprocess` で `klayout` を呼ぶので、**シェルの alias は見えない**
+> （`docs/40_gotchas.md` §2-b）。引数付きの alias を使っているなら
+> ラッパを 1 枚作ってそれを指す。
+>
+> `klayout.db` の **pip モジュール**（`lvs_pnr.py` / 抽出が使う）と
+> **アプリ**（公式デッキ）は別物。`selfcheck.py` の `--- 0. 実行環境 ---`
+> が両方を確認する。
+>
+> デッキは **0.29 以上**。0.28 では `--allow-old-klayout` で流せるが、
+> `size_inside` を使うルール行を外すので**その分だけ検査は緩い**。
+> **サインオフは 0.29 以上 か CI で取る。**
+
+### 1) DRC — 3 対象
+
+```sh
+python3 $APRTOOLS/apr/drc_pdk.py layout/step10/route_step_6_squeezed.gds <core_top>
+python3 $APRTOOLS/apr/drc_pdk.py lef/RING_OSC.gds RING_OSC          # マクロがあれば
+python3 $APRTOOLS/apr/drc_pdk.py layout/chip/step3_top_pins.gds <chip_top>
+```
+
+**トップセルは必ず明示する**（§1 の実務規則 1）。`layout/step10/` の GDS は
+未使用セルが残っていてトップが 13〜15 個ある。
+
+### 2) LVS のソースを組む（**レイアウトを見ずに**）
+
+```sh
+python3 $APRTOOLS/apr/mklvsnet.py      # コア: 合成ネット + セル .spice + 配置 JSON
+python3 $APRTOOLS/macro/ringosc/mkringoscnet.py   # マクロ: 回路図から
+python3 $APRTOOLS/apr/mkchipnet.py     # チップ: 上 2 つ + フレーム + gio_connections.json
+```
+
+### 3) 自前の照合（速い。素子とネットのグラフ同型だけ）
+
+```sh
+python3 $APRTOOLS/apr/lvs_pnr.py layout/step10/route_step_6_squeezed.gds <core_top> \
+        layout/chip/simulation/<core_top>.spice \
+        -o layout/chip/simulation/<core_top>.extracted
+python3 $APRTOOLS/apr/lvs_pnr.py layout/chip/step3_top_pins.gds <chip_top> \
+        layout/chip/simulation/<chip_top>.spice \
+        -o layout/chip/simulation/<chip_top>.extracted
+```
+
+**これが通っても根拠にならない**（両側 flatten なので階層の不一致が見えない）。
+先に流すのは、落ちたときの原因が読みやすいから。
+
+### 4) PDK 公式デッキ（**ここで判断する**）
+
+```sh
+python3 $APRTOOLS/apr/lvs_pdk.py layout/chip/step3_top_pins.gds \
+        -r layout/chip/simulation/<chip_top>.lvsdb
+python3 $APRTOOLS/apr/lvs_pdk.py layout/step10/route_step_6_squeezed.gds <core_top> \
+        --sch layout/chip/simulation/<core_top>.spice \
+        -r layout/chip/simulation/<core_top>.lvsdb
+```
+
+デッキは **GDS の隣の `simulation/<トップセル名>.spice`** しか見ない。
+コアの GDS は `layout/step10/` にあってソースは `layout/chip/simulation/` なので、
+`--sch` を付ける（`lvs_pdk.py` が一時ディレクトリに並べ直して流す）。
+
+### 5) 提出物とマスクデータ
+
+```sh
+python3 $APRTOOLS/apr/export_mpw.py                  # -> src/<chip_top>.gds / .cir
+python3 $APRTOOLS/apr/pre_check.py
+python3 $APRTOOLS/apr/drc_pdk.py src/<chip_top>.gds <chip_top> --mdp
+```
+
+`--mdp` は `run_mdp.drc` でマスクを起こし、そのマスクに `run_IP62.drc` を
+当てる（**描画ルールとは別物**。デッキの変数名も違う ―
+`run_mdp.drc` は `$input`/`$cellname`/`$output`、`run_IP62.drc` は
+`$input`/`$top_cell`/`$report`）。提出前に 1 回は通す。
+
+### 6) 落ちたときに最初に見るところ
+
+| 症状 | だいたいこれ |
+|---|---|
+| 全ピンが不一致 | **トップポート数が合っていない**（§2「踏んだ穴」1）。1 本ずれるだけで全部倒れる |
+| ポートが 1〜2 本だけ不一致 | ラベルだけ置いてピンの実体（M2）が無い（同 2） |
+| 素子数が合わない | 折り畳み / デキャップ / `m=2`。**素子数で比較しない**（同 3） |
+| 短絡に見える | `SPICE は大小を区別しない`。`web` と `WEB` が潰れている（同 4） |
+| 同一構造のブロックでピンが入れ替わる | KLayout が恣意的に対応を決めている。**ラベルで固定**（同 6） |
+| 何も実行されない / レポートが出ない | レポートのパスが相対。`drc_pdk.py` は絶対パスにしている |
+
+### 2026-09-15 の実測（移行後・`vdd`/`vss` 統一後）
+
+x86_64 Linux / **KLayout 0.28.16 + `--allow-old-klayout`** で流した結果。
+0.28 なので**サインオフではない**が、`vdd`/`vss` へ改名しても公式デッキが
+通ることは確認できている。
+
+| 対象 | DRC | LVS |
+|---|---|---|
+| コア `route_step_6_squeezed.gds` | **0 件** | **Congratulations! Netlists match.** |
+| チップ `step3_top_pins.gds` | **0 件** | **Congratulations! Netlists match.** |
+| 提出 GDS `src/<chip_top>.gds` | **0 件** | — |
+| MDP マスク（`run_mdp.drc` → `run_IP62.drc`） | **0 件**（マスク 5.5 MB） | — |
+
+> **★ 電源名の改名は公式 LVS を壊さない。**
+> `05_Compare.lvs` は電源ネット名を直接見ておらず、`IP62/01_Extract.lvs` の
+> `connect_global(BULK, "VSS")` も SPICE の大小無視で `vss` と同一視される
+> （`docs/40_gotchas.md` §1-5）。
+
 ## 1. DRC — 2 段構え
 
 | 段 | スクリプト | 見る範囲 | 用途 |
@@ -11,7 +126,7 @@
 | ルータの検算 | `apr/drc_check.py <gds> <top>` | M1/M2/V1 の**幅と間隔だけ** | step ごとの早期検出 |
 | セル単体 | `apr/from_sclk_spi/drc_check_cells.py [cell]` | STDCELL 全セル | **GDS を触ったら回す** |
 | **公式** | `apr/drc_pdk.py <gds>` | `$TR1UM_PDK/libs.tech/klayout/tech/drc/run.drc` 全ルール | **サインオフ** |
-| MDP 後 | `run_mdp.drc` → `run_IP62.drc` | マスクデータ | 提出前 |
+| MDP 後 | `apr/drc_pdk.py <gds> --mdp` | `run_mdp.drc` → `run_IP62.drc`（マスクデータ） | 提出前 |
 
 ### 自作チェッカが実装していないルール
 

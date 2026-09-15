@@ -103,7 +103,7 @@ python3 $APRTOOLS/apr/route.py
 | [`docs/21_flow_place.md`](docs/21_flow_place.md) | 配置 step1〜4 |
 | [`docs/22_flow_route.md`](docs/22_flow_route.md) | 配線 step5〜11 |
 | [`docs/23_flow_chip.md`](docs/23_flow_chip.md) | チップ組み立て |
-| [`docs/30_verify_drc_lvs.md`](docs/30_verify_drc_lvs.md) | DRC / LVS |
+| [`docs/30_verify_drc_lvs.md`](docs/30_verify_drc_lvs.md) | **DRC / LVS — §0 にサインオフの手順** |
 | [`docs/31_verify_ngspice.md`](docs/31_verify_ngspice.md) | ngspice / IRSIM |
 | [`docs/50_char.md`](docs/50_char.md) | セル特性化 |
 | [`docs/40_gotchas.md`](docs/40_gotchas.md) | **踏んだ穴 — 設計非依存の落とし穴集**（★ は 2 回以上踏んだもの） |
