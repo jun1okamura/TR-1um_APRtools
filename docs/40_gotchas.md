@@ -180,6 +180,50 @@ NOR2 の PMOS は vdd 側から WEB,RDB。記述が逆で不一致になった�
 
 ---
 
+## 2-b. ★★ KLayout が 2 つある — アプリと pip モジュールは別物
+
+`import klayout.db` が使うのは **pip の `klayout`**。
+`/Applications/klayout.app` や `klayout` コマンドを入れても**これは入らない**。
+
+| 何を使うか | 誰が | 入れ方 |
+|---|---|---|
+| **Python モジュール** `klayout.db` | `place.py` `route.py` `assemble_top.py` `klayout_extract.py` `lvs_pnr.py` ほか 34 本 | `python3 -m pip install klayout` |
+| **アプリ**（`klayout -b -r deck.drc`） | `drc_pdk.py` / `lvs_pdk.py`（PDK 公式デッキは Ruby DSL なので**アプリでしか流せない**） | KLayout 本体 |
+
+踏んだ穴（2026-09-15）:
+
+```
+$ python3 $APRTOOLS/apr/gen_chip_sim_ready.py
+=== 抽出 layout/chip/step3_top_pins.gds (tr_1um_jun1okamura_i2c)
+pip install klayout
+klayout_extract が失敗した
+```
+
+アプリはパスにあるのにこうなる。**メッセージが「pip install klayout」の 1 行しか
+出ていなかったので、アプリを入れ直す方向に読めてしまう**のが悪い。
+→ `klayout_extract.py` のメッセージを、アプリとの違い・いま動いている
+`sys.executable`・入れるコマンドまで出す形に直した。
+`selfcheck.py` の `--- 0. 実行環境 ---` でも先に出る。
+
+### ★ シェルの alias は `subprocess` から見えない
+
+`alias klayout='/Applications/klayout.app/Contents/MacOS/klayout -c ~/.myklayoutrc'`
+のような alias は **子プロセスに引き継がれない**（`drc_pdk.py` / `lvs_pdk.py` は
+`subprocess` で `klayout` を呼ぶ）。
+
+```sh
+export KLAYOUT=/Applications/klayout.app/Contents/MacOS/klayout
+```
+
+引数付きの alias はそのままでは渡せないので、必要ならラッパを 1 枚作って
+`KLAYOUT` にそれを指す。
+
+### ★ 親を正しい python で呼べば子もそれになる
+
+`gen_chip_sim_ready.py` は `sys.executable` で `klayout_extract.py` を起動する。
+venv に `klayout` が入っているなら、**親をその venv の python で呼べばよい**
+（`PYTHONPATH` は `apr/` を指したまま）。
+
 ## 3. ngspice
 
 ### 3-1. ★ LVS 用のネットリストは ngspice に使えない

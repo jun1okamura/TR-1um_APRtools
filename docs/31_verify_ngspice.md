@@ -26,8 +26,20 @@ python3 $APRTOOLS/apr/gen_chip_sim_ready.py                 # RING_OSC 入り  -
 python3 $APRTOOLS/apr/gen_chip_sim_ready.py --no-ringosc    # 長い回帰用     -> <top>_noosc_sim.spice
 ```
 
-内部で `apr/klayout_extract.py` を `subprocess` で呼ぶ。**必要なのは
-`pip install klayout` だけ**（KLayout 本体の CLI は要らない）。
+内部で `apr/klayout_extract.py` を `subprocess` で呼ぶ。
+
+> **★ 要るのは pip の `klayout` モジュールで、KLayout アプリではない。**
+> `/Applications/klayout.app` を入れても `import klayout.db` はできない
+> （逆に PDK 公式デッキの DRC/LVS はアプリでしか流せない）。
+>
+> ```sh
+> python3 -m pip install klayout      # Homebrew の python なら --break-system-packages か venv
+> ```
+>
+> 親スクリプトは `sys.executable` で子を起動するので、**venv に入れてあるなら
+> 親をその python で呼べばよい**。`selfcheck.py` の `--- 0. 実行環境 ---` が
+> モジュール / アプリ / ngspice の 3 つを先に確認する。
+> 詳細は `docs/40_gotchas.md` §2-b。
 
 ### 2) テストベンチを作る（**設計側**のスクリプト）
 

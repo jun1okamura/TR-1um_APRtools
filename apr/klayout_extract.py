@@ -28,7 +28,24 @@ import argparse, os, sys
 try:
     import klayout.db as db
 except ImportError:
-    sys.exit("pip install klayout")
+    sys.exit(
+        "klayout の **Python モジュール** が入っていない。\n"
+        "\n"
+        "  これは KLayout アプリ（/Applications/klayout.app や `klayout` コマンド）\n"
+        "  とは別物で、アプリを入れても `import klayout.db` はできない。\n"
+        "  `drc_pdk.py` / `lvs_pdk.py` はアプリ（`klayout -b`）を使うが、\n"
+        "  こちらは Python API を使うので pip の `klayout` が要る。\n"
+        "\n"
+        f"  いま動いている python: {sys.executable}\n"
+        "\n"
+        "  この python に入れる:\n"
+        f"    {sys.executable} -m pip install klayout\n"
+        "    （Homebrew の python なら --break-system-packages か venv）\n"
+        "\n"
+        "  すでにどこかに入っているなら、その python で呼ぶ:\n"
+        "    PYTHONPATH=$APRTOOLS/apr <その python> $APRTOOLS/apr/gen_chip_sim_ready.py\n"
+        "  親スクリプトは sys.executable で子を起動するので、親を正しい\n"
+        "  python で呼べば子もそれになる。")
 
 # 00_Layers.drc の入力層
 LAYERS = {

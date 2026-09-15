@@ -14,6 +14,7 @@
 """
 import hashlib
 import os
+import shutil
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -44,6 +45,27 @@ def main():
         line(NG, f"config.py が読めない: {e}")
         return 1
     line(OK, f"config.py 読み込み / check() 通過  ROOT={cfg.ROOT}")
+
+    print("\n--- 0. 実行環境 ---")
+    print(f"       python            {sys.executable}")
+    try:
+        import klayout as _kl
+        _v = getattr(_kl, "__version__", "?")
+        line(OK, f"klayout モジュール  {_v}（pip。配置・配線・抽出に要る）")
+    except ImportError:
+        line(NG, "klayout の Python モジュールが無い"
+                 f" -> {sys.executable} -m pip install klayout")
+        print("       ※ KLayout アプリ（`klayout` コマンド）とは別物。"
+              "アプリだけでは import できない。")
+    _exe = shutil.which(os.environ.get("KLAYOUT", "klayout"))
+    line(OK if _exe else WARN,
+         f"klayout コマンド      {_exe or '見つからない（drc_pdk.py / lvs_pdk.py で要る）'}")
+    if not _exe:
+        print("       ※ シェルの alias は subprocess から見えない。"
+              "`export KLAYOUT=/Applications/klayout.app/Contents/MacOS/klayout`")
+    _ng = shutil.which("ngspice")
+    line(OK if _ng else WARN,
+         f"ngspice               {_ng or '見つからない（機能回帰で要る）'}")
 
     print("\n--- 1. フロアプラン ---")
     print(f"       TOP_CELL_NAME     {cfg.TOP_CELL_NAME}")
