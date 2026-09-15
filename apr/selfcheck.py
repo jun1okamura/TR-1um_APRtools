@@ -114,7 +114,7 @@ def main():
 
     print("\n--- 2. 入力 ---")
     for name in ("LIB_LEF", "LIB_GDS", "LEF_PATH", "CELL_GDS", "LIBERTY",
-                 "NET_PATH", "LOGO_BITMAP", "FRAME_GDS"):
+                 "CELL_INFO", "NET_PATH", "LOGO_BITMAP", "FRAME_GDS"):
         p = getattr(cfg, name, None)
         if p is None:
             line(WARN, f"{name:12s} 未設定")

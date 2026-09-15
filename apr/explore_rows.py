@@ -6,10 +6,10 @@ does (balanced by cell WIDTH, minimising the number of nets that have to leave
 a row), then reports what each choice of N costs geometrically, using the
 TR-1um_Async_I2C flow's own numbers:
 
-    row height   64.8 um        (LEF MACRO SIZE)
-    track pitch   5.4 um        (compaction_info_v10_empirical.json)
-    row width  <= 1620 um       (row_width_um in the same file)
-    channels    = N + 1         (one above and below every row)
+    row height   cfg.ROW_HEIGHT_UM   (59.4 for the canonical v59_4 cells)
+    track pitch  cfg.SITE_UM         (5.4)
+    row width <= cfg.ROW_WIDTH_UM    (derived from CORE_WIDTH_TRACKS)
+    channels    = N + 1              (one above and below every row)
 
 A net whose cells all land in one row needs no channel track at all -- that is
 the whole point of the row-aware flow -- so the channel budget is driven by the
@@ -21,7 +21,12 @@ pitch).  The real flow then removes genuinely unused tracks, which on the I2C
 chip cut core height substantially, so treat these as an upper bound and use
 them to COMPARE N, not as an absolute prediction.
 
-  usage:  apr/explore_rows.py [--rows 2 3 4 5 6] [--restarts 400]
+  usage:  python3 $APRTOOLS/apr/explore_rows.py [--rows 2 3 4 5 6]
+
+  ★ 以前はここに SCLK_SPI の 64.8 世代の値
+    (`../layout/spi_slave_sclk_net_pnr.v` / `../lef/cell_info.json` /
+     ROW_H 64.8 / MAX_ROW_W 1620) が直書きで、`apr/` の外を見ていた。
+    いまは全部 `config.py` から取る。
 """
 import argparse
 import json
@@ -31,16 +36,19 @@ import re
 import sys
 from collections import defaultdict
 
-sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-import netlist_util as nu
+HERE = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, HERE)
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402
+import netlist_util as nu  # noqa: E402
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-NET = os.path.join(ROOT, "layout", "spi_slave_sclk_net_pnr.v")
-INFO = os.path.join(ROOT, "lef", "cell_info.json")
+ROOT = cfg.ROOT
+NET = cfg.NET_PATH
+INFO = cfg.stdcell_file("cell_info.json")
 
-ROW_H = 64.8
-PITCH = 5.4
-MAX_ROW_W = 1620.0
+ROW_H = cfg.ROW_HEIGHT_UM
+PITCH = cfg.SITE_UM
+MAX_ROW_W = cfg.ROW_WIDTH_UM
 SUPPLY = {"VDD", "VSS", "GND", "vdd", "vss", "gnd", "1'b0", "1'b1",
           "1'h0", "1'h1"}
 
@@ -180,7 +188,7 @@ def main(net_path=NET, info_path=INFO, rows=(2, 3, 4, 5, 6), restarts=300,
     insts, width, cellof, net_cells, ports = load(net_path, info_path)
     names = [i.name for i in insts]
     total_w = sum(width.values())
-    print(f"netlist : {os.path.relpath(net_path, ROOT)}")
+    print(f"netlist : {cfg.disp(net_path)}")
     print(f"cells   : {len(insts)}   total cell width {total_w:.1f} um")
     print(f"nets    : {len(net_cells)}  (ports {sum(1 for x in net_cells if is_port_net(x, ports))})")
     print(f"limits  : row width <= {MAX_ROW_W} um, row height {ROW_H} um, "

@@ -231,6 +231,9 @@ SYN_TB_RTL = []                 # RTL に当てる TB。空なら飛ばす
 SYN_TB_NET = []                 # 畳み込み後のネットリストに当てる TB
 SYN_TB_INCDIR = []              # iverilog -I に渡すディレクトリ
 SYN_REF_NETLIST = None          # 既提出ネットリスト（cmp_cells.py で突き合わせ）
+# フレームの LVS ソース（`mkframespice.py --no-combine` の出力）。
+# None なら `<設計>/lef/simulation/OSS_FRAME_GIO_nocombine.spice`。
+FRAME_LVS_SPICE = None
 STA_CLK_PORT = None             # クロックを入れるポート名（例 "scl" / "sclk"）
 STA_PERIOD_NS = 100.0           # STA の周期
 STA_FALSE_PATH_FROM = ["rst_n"] # recovery/removal を特性化していないので外す
@@ -523,7 +526,17 @@ def finalize(ns):
     #   名前が入っているので、**セル名の有無で判定してはいけない**。
     ns["HAS_RING_OSC"] = ns["RING_OSC_ORIGIN"] is not None
 
-    ns.setdefault("CELL_INFO", os.path.join(lay, "cell_info.json"))
+    # セル寸法表。**中身は STDCELL の性質**（LEF の SIZE と GDS の prBoundary）
+    # なので正本は `stdcell/<世代>/cell_info.json`。ただし**既提出設計が持って
+    # いる `layout/cell_info.json` を黙って置き換えない**（TD4 は MEMPORT の
+    # 高さが 550.8 で、APRtools 側の 502.2 と違う）。設計側にあればそちらが勝つ。
+    # どちらを使ったかは `selfcheck.py` が出す。
+    if not ns.get("CELL_INFO"):
+        _design_ci = os.path.join(lay, "cell_info.json")
+        # ★ ここで `stdcell_file()` は呼べない。`_NS` はまだ None で、
+        #   `stdcell_dir()` -> `_g("STDCELL")` が落ちる（SYN_LIB と同じ書き方にする）。
+        ns["CELL_INFO"] = _design_ci if os.path.exists(_design_ci) else os.path.join(
+            APR_ROOT, "stdcell", ns.setdefault("STDCELL", STDCELL), "cell_info.json")
     ns.setdefault("PLACEMENT_JSON", os.path.join(lay, "placement.json"))
     ns.setdefault("PLACEMENT_GDS", os.path.join(lay, "step5", "route_step_1_placement.gds"))
     ns.setdefault("ROUTED_RAW_GDS", os.path.join(lay, "step6", "route_step_2_routed_raw.gds"))

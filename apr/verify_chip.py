@@ -30,6 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules                                            # noqa: E402
 
 import klayout.db as db                                     # noqa: E402
 
@@ -136,7 +137,12 @@ def main():
         if i is not None and i in (vdd, gnd):
             bad.append(f"{n} が電源の島 {i} に入っている")
 
-    rails = {"VDD": vdd, "GND": gnd}
+    rails = {"VDD": vdd, "GND": gnd}   # lint: ok 島の番号。チップ側の名前で引く
+    # ★ **コア側のラベルは小文字**（`rules.PWR_NET` / `GND_NET` = vdd / vss）。
+    #   ここを `"VDD"`/`"GND"` で引いていたので、下のタップ照合は
+    #   **一度も動いていなかった**（「コアの電源タップ 0 本を確認」と出て
+    #   通ってしまう）。I2C / TD4 のサインオフでも 0 本だった。U21 の 1 件。
+    CORE_RAIL = {rules.PWR_NET: "VDD", rules.GND_NET: "GND"}
     ties = plan.get("ties")
     if ties is None:
         ties = plan["hiz_ties"] + plan["float_ties"]
@@ -159,18 +165,22 @@ def main():
     ct_core = core.bbox().top * ly2.dbu
     taps = open_taps = 0
     for s in core.shapes(ly2.layer(49, 0)).each():
-        if not s.is_text() or s.text.string not in rails:
+        if not s.is_text() or s.text.string not in CORE_RAIL:
             continue
+        rail = CORE_RAIL[s.text.string]
         x, y = s.text.x * ly2.dbu + dx, s.text.y * ly2.dbu + dy
         i = look(x, y, "M2")
         top_side = s.text.y * ly2.dbu > ct_core / 2.0
         taps += 1
         if not top_side:
             open_taps += 1
-        if i != rails[s.text.string]:
+        if i != rails[rail]:
             bad.append(f"コアの {s.text.string} タップ ({x:.1f}, {y:.1f}) "
-                       f"が島 {i}（期待 {rails[s.text.string]}）"
+                       f"が島 {i}（期待 {rails[rail]} = {rail}）"
                        + ("" if top_side else "  ※下辺"))
+    if taps == 0:
+        bad.append("コアの電源タップのラベルが 1 つも見つからない"
+                   f"（探した名前 {sorted(CORE_RAIL)}）")
     print(f"  コアの電源タップ {taps} 本を確認"
           f"（うち下辺 {open_taps} 本は TAP 柱経由）")
 
@@ -179,22 +189,27 @@ def main():
     # 移植 (23) で両脇の M2 ストラップを M1 に落として上下のバスバーへ
     # 繋いだので、5 本のレール全部が正しい島に乗っていることを確かめる。
     # レールの y は RING_OSC の GDS 実測（セル y に RING_OSC_ORIGIN[1] を足す）。
-    ro_y = cfg.RING_OSC_ORIGIN[1]
-    # セル y は RING_OSC 自身のラベル位置（GDS 実測）をそのまま使う。
-    ro_checks = [("VSS 下端レール", -106.9, "GND"), ("VDD 下レール", -52.3, "VDD"),
-                 ("VSS 中レール", 2.3, "GND"), ("VDD 上レール", 56.9, "VDD"),
-                 ("VSS 上端レール", 111.5, "GND")]
-    for nm, cy, rail in ro_checks:
-        i = look(cfg.RING_OSC_ORIGIN[0] + 400.0, ro_y + cy, "M1")
-        if i != rails[rail]:
-            bad.append(f"RING_OSC の {nm} が島 {i}（期待 {rails[rail]} = {rail}）")
-    print(f"  RING_OSC のレール {len(ro_checks)} 本を確認")
-    for nm, x, y, rail in (("RING_OSC 上の VDD バー", 0.0, -522.5, "VDD"),
-                           ("RING_OSC 下の VSS バー", 0.0, -780.0, "GND")):
-        i = look(x, y, "M1")
-        if i != rails[rail]:
-            bad.append(f"{nm} が島 {i}（期待 {rails[rail]} = {rail}）")
-    print("  RING_OSC 上下の M1 バスバー 2 本を確認")
+    # ★ RING_OSC は I2C だけの構造。無い設計ではこの節ごと飛ばす
+    #   （`cfg.HAS_RING_OSC`。U30 / mkchipnet.py と同じ形）。
+    if not getattr(cfg, "HAS_RING_OSC", False):
+        print("  RING_OSC の無い設計なのでこの節は飛ばす")
+    else:
+        ro_y = cfg.RING_OSC_ORIGIN[1]
+        # セル y は RING_OSC 自身のラベル位置（GDS 実測）をそのまま使う。
+        ro_checks = [("VSS 下端レール", -106.9, "GND"), ("VDD 下レール", -52.3, "VDD"),
+                     ("VSS 中レール", 2.3, "GND"), ("VDD 上レール", 56.9, "VDD"),
+                     ("VSS 上端レール", 111.5, "GND")]
+        for nm, cy, rail in ro_checks:
+            i = look(cfg.RING_OSC_ORIGIN[0] + 400.0, ro_y + cy, "M1")
+            if i != rails[rail]:
+                bad.append(f"RING_OSC の {nm} が島 {i}（期待 {rails[rail]} = {rail}）")
+        print(f"  RING_OSC のレール {len(ro_checks)} 本を確認")
+        for nm, x, y, rail in (("RING_OSC 上の VDD バー", 0.0, -522.5, "VDD"),
+                               ("RING_OSC 下の VSS バー", 0.0, -780.0, "GND")):
+            i = look(x, y, "M1")
+            if i != rails[rail]:
+                bad.append(f"{nm} が島 {i}（期待 {rails[rail]} = {rail}）")
+        print("  RING_OSC 上下の M1 バスバー 2 本を確認")
 
     # REG8x16 のポート（チップ側でバーまで延ばした 4 本 + step11 の右下 1 組）
     # I2C にマクロは無い（config.MACRO_MODE = "none"）。

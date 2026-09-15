@@ -58,8 +58,12 @@ CHIP_GIO_CELL = cfg.FRAME_CELL_CHIP  # チップ GDS / LVS での名前（OSS_FR
 # combine 済みのフレームを混ぜると素子数が 316 個ずれる（2026-09-14 に実測:
 # レイアウト 4225 vs ソース 3909）。`lef/simulation/OSS_FRAME_GIO.spice` は
 # ngspice 用の combine 済みで、そちらは触らない。
-GIO_SPICE = os.path.join(cfg.ROOT, "lef", "simulation",   # lint: ok フレームは PDK 由来で STDCELL に無い
-                         GIO_CELL + "_nocombine.spice")
+# フレームの LVS ソース。**設計ごとに置き場が違う**（SCLK_SPI の
+# `lef/simulation` は xschem の作業場への symlink で、リポジトリの外を指す）。
+# `config.py` の `FRAME_LVS_SPICE` で指定できる。既定は I2C と同じ置き場。
+GIO_SPICE = getattr(cfg, "FRAME_LVS_SPICE", None) or os.path.join(
+    cfg.ROOT, "lef", "simulation",   # lint: ok フレームは PDK 由来で STDCELL に無い
+    GIO_CELL + "_nocombine.spice")
 SIM_DIR_EARLY = os.path.join(cfg.CHIP, "simulation")
 CORE_SPICE = os.path.join(SIM_DIR_EARLY, cfg.TOP_CELL_NAME + ".spice")
 # I2C 移植 (26): RING_OSC が 3 つ目のインスタンスとして居る。
@@ -85,6 +89,14 @@ TOP_PIN_ORDER = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "VSS",
 
 def subckt_ports(path, name):
     """`.subckt <name> …` のポート列（`+` の継続行も拾う）。"""
+    if not os.path.exists(path):
+        # ★ これはフローの段として抜けている（U40）。作り方を書いておく。
+        raise SystemExit(
+            f"{cfg.disp(path)} が無い。フレームの LVS ソースを先に起こすこと:\n"
+            f"  mkdir -p lef/simulation\n"
+            f"  python3 $APRTOOLS/apr/mkframespice.py {cfg.disp(cfg.FRAME_GDS)} "
+            f"{name} --no-combine \\\n"
+            f"      -o lef/simulation/{name}_nocombine.spice")
     lines = open(path, encoding="utf-8").read().splitlines()
     for i, line in enumerate(lines):
         if line.strip().startswith(f".subckt {name} "):

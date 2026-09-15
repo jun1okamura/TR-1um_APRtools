@@ -187,10 +187,16 @@ GND_BUS_Y = getattr(cfg, "CHIP_GND_BUS_Y", 790.0)        # M1 785.0…795.0。�
 # コアだけが開口に入っているチップ。VDD は上辺のバスから 5 本のライザで
 # フレームの M1 ピンへ、GND は下辺のバスから 5 本のストリップで下辺中央の
 # VSS 壁ピンへ、まっすぐ降ろす。
-VDD_RISER_W = 3.4
-VDD_RISER_X = (80.0, 140.0, 200.0, 260.0, 320.0)
-VSS_STRIP_W = 10.0
-VSS_STRIP_X = (-400.0, -300.0, -200.0, -100.0, 0.0)
+# ★ x は**コアの上辺 / 下辺のポートが出ている場所を避ける**。TD4 の値を
+#   そのまま SPI に当てたら、下辺の -100.0 / 0.0 がコアのポート -99.9 /
+#   -2.7 に重なって rx_data[0] と rx_data[2] が GND に短絡した。
+#   設計ごとに `CHIP_VDD_RISER_X` / `CHIP_VSS_STRIP_X` で置き換える。
+VDD_RISER_W = getattr(cfg, "CHIP_VDD_RISER_W", 3.4)
+VDD_RISER_X = tuple(getattr(cfg, "CHIP_VDD_RISER_X",
+                            (80.0, 140.0, 200.0, 260.0, 320.0)))
+VSS_STRIP_W = getattr(cfg, "CHIP_VSS_STRIP_W", 10.0)
+VSS_STRIP_X = tuple(getattr(cfg, "CHIP_VSS_STRIP_X",
+                            (-400.0, -300.0, -200.0, -100.0, 0.0)))
 
 STRIP_W = 10.0
 STRIP_OFFSETS = (-24.0, -12.0, 0.0, 12.0, 24.0)
