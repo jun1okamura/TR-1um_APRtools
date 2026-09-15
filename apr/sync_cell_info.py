@@ -74,6 +74,27 @@ SEQ = {"DFFRB", "DFFS", "DFF"}
 MUXFF = {"MUXDFFRB"}
 LATCH = {"RSLATCH"}
 
+# ★ **ABC に渡さないセル**と、その理由（U34）。
+#   以前はこれらが「論理関数が無い」として毎回 17 件並び、
+#   「FUNCS に足せば ABC が使える」と案内していた。**足してはいけない**
+#   ものばかりで、案内の方が間違っていた。
+NO_FUNC = {
+    "REG4x16":  "レジスタファイル本体。手でインスタンスする",
+    "REG8x16":  "同上",
+    "MEMPORT":  "REG8x16 を R90 して帯にしたもの。手で置く",
+    "DEC0":     "レジスタファイル内部のデコーダ",
+    "DEC2":     "同上",
+    "DEC16":    "同上",
+    "REGBUF":   "レジスタファイル内部のバッファ",
+    "REGBUF4":  "同上",
+    "REGBUF8":  "同上",
+    "TLAT":     "レジスタファイル内部の伝送ラッチ",
+    "TLAT4":    "同上", "TLAT8": "同上", "TLAT64": "同上", "TLAT128": "同上",
+    "TLAT4B":   "同上", "TLAT8B": "同上",
+    "ADDBUF":   "行の電源を継ぐ構造セル。論理は持たない",
+    "DEL1":     "**わざと遅らせる**セル。Y=A と書くと ABC が最適化で消す",
+}
+
 
 def measure_lef(lef_path):
     """MACRO SIZE from the LEF -- the authoritative placement footprint.
@@ -126,6 +147,36 @@ def transistors(dirpath):
     return out
 
 
+def transistors_from_gds(gds_path, names):
+    """`.extracted` が無いセルを **GDS から数える**（U33）。
+
+    `.extracted` は平坦なセルぶんしか無く、`TLAT8` や `DEC16` のような
+    **階層を持つセル**は 1 枚も無かった。抽出してみると素子はちゃんと居る:
+    トップの回路ではなく**下位の回路**に入っているだけ。
+    `each_circuit()` を全部足す。
+
+    `FILL*` / `TAP*` は素子が本当に 0（拡散とコンタクトだけ）なので、
+    **0 と書く**。`None` のままだと「測れていない」と区別が付かない。
+    """
+    out = {}
+    if not os.path.exists(gds_path):
+        return out
+    import klayout_extract
+    for name in names:
+        try:
+            # ★ `l2n` を変数に持つこと。`build(...).netlist()` と書くと
+            #   `l2n` がその場で解放され、netlist が
+            #   「Object has been destroyed already」になる。
+            l2n = klayout_extract.build(gds_path, name)
+            nl = l2n.netlist()
+            out[name] = sum(sum(1 for _ in c.each_device())
+                            for c in nl.each_circuit())
+            del l2n
+        except Exception as e:
+            print(f"  !! {name} を GDS から数えられない: {type(e).__name__} {e}")
+    return out
+
+
 def kind_of(name):
     if name in FUNCS:  return "comb"
     if name in SEQ:    return "ff"
@@ -153,6 +204,27 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
         geo = measure(gds_path)
         src = cfg.disp(gds_path) + " bounding boxes (NOT the footprint)"
     tr = transistors(extracted_dir)
+    # `.extracted` の無いセルは GDS から数える（U33）
+    _missing = sorted(n for n in geo if n not in tr)
+    if _missing:
+        print(f"  {len(_missing)} セルに .extracted が無いので GDS から数える: "
+              + ", ".join(_missing))
+        tr.update(transistors_from_gds(gds_path, _missing))
+    # ★ 両方ある分は**突き合わせる**（U49）。`.extracted` は凍結した写しなので
+    #   古くなりうる（`BUF_X2` は 4 と書いてあるが GDS は 6。この食い違いは
+    #   `check_cell_spice.py` の冒頭に既に書いてある）。**GDS が焼かれる方**。
+    _both = sorted(n for n in geo if n in tr and n not in _missing)
+    if _both:
+        _gds = transistors_from_gds(gds_path, _both)
+        _bad = [(n, tr[n], _gds[n]) for n in _both
+                if n in _gds and _gds[n] != tr[n]]
+        if _bad:
+            print(f"  !! .extracted と GDS でトランジスタ数が違う {len(_bad)} セル"
+                  "（**GDS が焼かれる方**。.extracted が古い疑い。U49）:")
+            for n, a, b in _bad:
+                print(f"       {n:<10} .extracted={a:<5} GDS={b}")
+            print("     台帳には .extracted の値を入れてある（従来どおり）。"
+                  "どちらを正とするかは未決。")
     old = json.load(open(info_path)) if os.path.exists(info_path) else {}
     meta = {k: v for k, v in old.items() if k.startswith("_")}
 
@@ -169,8 +241,10 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
             added.append(name)
         elif any(prev.get(k) != e.get(k) for k in ("area_um2", "transistors")):
             changed.append(name)
-        if e["kind"] == "other":
+        if e["kind"] == "other" and name not in NO_FUNC:
             no_func.append(name)
+        if name in NO_FUNC:
+            e["no_func_reason"] = NO_FUNC[name]
         if e["transistors"] is None:
             no_tr.append(name)
 
@@ -213,6 +287,10 @@ def main(gds_path=GDS, info_path=INFO, extracted_dir=EXTRACTED, overrides=None,
     if added:    print(f"  ADDED   : {', '.join(added)}")
     if changed:  print(f"  CHANGED : {', '.join(changed)}")
     if removed:  print(f"  REMOVED : {', '.join(removed)}")
+    _skip = sorted(n for n in new if n in NO_FUNC)
+    if _skip:
+        print(f"  ABC に渡さないセル {len(_skip)} 個（理由は cell_char.json の "
+              f"no_func_reason）: {', '.join(_skip)}")
     if no_func:  print(f"  !! no logic function (add to FUNCS in this script "
                        f"to let ABC use them): {', '.join(no_func)}")
     if no_tr:    print(f"  !! no transistor count (pass --extracted-dir, or "

@@ -138,6 +138,23 @@ def emit(nl, top, gds):
     return "\n".join(L)
 
 
+def write(gds, top, out, combine=True):
+    """フレームを抽出して `out` に書く。**`mkchipnet.py` からも呼ぶ**（U40）。
+
+    フローのどの段もこれを作らないので、要るときに要る側が作る。
+    """
+    l2n = klayout_extract.build(gds, top)
+    nl = l2n.netlist()
+    nl.make_top_level_pins()
+    if combine:
+        nl.combine_devices()
+    nl.purge()
+    nl.purge_nets()
+    os.makedirs(os.path.dirname(os.path.abspath(out)), exist_ok=True)
+    open(out, "w").write(emit(nl, top, gds))
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("gds"); ap.add_argument("top")
@@ -147,15 +164,7 @@ def main():
                          "lvs_pnr.py は DFFRB で KLayout が落ちるため両側とも"
                          "掛けないので、フレーム側もこれで揃える")
     a = ap.parse_args()
-
-    l2n = klayout_extract.build(a.gds, a.top)
-    nl = l2n.netlist()
-    nl.make_top_level_pins()
-    if not a.no_combine:
-        nl.combine_devices()
-    nl.purge()
-    nl.purge_nets()
-    open(a.out, "w").write(emit(nl, a.top, a.gds))
+    write(a.gds, a.top, a.out, combine=not a.no_combine)
     print(f"wrote {a.out}")
 
 

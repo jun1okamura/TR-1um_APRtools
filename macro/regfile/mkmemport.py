@@ -142,7 +142,8 @@ def load_pad_order_from_lef(lef_path):
     return [n for n, _x in out]
 
 
-def build(plot=None, order_from=None, pads_from_lef=None):
+def build(plot=None, order_from=None, pads_from_lef=None,
+          out_dir=None, force=False):
     import gdstk
     lib = gdstk.read_gds(cfg.LIB_GDS)
     cells = {c.name: c for c in lib.cells}
@@ -331,7 +332,21 @@ def build(plot=None, order_from=None, pads_from_lef=None):
         if c.name not in seen:
             seen.add(c.name)
             out.add(c)
-    gds = os.path.join(cfg.ROOT, "lef", "TR-1um_PNR.gds")
+    # ★ 書き先は **STDCELL 正本**（U28）。以前は設計の `lef/` に書いていたが、
+    #   フローが読むのは `cfg.CELL_GDS` / `cfg.LEF_PATH`（= APRtools の
+    #   stdcell）なので、**MEMPORT 入りの版が誰にも読まれなかった**。
+    #   これはライブラリを作る道具であって設計ごとの段ではない。
+    d = out_dir or os.path.dirname(cfg.CELL_GDS)
+    gds = os.path.join(d, "TR-1um_PNR.gds")
+    leff = os.path.join(d, "TR-1um_PNR.lef")
+    for f in (gds, leff):
+        if os.path.exists(f) and not force:
+            raise SystemExit(
+                f"{cfg.disp(f)} は既にある。**STDCELL 正本を書き換える**ので、\n"
+                "  承知のうえなら --force。別の場所に出すなら --out-dir。\n"
+                "  ★ 配布している TR-1um_PNR は **既に MEMPORT を含んでいる**"
+                "（`stdcell/CELLS.md`）。\n"
+                "    作り直す必要があるのは帯の高さやパッドの並びを変えるときだけ。")
     out.write_gds(gds, timestamp=__import__("datetime").datetime(2026, 1, 1))
 
     # --- LEF ---------------------------------------------------------------
@@ -354,12 +369,11 @@ def build(plot=None, order_from=None, pads_from_lef=None):
           "    LAYER METAL2 ;",
           f"      RECT 0.000 0.000 {W:.3f} {H:.3f} ;",
           "  END", f"END {CELL}", ""]
-    leff = os.path.join(cfg.ROOT, "lef", "TR-1um_PNR.lef")
     open(leff, "w").write(open(cfg.LIB_LEF).read()
                           + "\n" + "\n".join(L))
 
-    print(f"wrote {os.path.relpath(gds, cfg.ROOT)}")
-    print(f"wrote {os.path.relpath(leff, cfg.ROOT)}")
+    print(f"wrote {cfg.disp(gds)}")
+    print(f"wrote {cfg.disp(leff)}")
     print(f"  {CELL} {W} x {H} um   （{SRC_CELL} を R90 して {h_src} x {w_src}、"
           f"右の空き地 {W - h_src:.1f} um に中継）")
     print(f"  上辺パッド {n} 本（信号 {len(sig)} + 電源 {len(pwr_r)}）"
@@ -416,5 +430,9 @@ if __name__ == "__main__":
                     help="既存の MEMPORT LEF からパッドの割り当てを引き継ぐ。"
                          "**配置器が見るピン座標が 1 µm も動かない**ので、"
                          "配置も配線も同じまま帯の高さだけ変えられる")
+    ap.add_argument("--out-dir", default=None,
+                    help="書き先。既定は **STDCELL 正本**（cfg.CELL_GDS の隣）")
+    ap.add_argument("--force", action="store_true",
+                    help="既にあるライブラリを上書きする（正本を書き換える）")
     a = ap.parse_args()
-    build(a.plot, a.order_from, a.pads_from_lef)
+    build(a.plot, a.order_from, a.pads_from_lef, a.out_dir, a.force)

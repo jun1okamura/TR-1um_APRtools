@@ -9,7 +9,8 @@
   "height_um": 63.4,
   "area_um2": 6277,
   "transistors": 20,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u884c\u306e\u96fb\u6e90\u3092\u7d99\u3050\u69cb\u9020\u30bb\u30eb\u3002\u8ad6\u7406\u306f\u6301\u305f\u306a\u3044"
  },
  "AND2_X1": {
   "width_um": 34.2,
@@ -94,28 +95,32 @@
   "height_um": 86.4,
   "area_um2": 5763,
   "transistors": 16,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u30ec\u30b8\u30b9\u30bf\u30d5\u30a1\u30a4\u30eb\u5185\u90e8\u306e\u30c7\u30b3\u30fc\u30c0"
  },
  "DEC16": {
   "width_um": 878.4,
   "height_um": 86.4,
   "area_um2": 75894,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 26,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "DEC2": {
   "width_um": 114.0,
   "height_um": 86.4,
   "area_um2": 9850,
   "transistors": 26,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "DEL1": {
   "width_um": 45.0,
   "height_um": 63.4,
   "area_um2": 2853,
   "transistors": 8,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "**\u308f\u3056\u3068\u9045\u3089\u305b\u308b**\u30bb\u30eb\u3002Y=A \u3068\u66f8\u304f\u3068 ABC \u304c\u6700\u9069\u5316\u3067\u6d88\u3059"
  },
  "DFF": {
   "width_um": 77.4,
@@ -335,35 +340,40 @@
   "height_um": 937.0,
   "area_um2": 238654,
   "transistors": 72,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u30ec\u30b8\u30b9\u30bf\u30d5\u30a1\u30a4\u30eb\u672c\u4f53\u3002\u624b\u3067\u30a4\u30f3\u30b9\u30bf\u30f3\u30b9\u3059\u308b"
  },
  "REG8x16": {
   "width_um": 405.9,
   "height_um": 937.0,
   "area_um2": 380328,
   "transistors": 72,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "REGBUF": {
   "width_um": 50.4,
   "height_um": 63.4,
   "area_um2": 3195,
   "transistors": 8,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u30ec\u30b8\u30b9\u30bf\u30d5\u30a1\u30a4\u30eb\u5185\u90e8\u306e\u30d0\u30c3\u30d5\u30a1"
  },
  "REGBUF4": {
   "width_um": 168.3,
   "height_um": 63.4,
   "area_um2": 10670,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 8,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "REGBUF8": {
   "width_um": 319.5,
   "height_um": 63.4,
   "area_um2": 20256,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 8,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "RSLATCH": {
   "width_um": 39.6,
@@ -376,21 +386,21 @@
   "width_um": 23.4,
   "height_um": 63.4,
   "area_um2": 1484,
-  "transistors": null,
+  "transistors": 0,
   "kind": "physical"
  },
  "TAP2S": {
   "width_um": 10.8,
   "height_um": 59.4,
   "area_um2": 642,
-  "transistors": null,
+  "transistors": 0,
   "kind": "physical"
  },
  "TAP3": {
   "width_um": 28.8,
   "height_um": 63.4,
   "area_um2": 1826,
-  "transistors": null,
+  "transistors": 0,
   "kind": "physical"
  },
  "TLAT": {
@@ -398,49 +408,56 @@
   "height_um": 63.4,
   "area_um2": 3202,
   "transistors": 12,
-  "kind": "other"
+  "kind": "other",
+  "no_func_reason": "\u30ec\u30b8\u30b9\u30bf\u30d5\u30a1\u30a4\u30eb\u5185\u90e8\u306e\u4f1d\u9001\u30e9\u30c3\u30c1"
  },
  "TLAT128": {
   "width_um": 319.5,
   "height_um": 878.4,
   "area_um2": 280649,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 12,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "TLAT4": {
   "width_um": 168.3,
   "height_um": 63.4,
   "area_um2": 10670,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 12,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "TLAT4B": {
   "width_um": 168.3,
   "height_um": 114.0,
   "area_um2": 19186,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 12,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "TLAT64": {
   "width_um": 168.3,
   "height_um": 878.4,
   "area_um2": 147835,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 12,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "TLAT8": {
   "width_um": 319.5,
   "height_um": 63.4,
   "area_um2": 20256,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 12,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "TLAT8B": {
   "width_um": 319.5,
   "height_um": 114.0,
   "area_um2": 36423,
-  "transistors": null,
-  "kind": "other"
+  "transistors": 12,
+  "kind": "other",
+  "no_func_reason": "\u540c\u4e0a"
  },
  "XNOR2": {
   "width_um": 39.6,

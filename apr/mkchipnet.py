@@ -90,13 +90,18 @@ TOP_PIN_ORDER = ["P1", "P2", "P3", "P4", "P5", "P6", "P7", "VSS",
 def subckt_ports(path, name):
     """`.subckt <name> …` のポート列（`+` の継続行も拾う）。"""
     if not os.path.exists(path):
-        # ★ これはフローの段として抜けている（U40）。作り方を書いておく。
-        raise SystemExit(
-            f"{cfg.disp(path)} が無い。フレームの LVS ソースを先に起こすこと:\n"
-            f"  mkdir -p lef/simulation\n"
-            f"  python3 $APRTOOLS/apr/mkframespice.py {cfg.disp(cfg.FRAME_GDS)} "
-            f"{name} --no-combine \\\n"
-            f"      -o lef/simulation/{name}_nocombine.spice")
+        # ★ フローのどの段もこれを作らなかった（U40）。**要る側がここで作る。**
+        #   フレームの GDS から抽出するだけなので、待たせる理由が無い。
+        import mkframespice
+        print(f"  {cfg.disp(path)} が無いので作る"
+              f"（{cfg.disp(cfg.FRAME_GDS)} から抽出、combine なし）")
+        try:
+            mkframespice.write(cfg.FRAME_GDS, name, path, combine=False)
+        except Exception as e:
+            raise SystemExit(
+                f"{cfg.disp(path)} を作れなかった: {e}\n"
+                f"  手で: python3 $APRTOOLS/apr/mkframespice.py "
+                f"{cfg.disp(cfg.FRAME_GDS)} {name} --no-combine -o {cfg.disp(path)}")
     lines = open(path, encoding="utf-8").read().splitlines()
     for i, line in enumerate(lines):
         if line.strip().startswith(f".subckt {name} "):
