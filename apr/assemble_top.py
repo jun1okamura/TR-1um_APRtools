@@ -89,8 +89,10 @@ def main():
     ap.add_argument("--core-gds", default=None,
                     help="既定は config.FINAL_GDS（縦置きなら step11）")
     ap.add_argument("--keep-unused", action="store_true",
+                    default=cfg.CHIP_KEEP_UNUSED,
                     help="参照されないトップセルを残す（既定は刈る）")
-    ap.add_argument("--ptect", action="store_true",
+    # ★ **チップの GDS を変える**ので、既定は config から取る（U26 / 決定 14）。
+    ap.add_argument("--ptect", action="store_true", default=cfg.CHIP_PTECT_FILL,
                     help="コアの下の余りを PTECT (63,1) で塞ぐ")
     a = ap.parse_args()
 

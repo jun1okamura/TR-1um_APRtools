@@ -110,10 +110,14 @@ def main():
     print(f"       CORE_WIDTH        {cfg.CORE_WIDTH_TRACKS} トラック x {cfg.TRACK_PITCH}"
           f" = {cfg.CORE_WIDTH_UM} um")
     print(f"       CH_HEIGHTS        {cfg.CH_HEIGHTS}")
+    # ★ **再現に効く値は全部ここに出す**（決定 14）。fill_mode は 2026-09-16 まで
+    #   config にすら無く、`place.py` の引数の既定に直書きだった（U26）。
     print(f"       配置パラメータ    PAD_WEIGHT={cfg.PAD_WEIGHT}"
           f"  PLACE_SEED={cfg.PLACE_SEED}"
           f"  restarts={cfg.PLACE_RESTARTS}"
-          f"  order_passes={cfg.PLACE_ORDER_PASSES}")
+          f"  order_passes={cfg.PLACE_ORDER_PASSES}"
+          f"  balance_tol={cfg.PLACE_BALANCE_TOL}"
+          f"  fill_mode={cfg.PLACE_FILL_MODE}")
     # ★ **どのつまみが存在するか**は `config_base.ENV_KNOBS` から取る（U29）。
     #   ここに名前を並べ直すと、片方に足して片方に足し忘れる。
     _ovr = sorted(k for k in cfg.ENV_KNOBS

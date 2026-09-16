@@ -29,6 +29,10 @@
 from __future__ import annotations
 import argparse, os, re, subprocess, sys
 
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
+import config as cfg  # noqa: E402  RTL の一覧は設計が持つ（U26）
+
 PREP = """prep -top {top} -flatten
 memory_map
 opt -full
@@ -38,7 +42,7 @@ async2sync
 EQUIV = """read_verilog {rtl}
 """ + PREP + """rename {top} gold
 design -stash gold
-read_verilog {net} hdl/rtl/tr1um_cells.v
+read_verilog {net} {cells}
 """ + PREP + """rename {top} gate
 design -stash gate
 design -copy-from gold -as gold gold
@@ -53,7 +57,7 @@ equiv_status -assert
 MITER = """read_verilog {rtl}
 """ + PREP + """rename {top} gold
 design -stash gold
-read_verilog {net} hdl/rtl/tr1um_cells.v
+read_verilog {net} {cells}
 """ + PREP + """rename {top} gate
 design -stash gate
 design -copy-from gold -as gold gold
@@ -73,13 +77,20 @@ def run(script, ys):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("top")
-    ap.add_argument("-r", "--rtl", default="hdl/rtl/td4_core.v hdl/rtl/td4_mem.v "
-                    "hdl/rtl/td4_soc_rom.v hdl/rtl/td4_soc_ff.v hdl/rtl/td4_soc_arr.v")
+    # ★ 既定は **設計の config.py** から取る（U26 / 決定 14）。以前は TD4 の
+    #   RTL 5 本が直書きで、**TD4 の RTL 一覧が APRtools 側にしか無い**状態
+    #   だった（U36 の `syn.sh` と同じ形）。他の設計で回すと黙って TD4 を読む。
+    ap.add_argument("-r", "--rtl", default=None,
+                    help="既定は config.SYN_RTL")
     ap.add_argument("-n", "--net", default=None)
     ap.add_argument("--seq", type=int, default=5, help="帰納法の深さ")
     ap.add_argument("--cycles", type=int, default=30, help="有界 SAT のサイクル数")
     ap.add_argument("--ys", default=os.environ.get("YOSYS", "yosys"))
     a = ap.parse_args()
+    rtl = a.rtl or " ".join(getattr(cfg, "SYN_RTL", None) or [])
+    if not rtl:
+        sys.exit("RTL が分からない。config.py の SYN_RTL に書くか --rtl で渡す")
+    cells = getattr(cfg, "SYN_CELLS_V", None) or ""
     net = a.net or f"out/{a.top}.v"
     if not os.path.exists(net):
         sys.exit(f"ネットリストが無い: {net}")
@@ -90,7 +101,7 @@ def main():
     # どちらが効くかは回路による（td4_core は残す方、td4_soc_rom は消す方）ので両方試す。
     best = (None, None)
     for purge in ("", "opt_clean -purge\n"):
-        rc, log = run(EQUIV.format(top=a.top, rtl=a.rtl, net=net,
+        rc, log = run(EQUIV.format(top=a.top, rtl=rtl, net=net, cells=cells,
                                    seq=a.seq, purge=purge), a.ys)
         if rc == 0 and "Equivalence successfully proven!" in log:
             print(f"  {a.top:<14} 形式等価: **証明**（帰納法・全サイクル"
@@ -102,7 +113,7 @@ def main():
             best = (n, len(re.findall(r"Trying to prove .*: success!", log)))
     nun, ok = best
 
-    rc2, log2 = run(MITER.format(top=a.top, rtl=a.rtl, net=net,
+    rc2, log2 = run(MITER.format(top=a.top, rtl=rtl, net=net, cells=cells,
                                  cycles=a.cycles, purge=""), a.ys)
     if rc2 == 0 and "SAT proof finished - no model found: SUCCESS!" in log2:
         print(f"  {a.top:<14} 形式等価: 有界で一致（リセットから {a.cycles} サイクル）"

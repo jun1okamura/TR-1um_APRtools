@@ -835,7 +835,7 @@ if __name__ == "__main__":
     ap.add_argument("--order-passes", type=int, default=cfg.PLACE_ORDER_PASSES)
     ap.add_argument("--seed", type=int, default=cfg.PLACE_SEED)
     ap.add_argument("--fill-mode", choices=("alternate", "distributed", "end"),
-                    default="alternate")
+                    default=cfg.PLACE_FILL_MODE)
     ap.add_argument("--balance-tol", type=float, default=cfg.PLACE_BALANCE_TOL,
                     help="行幅の許容ばらつき（平均比）。緩めるとカットは減るが"
                          "行が凸凹になる")

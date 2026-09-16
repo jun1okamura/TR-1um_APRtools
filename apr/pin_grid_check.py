@@ -19,7 +19,10 @@
 レイヤ: prBoundary = (235,0) / M2 ピン = (49,1) / M2 = (20,0)
 """
 from __future__ import annotations
-import argparse, sys
+import argparse, os, sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import rules  # noqa: E402  グリッドの値の単一ソース（U26）
 from collections import Counter, defaultdict
 
 try:
@@ -50,8 +53,9 @@ def boundary(cell, name):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("gds")
-    ap.add_argument("--pitch", type=float, default=5.4)
-    ap.add_argument("--offset", type=float, default=2.7, help="prBoundary 左端からの最初のトラック")
+    ap.add_argument("--pitch", type=float, default=rules.TRACK_PITCH)
+    ap.add_argument("--offset", type=float, default=rules.M2_TRACK_OFFSET,
+                    help="prBoundary 左端からの最初のトラック")
     ap.add_argument("-v", "--verbose", action="store_true")
     a = ap.parse_args()
 

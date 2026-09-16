@@ -53,6 +53,10 @@ ENV_KNOBS = {
     "PLACE_RESTARTS": "行内順序の焼きなまし回数",
     "PLACE_ORDER_PASSES": "行内順序のパス数",
     "PLACE_BALANCE_TOL": "行幅のばらつき許容",
+    "PLACE_FILL_MODE": "FILL の入れ方（alternate / distributed / end）",
+    "CHIP_PTECT_FILL": "コアの下の余りを PTECT (63,1) で塞ぐか",
+    "CHIP_KEEP_UNUSED": "参照されないトップセルを残すか",
+    "GATE_DENSITY": "等価ゲート換算の論理セル密度（既定は I2C の実測 0.195）",
     "N_ROWS": "行数",
     "CORE_WIDTH_TRACKS": "コア幅（トラック数）",
     "CH_HEIGHTS": "チャネル高の予算（カンマ区切り）",
@@ -561,10 +565,21 @@ def finalize(ns):
     # config.py に書く（`PAD_WEIGHT` を export し忘れた 1 回だけが別の配置に
     # なる、という事故を 2026-09-15 に実際に起こした。`docs/40_gotchas.md` §4-3）。
     # 優先順は **環境変数 > config.py > 既定**（掃引は環境変数で回す）。
+    # ★ **この表に入れ忘れると、その値だけフラグ頼みのまま残る**（U26）。
+    #   `--fill-mode` は 2026-09-16 まで入っていなかった — すぐ上の
+    #   コメントが「既定値は config.py から来る」と言っている `place.py` の
+    #   引数ブロックの中で、**1 つだけリテラルだった**。
+    def _flag(v):
+        return v if isinstance(v, bool) else v not in ("0", "", "no", "false", "False")
+
     for _k, _d, _c in (("PAD_WEIGHT", 1.0, float), ("PLACE_SEED", 7, int),
                        ("PLACE_RESTARTS", 800, int),
                        ("PLACE_ORDER_PASSES", 40, int),
-                       ("PLACE_BALANCE_TOL", 0.02, float)):
+                       ("PLACE_BALANCE_TOL", 0.02, float),
+                       ("PLACE_FILL_MODE", "alternate", str),
+                       ("CHIP_PTECT_FILL", False, _flag),
+                       ("CHIP_KEEP_UNUSED", False, _flag),
+                       ("GATE_DENSITY", 0.195, float)):
         ns.setdefault(_k, _d)
         _v = getenv(_k)
         if _v is not None:

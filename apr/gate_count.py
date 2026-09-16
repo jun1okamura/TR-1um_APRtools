@@ -81,7 +81,7 @@ if __name__ == "__main__":
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("netlists", nargs="+")
     ap.add_argument("--cell-info", default=DEFAULT_INFO)
-    ap.add_argument("--density", type=float, default=0.195,
+    ap.add_argument("--density", type=float, default=cfg.GATE_DENSITY,
                     help="logic-cell area / placed core area (default: the "
                          "0.278 measured on TR-1um_Async_I2C)")
     ap.add_argument("--add", action="append", default=[], metavar="CELL=N",
