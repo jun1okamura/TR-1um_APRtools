@@ -114,6 +114,11 @@ TAIL = 400.0            # 測定エッジの後ろに取る時間 [ns]
 #   （IDLE が要るのと同じ理由。この docstring の冒頭を参照）。ここが足りないと
 #   **アドレスが変わる瞬間にまだ書込みが有効**で、前の行に次のデータが入る。
 WEB_PRE = 20.0          # ★ 5.0 では足りない（実測）。下の「解決」を参照
+# ★ `WEB` を低に保つ幅 [ns]。**低の終わりは `WEB_PRE` で決まる**ので、
+#   ここを縮めると**低の始まりが後ろへ動く**（終わりは動かない）。
+#   こうすると「アドレスを変える前の余裕」を固定したまま幅だけ振れる。
+#   既定 80 = TW(120) - 20 - WEB_PRE(20) で、従来と同じ波形。
+WEB_LOW = 80.0
 WORDS = [(0, 0x00), (1, 0xFF), (2, 0xFF), (4, 0xFF), (8, 0xFF)]
 
 APIN = [f"A{j}" for j in range(4)]
@@ -185,7 +190,16 @@ def write_phase():
         # ★ 低の終わりを `WEB_PRE` で決める。以前は `t+TW-20` に低の点を
         #   固定したまま立上りだけ動かしていたので、`WEB_PRE > 20` で
         #   **時刻が逆行して PWL が壊れていた**（40ns の結果は無効だった）。
-        web += [(t, VDD), (t + 20, 0), (t + TW - WEB_PRE, VDD)]
+        lo_end = t + TW - WEB_PRE
+        lo_beg = lo_end - WEB_LOW
+        # ★ 低の始まりがアドレス/データの確定より前だと**測っているものが
+        #   変わる**（アドレスが動いている最中に書込みが有効になる）。
+        if lo_beg < t + EDGE + 1.0:
+            raise SystemExit(
+                f"** WEB の低が早すぎる: 始まり {lo_beg:g}ns がワードの頭 {t:g}ns に"
+                f"近すぎる\n   WEB_LOW={WEB_LOW:g} / WEB_PRE={WEB_PRE:g} / TW={TW:g}"
+                f"（WEB_LOW の上限は {TW - WEB_PRE - EDGE - 1.0:g}ns）")
+        web += [(t, VDD), (lo_beg, 0), (lo_end, VDD)]
         t += TW
     return add, dat, web, t
 
@@ -563,12 +577,13 @@ def sweep_edge(a, vals, knob="edge"):
     ★ 縁は `WEB` だけでなく `ADD` / `D` にも同じ値がかかる（`step()` が
       全部の刺激を同じ台形にする）。**分けて振りたくなったらここを直す。**
     """
-    global EDGE, WEB_PRE
-    label = {"edge": "縁", "webpre": "WEB 余裕"}[knob]
+    global EDGE, WEB_PRE, WEB_LOW
+    label = {"edge": "縁", "webpre": "WEB 余裕", "weblow": "WEB 低の幅"}[knob]
     rows = []
     for e in vals:
         if knob == "edge": EDGE = e
-        else: WEB_PRE = e
+        elif knob == "webpre": WEB_PRE = e
+        else: WEB_LOW = e
         v = run(build_read(a.netlist, 0, SLEWS[3], True), f"{knob}{e:g}")
         chk = v.get("chk")
         ok = chk is not None and chk < VDD / 2
@@ -694,6 +709,9 @@ def main():
     ap.add_argument("--probe", action="store_true",
                     help="書込みの経路を段ごとに見る（U2）。行選択の WR 線が"
                          "1 本でも上がるかを測り、デコーダ側かラッチ側かを分ける")
+    ap.add_argument("--web-low", default=None,
+                    help="WEB を低に保つ幅 [ns]（既定 80）。**カンマ区切りで掃引**"
+                         "すると書込みに必要な最小幅の境界が出る（U7）")
     ap.add_argument("--web-pre", default=None,
                     help="WEB を上げてから次のワードのアドレス/データを変える"
                          "までの余裕 [ns]（既定 5）。**カンマ区切りで掃引できる**")
@@ -731,13 +749,16 @@ def main():
         raise SystemExit(
             f"** ネットリストが無い: {a.netlist}\n"
             f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
-    global EDGE, WEB_PRE
+    global EDGE, WEB_PRE, WEB_LOW
     edges = ([float(x) for x in a.edge.split(",")] if a.edge else [])
     if len(edges) == 1:
         EDGE = edges[0]
     pres = ([float(x) for x in a.web_pre.split(",")] if a.web_pre else [])
     if len(pres) == 1:
         WEB_PRE = pres[0]
+    lows = ([float(x) for x in a.web_low.split(",")] if a.web_low else [])
+    if len(lows) == 1:
+        WEB_LOW = lows[0]
     if a.strip != "none":
         a.netlist = strip_junction(a.netlist, a.strip)
         print(f"  接合パラメータ {a.strip} の写し: {a.netlist}")
@@ -748,8 +769,27 @@ def main():
     if len(pres) > 1:
         sweep_edge(a, pres, "webpre")
         return
+    if len(lows) > 1:
+        sweep_edge(a, lows, "weblow")
+        return
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}}
+    # ★ `--only` のときは**測らなかった部分を既存の JSON から引き継ぐ**。
+    #   以前は測った部分だけの JSON で丸ごと上書きしていたので、
+    #   `--only read` を 1 回流すと **`cap` が消えた**（実際に踏んだ。
+    #   `mklib.py` が `KeyError: 'ADD[0]'` で止まって気づいた）。
+    #   「一部だけ測る」道具が「測っていない部分を消す」のは事故そのもの。
+    if a.only and os.path.exists(a.out):
+        try:
+            prev = json.load(open(a.out))
+        except Exception:
+            prev = {}
+        measured = {"read", "bit_spread"} if a.only == "read" else {"cap"}
+        for k in ("read", "cap", "bit_spread"):
+            if k not in measured:
+                res[k] = prev.get(k, {})
+        print(f"  --only {a.only}: 測らない部分は {os.path.basename(a.out)} から引き継ぐ "
+              f"（{', '.join(sorted(set(res) - measured & set(res)))} は据え置き）")
 
     if a.only in (None, "read"):
         jobs = ([(0, 3, SLEWS[3], True)] if a.quick else
