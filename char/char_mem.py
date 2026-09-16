@@ -763,9 +763,18 @@ def main():
         with ThreadPoolExecutor(max_workers=a.jobs) as ex:
             for k, (j, v) in enumerate(ex.map(one, jobs)):
                 out[j[:1] + j[1:2] + j[3:]] = v
+                # ★ `chk` は読出し直前の Q[0]。**期待値は向きで違う** —
+                #   rise はエッジ前のアドレスが 0（word0 = 0x00）なので 0V、
+                #   fall は 1<<bit（word1 = 0xFF）なので 5V が正しい。
+                #   これを書いておかないと fall の 5.0 を誤報する。
+                _c = v.get("chk")
+                _exp = 0.0 if j[3] else VDD
+                _ok = _c is not None and abs(_c - _exp) < VDD / 2
                 print(f"  [{k+1:>2}/{len(jobs)}] ADD[{j[0]}] slew {j[2]:>5}ns "
                       f"{'rise' if j[3] else 'fall'}  d(CL=100fF) = "
-                      f"{(v.get('d3') or 0)*1e9:.2f} ns  chk = {v.get('chk')}", flush=True)
+                      f"{(v.get('d3') or 0)*1e9:.2f} ns  "
+                      f"chk = {'—' if _c is None else format(_c, '.3g')}"
+                      f"（期待 {_exp:g}V {'○' if _ok else '×'}）", flush=True)
         if a.quick:
             # ★ 代表 1 点だけなので表は作らない。**書込みが効いたかだけ**出す。
             v = out[(0, 3, True)]
