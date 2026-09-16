@@ -413,13 +413,19 @@ def build_read(netlist, bit, slew, rise):
             for k in range(len(WORDS)):
                 L.append(f".meas tran w{k}s{i} FIND v(xu.{inst}.{node}) "
                          f"AT={IDLE + TW / 2 + k * TW:g}n")
-                L.append(f".meas tran w{k}r{i} FIND v(xu.{wr}) "
-                         f"AT={IDLE + TW / 2 + k * TW:g}n")
+                # ★ **中点の値ではなく窓の最大**にする。中点の FIND では
+                #   「そのワードの途中で一瞬立った」を取りこぼす。
+                L.append(f".meas tran w{k}r{i} MAX v(xu.{wr}) "
+                         f"FROM={IDLE + k * TW:g}n TO={IDLE + (k + 1) * TW:g}n")
                 # ★ **WRB も追う**。WR = 0 のとき WRB = 5 でなければ
                 #   帰還のトランスファゲートが**両方とも off** になり、
                 #   記憶ノードが浮く（浮けば接合のリークで VDD 側へ戻る）。
                 L.append(f".meas tran w{k}b{i} FIND v(xu.{wrb}) "
                          f"AT={IDLE + TW / 2 + k * TW:g}n")
+            # ★ **いつ反転したか**を直接測る。word0 の書込みが終わったあと、
+            #   記憶ノードが最初に VDD/2 を上向きに跨いだ時刻。
+            L.append(f".meas tran flip{i} WHEN v(xu.{inst}.{node})={VDD / 2:g} "
+                     f"RISE=1 TD={IDLE + TW - 10:g}n")
             # ★ 読む行だけは**セルの内部ノードを全部**追う。どのノードが
             #   反転しそこねているかを見る。1 行ぶんなので本数は少ない。
             for j, nd in enumerate(inner):
@@ -638,11 +644,12 @@ def probe_summary(v):
                 st, wr_ = v.get(f"w{k}s{r}"), v.get(f"w{k}r{r}")
                 if st is None: continue
                 wb = v.get(f"w{k}b{r}")
+                wr_lbl = ("**立つ**" if (wr_ or 0) > VDD / 2 else "0")
                 hold = "" if wb is None else (
                     "  帰還 **切れている**" if (wb if wb is not None else 0) < VDD / 2
                     and (wr_ or 0) < VDD / 2 else "  帰還 ○")
                 tr.append(f"word{WORDS[k][0]}: 記憶 {st:.1f} "
-                          f"/ WR {'**立つ**' if (wr_ or 0) > VDD / 2 else '0'}"
+                          f"/ WR(窓の最大) {wr_lbl}"
                           f" / WRB {'-' if wb is None else format(wb, '.1f')}{hold}")
             nodes = sorted({int(k[1:k.index("w")]) for k in v
                             if k.startswith("n") and "w" in k and k.endswith(f"r{r}")
@@ -652,6 +659,10 @@ def probe_summary(v):
                 if any(x is not None for x in vals):
                     tr.append("  セル内ノード %d: " % j
                               + " ".join("-" if x is None else f"{x:.1f}" for x in vals))
+            fl = v.get(f"flip{r}")
+            if fl is not None:
+                tr.append(f"  ★ 反転した時刻 = {fl * 1e9:.1f} ns"
+                          f"（word0 の書込みは {IDLE:g}〜{IDLE + TW:g} ns）")
             if tr:
                 print(f"    行 {r}（読む行）の足取り:")
                 for x in tr: print(f"      {x}")
