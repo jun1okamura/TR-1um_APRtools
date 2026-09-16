@@ -526,13 +526,25 @@ def build_webq(netlist, slew):
 
     add = [[(0.0, 0)] for _ in range(4)]          # ADD = 0 で固定
     dat = [[(0.0, VDD)] for _ in range(8)]        # まず 0xFF
-    web = [(0.0, VDD), (t1, 0), (t1 + w, VDD)]
+    # ★ **測る縁だけ指定のスルーで振る。** `step()` は全部の縁を `EDGE`
+    #   にしてしまうので、ここは台形を自分で組む。
+    #   （一度これを**コメントだけ書いて実装していなかった**ため、
+    #     7 スルーぜんぶ同じ値 20.47/21.21 ns が出た。）
+    def ramp(pts, t, v, width):
+        pts.append((t - width, pts[-1][1]))
+        pts.append((t, v))
+
+    wpts = [(0.0, VDD)]
+    ramp(wpts, t1, 0, EDGE)                       # ① 初期化。測らない
+    ramp(wpts, t1 + w, VDD, EDGE)
     for i in range(8):                            # ② の前に 0x00 へ
         dat[i].append((t2 - SETTLE / 2, 0))
-    web += [(t2, 0), (t2 + w, VDD)]
+    ramp(wpts, t2, 0, tf)                         # ② 測る縁
+    ramp(wpts, t2 + w, VDD, EDGE)
     for i in range(8):                            # ③ の前に 0xFF へ
         dat[i].append((t3 - SETTLE / 2, VDD))
-    web += [(t3, 0), (t3 + w, VDD)]
+    ramp(wpts, t3, 0, tf)                         # ③ 測る縁
+    ramp(wpts, t3 + w, VDD, EDGE)
 
     L = [f"* {CELL} WEB -> Q  入力遷移 {slew}ns  -- char_mem.py 生成"]
     L += header(netlist)
@@ -541,8 +553,6 @@ def build_webq(netlist, slew):
         L.append(f"Ra{j} a{j}s A{j} 0.001")
     for i in range(8):
         drive(L, f"d{i}", f"DD{i}", dat[i] + [(tend, dat[i][-1][1])])
-    # ★ 測る縁だけ指定のスルーで振る（他の縁は EDGE のまま）
-    wpts = step(web)
     L.append(f"Vweb webs 0 {pwl(wpts + [(tend, VDD)])}")
     L.append(f"Rweb webs WEB 0.001")
     L.append(f"XU {PORTS} {CELL}")
@@ -553,16 +563,16 @@ def build_webq(netlist, slew):
     vt = VDD * TH / 100
     lo, hi = VDD * LO / 100, VDD * HI / 100
     for i in range(8):
-        L.append(f".meas tran f{i} TRIG v(WEB) VAL={vt:g} FALL=1 TD={t2 - 1:g}n "
-                 f"TARG v(QQ{i}) VAL={vt:g} FALL=1 TD={t2 - 1:g}n")
-        L.append(f".meas tran r{i} TRIG v(WEB) VAL={vt:g} FALL=1 TD={t3 - 1:g}n "
-                 f"TARG v(QQ{i}) VAL={vt:g} RISE=1 TD={t3 - 1:g}n")
-        L.append(f".meas tran ft{i} TRIG v(QQ{i}) VAL={hi:g} FALL=1 TD={t2 - 1:g}n "
-                 f"TARG v(QQ{i}) VAL={lo:g} FALL=1 TD={t2 - 1:g}n")
-        L.append(f".meas tran rt{i} TRIG v(QQ{i}) VAL={lo:g} RISE=1 TD={t3 - 1:g}n "
-                 f"TARG v(QQ{i}) VAL={hi:g} RISE=1 TD={t3 - 1:g}n")
+        L.append(f".meas tran f{i} TRIG v(WEB) VAL={vt:g} FALL=1 TD={t2 - tf - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={vt:g} FALL=1 TD={t2 - tf - 1:g}n")
+        L.append(f".meas tran r{i} TRIG v(WEB) VAL={vt:g} FALL=1 TD={t3 - tf - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={vt:g} RISE=1 TD={t3 - tf - 1:g}n")
+        L.append(f".meas tran ft{i} TRIG v(QQ{i}) VAL={hi:g} FALL=1 TD={t2 - tf - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={lo:g} FALL=1 TD={t2 - tf - 1:g}n")
+        L.append(f".meas tran rt{i} TRIG v(QQ{i}) VAL={lo:g} RISE=1 TD={t3 - tf - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={hi:g} RISE=1 TD={t3 - tf - 1:g}n")
     # 書けたことの確認（②のあと 0、③のあと 5）
-    L.append(f".meas tran chk0 FIND v(QQ0) AT={t3 - 1:g}n")
+    L.append(f".meas tran chk0 FIND v(QQ0) AT={t3 - tf - 1:g}n")
     L.append(f".meas tran chk1 FIND v(QQ0) AT={tend - TAIL / 2:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
