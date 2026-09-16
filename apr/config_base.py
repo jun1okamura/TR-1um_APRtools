@@ -28,6 +28,7 @@
 """
 import math
 import os
+import sys
 
 import rules
 
@@ -106,8 +107,12 @@ def getenv(name, default=None, cast=None):
     """
     if name not in ENV_KNOBS:
         # 台帳に無い名前。**打ち間違いか、足し忘れ**。止めはしないが必ず出す。
+        # ★ **診断は stderr へ。** `CFG=$(python3 ... print(値))` で値を拾う
+        #   シェル（`syn/sta/sta.sh` / `syn/syn.sh`）があるので、import しただけで
+        #   stdout に出ると**値の 1 行目が警告文に化ける**。TD4 の STA が
+        #   回らなかった原因がこれだった（U36、2026-09-16）。
         print(f"** config_base.getenv: APR_{name} は ENV_KNOBS に無い"
-              "（台帳に足すこと）")
+              "（台帳に足すこと）", file=sys.stderr)
     v = os.environ.get("APR_" + name)
     if v is None:
         return default
@@ -335,6 +340,10 @@ STA_CLK_PORT = None             # クロックを入れるポート名（例 "sc
 STA_PERIOD_NS = 100.0           # STA の周期
 STA_FALSE_PATH_FROM = ["rst_n"] # recovery/removal を特性化していないので外す
 STA_NON_SIGNAL_PORTS = ["VDD", "GND"]   # 構造インスタンスの電源ピン用のポート
+# マクロ（`is_macro_cell`）のインスタンス名。空でなければ `syn/sta/sta.sh` が
+# `report_macro.tcl` を連結し、**Liberty に書いた制約を STA が実際に見ているか**
+# まで報告する（U73 — 書いただけでは見られていないことがある）。例: ["u_mem"]
+STA_MACRO_INSTS = []
 LOGO_SCALE = 1                  # ロゴの縮約（1 = 等倍）
 LOGO_COLS = None                # 切り出す列 "0:64" など。None で全幅
 LOGO_ROWS = 1                   # 縦に何枚積むか（空きが縦に広い設計用）
@@ -504,8 +513,10 @@ def check():
         note = (f"CH_HEIGHTS の端 {off_grid} が {site} の倍数でない "
                 "（ch0 の最上トラックが行の M1 に寄って間隔違反が出る）")
         if _g("CH_END_OFF_GRID_OK"):
+            # ★ 診断は stderr（上の getenv と同じ理由。U36）
             print(f"  ** config: {note}\n"
-                  f"     -> CH_END_OFF_GRID_OK で承知のうえ。DRC で必ず確かめること")
+                  f"     -> CH_END_OFF_GRID_OK で承知のうえ。DRC で必ず確かめること",
+                  file=sys.stderr)
         else:
             msg.append(note)
     if rw > cw + 1e-6:

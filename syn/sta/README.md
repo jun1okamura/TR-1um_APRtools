@@ -1,23 +1,35 @@
-# scripts/sta/ — OpenSTA
+# `syn/sta/` — OpenSTA
 
 `.lib` は実測（ngspice）なので、STA が当てられる。ここはその足回り。
+**設計のルートで**、`PYTHONPATH` に `apr/` を入れて回す（値は設計の `config.py` から取る）。
 
 ```sh
-sh scripts/sta/sta.sh out/td4_soc_arr.v td4_soc_arr 100                    # まとめ
-sh scripts/sta/sta.sh out/td4_soc_arr.v td4_soc_arr 100 scripts/sta/path.tcl   # クリティカルパス詳細
+export APRTOOLS=<PDK と道具を置いた場所>/TR-1um_APRtools
+export PYTHONPATH=$APRTOOLS/apr
+
+sh $APRTOOLS/syn/sta/sta.sh out/td4_soc_arr_pnr.v td4_soc_arr 100
+sh $APRTOOLS/syn/sta/sta.sh out/td4_soc_arr_pnr.v td4_soc_arr 100 $APRTOOLS/syn/sta/path.tcl
 ```
+
+★ **当てるのは `config.NET_PATH`（最後のネットリスト）。** 途中の版を渡しても
+落ちずに**別の回路の数字**が出る。TD4 の `out/` には 4 つあり、
+`td4_soc_arr.v` は**メモリが DFF 128 個に展開された版**（セルは全部 Liberty に
+あるので、セル検査では気づけない）。`sta.sh` は当てる前に下見をして、
+`NET_PATH` と違う / モジュールが 2 つ以上 / Liberty に無いセルがある、を言う。
 
 | ファイル | 中身 |
 |---|---|
-| `sta.sh` | ドライバ。`NET` / `TOP` / `PER` を先頭に置いて `setup.tcl` + レポート tcl を連結して流す |
+| `sta.sh` | ドライバ。下見 → `NET` / `TOP` / `PER` を先頭に置いて `setup.tcl` + レポート tcl を連結して流す |
 | `setup.tcl` | 読み込みと SDC 相当の制約（クロック・駆動セル・負荷・入出力遅延） |
 | `report.tcl` | reg→reg / in→reg / reg→out / hold の最悪 slack と Fmax |
+| `report_macro.tcl` | **マクロの制約を STA が実際に見ているか**（`STA_MACRO_INSTS` があるときだけ連結。U73） |
 | `path.tcl` | reg→reg のクリティカルパス詳細 |
+| `macro_probe.v` / `check_macro_arcs.tcl` | 最小ネットリストで「どの制約が効くか」を確かめる探針（U73） |
 
 ## OpenSTA のビルド
 
-このリポジトリには入れていない。`sta` が PATH にあれば `scripts/syn.sh` の段 9 と
-`scripts/sta/sta.sh` が自動で使う。別の場所に置くなら `STA=/path/to/sta` で渡せる。
+このリポジトリには入れていない。`sta` が PATH にあれば `syn/syn.sh` の段 9 と
+`syn/sta/sta.sh` が自動で使う。別の場所に置くなら `STA=/path/to/sta` で渡せる。
 
 ### macOS（Apple Silicon / Homebrew）
 
@@ -122,7 +134,7 @@ export STA="$PWD/build/sta"           # か、sta.sh / syn.sh に環境変数で
 
 ```sh
 cd <設計を置いた場所>/TR-1um_I2C_2026
-sh scripts/sta/sta.sh out/i2c_slave_async_pnr.v i2c_slave_async 2500
+PYTHONPATH=$APRTOOLS/apr sh $APRTOOLS/syn/sta/sta.sh out/i2c_slave_async_pnr.v i2c_slave_async 2500
 ```
 
 ### Ubuntu 24.04
@@ -143,6 +155,11 @@ cd OpenSTA && cmake -B build -DCMAKE_BUILD_TYPE=Release -DCUDD_DIR=/usr/local &&
 - **配線容量ゼロ。** P&R 前なのでネット容量は駆動セルの負荷だけ。
   TR-1um の M2 は幅 3.4 um と太いので、実配線が乗ると悪化する。
 - **クロックツリー無し。** `set_ideal_network` で skew 0。
-- **`REG8x16` のタイミングが `.lib` に無い。** P&R の本命 `td4_soc_arr_bb` は
-  これが入るまで STA にかけられない。
-- `RSTB` の `recovery` / `removal` と `min_pulse_width` を特性化していない。
+- **`RSTB` の `recovery` / `removal` を特性化していない**（U8）。TD4 / I2C の
+  リセットは電源投入時に一度きりなので `set_false_path` で正しいが、
+  SCLK_SPI は**フレームごとに解除される**ので、そこは数字で言えない。
+- **`REG8x16` の `min_pulse_width`（`WEB` 低 11 ns）は OpenSTA が見ない**（U73）。
+  Liberty には記録として入っているが、担保は ngspice の回帰側。
+
+`REG8x16` のタイミングは **2026-09-16 に読出し・書込みとも `.lib` に入った**（U7）ので、
+マクロを含む `td4_soc_arr` も STA にかけられる（`STA_MACRO_INSTS` と `report_macro.tcl`）。
