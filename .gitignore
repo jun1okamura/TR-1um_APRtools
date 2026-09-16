@@ -21,3 +21,13 @@ out/
 # デスクトップアプリの出力置き場。**道具のリポジトリには入れない**
 # （設計のフロアプラン画像などが紛れ込む。実際に 1 度入った）。
 Claude outputs/
+
+# char/ の入力と作業場は生成物（RUN.md 手順 1-2）。正本は stdcell/v59_4/extracted/
+char/cells_ext/
+char/cells_mem/
+char/cells_pad/
+char/pack/
+char/pack_rslatch/
+char/decks/
+char/logs/
+char/models/

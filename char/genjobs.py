@@ -34,8 +34,8 @@ MODELS_TOKEN = "__MODELS__"
 def emit(jobs, outdir, tag, deck, meta):
     """デッキを書き出す。モデルの絶対パスはプレースホルダにしておき、
     実行する機械（Mac）の PDK パスを runjobs.sh が埋める。"""
-    from charlib import HERE
-    deck = deck.replace(f"{HERE}/models", MODELS_TOKEN)
+    from charlib import models_dir
+    deck = deck.replace(models_dir(), MODELS_TOKEN)
     open(f"{outdir}/decks/{tag}.spi", "w").write(deck)
     jobs.append({"tag": tag, **meta})
 

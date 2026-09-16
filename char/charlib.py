@@ -5,7 +5,8 @@ import itertools, os, re, subprocess, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from check_comb import to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT      # noqa: E402
+from check_comb import (to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT,
+                        models_dir, models_include)                         # noqa: E402
 
 VDD = 5.0
 TEMP = 25
@@ -86,7 +87,7 @@ def run_ngspice(deck, tag, timeout=600):
 
 
 def header(cell):
-    return [f".include {HERE}/models/ip62_models", "",
+    return [models_include(), "",
             to_xm(f"{CELLDIR}/{cell}{CELLEXT}"), "",
             f".temp {TEMP}", f"Vvdd vdd 0 {VDD}", "Vvss vss 0 0"]
 

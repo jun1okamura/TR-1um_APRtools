@@ -52,7 +52,8 @@ HERE_ = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE_)
 import cellspec                                                   # noqa: E402
 from charlib import (HERE, VDD, SLEWS, LOADS, TH_DELAY, TH_SLEW_LO, TH_SLEW_HI,
-                     header, all_ports_of, pwl_ramp, full_ramp)   # noqa: E402
+                     header, all_ports_of, pwl_ramp, full_ramp,
+                     models_dir)                                  # noqa: E402
 
 MODELS_TOKEN = "__MODELS__"
 
@@ -84,7 +85,7 @@ TTYPE = {"rise": ("preset", "positive_unate"), "fall": ("clear", "negative_unate
 def _head(cell, title):
     """models の絶対パスはプレースホルダにしておく（runjobs.sh が実機のパスを埋める）"""
     L = [f"* {title}  -- char_latch.py 生成"] + header(cell)
-    return [ln.replace(f"{HERE}/models", MODELS_TOKEN) for ln in L]
+    return [ln.replace(models_dir(), MODELS_TOKEN) for ln in L]
 
 
 def _inst(cell, tag, omap):

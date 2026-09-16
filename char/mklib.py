@@ -14,18 +14,45 @@ import argparse, json, os, sys
 import cellspec
 from charlib import HERE, VDD, TEMP, SLEWS, LOADS, SLEWS_C, TH_DELAY, TH_SLEW_LO, TH_SLEW_HI
 
+# セル面積表。正本は `stdcell/<版>/cell_area.json`（`apr/mkcellinfo.py` が
+# GDS から作る）。`TR1UM_CELL_AREA` で明示もできる。
+# ★ 以前は `{HERE}/cell_area.json` と `{HERE}/../cell_area.json` しか見ず、
+#   APRtools にはどちらも無いので **import した瞬間に SystemExit** していた。
+#   設計リポジトリの複製（`scripts/char/`）では隣にあって通っていたので、
+#   複製を消すまで気づかなかった（U65 / 決定 21）。
+CELL_AREA_VER = os.environ.get("TR1UM_STDCELL", "v59_4")
+
+
 def _areas():
-    """セル面積表。実体は scripts/cell_area.json（cellinfo.py が GDS から生成）。
-    `{HERE}/cell_area.json` を直に開いていたため Mac では
-    FileNotFoundError で起動すらできなかった。"""
-    for p in (f"{HERE}/cell_area.json", f"{HERE}/../cell_area.json"):
-        if os.path.exists(p):
+    cands = [os.environ.get("TR1UM_CELL_AREA"),
+             f"{HERE}/../stdcell/{CELL_AREA_VER}/cell_area.json",
+             f"{HERE}/cell_area.json",
+             f"{HERE}/../cell_area.json"]
+    for p in cands:
+        if p and os.path.exists(p):
             return json.load(open(p))["cells"]
-    raise SystemExit("cell_area.json が見つからない。"
-                     "scripts/cellinfo.py で生成してください")
+    raise SystemExit(
+        "cell_area.json が見つからない。正本は stdcell/<版>/cell_area.json。\n"
+        "  作り直すなら: python3 <APRtools>/apr/mkcellinfo.py\n"
+        f"  試した場所: {[c for c in cands if c]}")
 
 
-AREAS = _areas()
+class _Areas:
+    """★ **import しただけでは読まない**（無いと import 掃きだしが使えなくなる）。"""
+    _d = None
+
+    def __getitem__(self, k):
+        if _Areas._d is None:
+            _Areas._d = _areas()
+        return _Areas._d[k]
+
+    def __contains__(self, k):
+        if _Areas._d is None:
+            _Areas._d = _areas()
+        return k in _Areas._d
+
+
+AREAS = _Areas()
 IND = "  "
 
 
@@ -425,7 +452,7 @@ def main():
     o = []
     o.append("/* TR-1um (IP62) 標準セルライブラリ — Liberty")
     o.append(" *")
-    o.append(" * scripts/char/mklib.py が char/*.json から自動生成。手で編集しないこと。")
+    o.append(" * <APRtools>/char/mklib.py が char/*.json から自動生成。手で編集しないこと。")
     o.append(" * 元データは KLayout が DRC/LVS クリーンなレイアウトから抽出した")
     o.append(" * ネットリスト (lef/extracted/*.extracted) を ngspice (BSIM3 level49) で")
     o.append(" * 特性化したもの。拡散の実面積・周長 (AS/AD/PS/PD) を含む。")

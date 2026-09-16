@@ -20,7 +20,8 @@ N=2 と 4 で求めて平均する。両者がずれるならその旨を出す�
 from __future__ import annotations
 import json, os, sys
 import cellspec
-from charlib import HERE, VDD, SLEWS, LOADS, header, run_ngspice, full_ramp, arcs_of
+from charlib import (HERE, VDD, SLEWS, LOADS, header, run_ngspice, full_ramp,
+                     arcs_of, models_dir, models_include)
 
 DRV = "INV_X1"          # 基準ドライバ
 SLEW_IN = 0.6           # ドライバに与える入力遷移 [ns]（表の index_1 と同じ定義）
@@ -50,7 +51,7 @@ def build_deck(cell, pin, side, n):
     """INV_X1 -> (cell の pin) x n のデッキを組む（実行はしない）。"""
     from check_comb import to_xm, all_ports_of, CELLDIR, CELLEXT
     L = [f"* {DRV} -> {cell}.{pin} x{n} 等価容量の較正"]
-    L.append(f".include {HERE}/models/ip62_models")
+    L.append(models_include())
     L.append("")
     L.append(to_xm(f"{CELLDIR}/{DRV}{CELLEXT}"))
     if cell != DRV:

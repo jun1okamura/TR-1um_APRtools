@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """パッドセル `OSS_ESD_5V_DIO` の特性化（NLDM）。
 
-  usage: python3 scripts/char/char_pad.py [-n gio_sim.spi] [-o char/OSS_ESD_5V_DIO.json]
+  usage: python3 $APRTOOLS/char/char_pad.py [-n gio_sim.spi] [-o char/OSS_ESD_5V_DIO.json]
 
 標準セルの `char_comb.py` と測るものは同じだが、**格子が違う**。
 
@@ -29,7 +29,9 @@ import argparse, json, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "OSS_ESD_5V_DIO"
-MODELS = os.environ.get("TR1UM_MODELS", f"{HERE}/models")
+# ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
+from check_comb import models_dir                                 # noqa: E402
+MODELS = models_dir()
 # パッドセルの面積。標準セルの cell_area.json（STDCELL の GDS 実測）には
 # 入っていないので、フレームの LEF の MACRO ... SIZE から読む。
 FRAME_LEF = os.environ.get("TR1UM_FRAME_LEF",

@@ -13,27 +13,42 @@
 ## 0. 前提
 
 ```sh
-cd scripts/char
+export APRTOOLS=<PDK と道具を置いた場所>/TR-1um_APRtools
+export TR1UM_PDK=<PDK と道具を置いた場所>/TR-1um
+cd $APRTOOLS/char
 which ngspice          # 見つからなければ brew install ngspice
 python3 -V             # 3.9 以上
 ```
 
-`models/` に PDK の BSIM3 モデル（`ip62_models` ほか 4 本）を置いてあります。
-別の場所の PDK を使いたい場合は手順 2 で `-m` で指定してください。
+★ **モデルは PDK を参照します。リポジトリにはコピーしません。**
+`TR1UM_PDK/libs.tech/spice/models/ip62_models` を使います
+（`TR1UM_MODELS` で上書き、`runjobs.sh` は `-m` でも指定できます）。
+以前は設計リポジトリの `scripts/char/models/` に 5 本を写していて、
+道具を APRtools へ移したときに**入力だけが設計側に残りました**（U65）。
 
 ---
 
 ## 1. 抽出ネットリストを取り込む
 
-KLayout の `lef/extracted/*.extracted` を ngspice が読める形に直します。
+正本の `stdcell/v59_4/extracted/*.extracted` を ngspice が読める形に直します。
 ネット名の `\$6` や素子名の `XM$1` は `$` が ngspice のコメント文字なので、
 ここで `n6` / `XM1` に置き換えています。
 
 ```sh
-python3 loadext.py ../../lef/extracted -o cells_ext
+python3 loadext.py ../stdcell/v59_4/extracted -o cells_ext
 ```
 
-→ `cells_ext/` に 30 セル。以降のスクリプトはすべてこれを見ます。
+→ `cells_ext/` に 36 セル。以降のスクリプトはすべてこれを見ます。
+**`cells_ext/` は生成物**（`.gitignore`）で、正本は `stdcell/v59_4/extracted/` です。
+
+マクロとパッドを測るときは、入力もここで起こします:
+
+```sh
+# REG8x16（設計ネットリスト由来。char_mem.py の既定）
+python3 mkmemsrc.py <設計>/lef/simulation/REG8x16.spice -o cells_mem/REG8x16_src.spi
+# フレーム（char_pad.py 用）
+python3 loadext.py <設計>/lef/extracted -o cells_pad
+```
 
 ## 2. デッキを生成する
 

@@ -15,7 +15,17 @@ set -u
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 PACK="$HERE/pack"
-MODELS="$HERE/models"
+MODELS="${TR1UM_MODELS:-}"
+# ★ 既定は PDK を参照する（リポジトリにモデルを写さない。U65）。
+if [ -z "$MODELS" ]; then
+  for d in "${TR1UM_PDK:-}/libs.tech/spice/models" \
+           "$HERE/../../TR-1um/libs.tech/spice/models" \
+           "$HOME/TR-1um/libs.tech/spice/models" \
+           "$HERE/models"; do
+    [ -f "$d/ip62_models" ] && { MODELS="$d"; break; }
+  done
+fi
+MODELS="${MODELS:-$HERE/models}"
 NGSPICE="${NGSPICE:-ngspice}"
 J=""
 

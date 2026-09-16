@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """`REG8x16`（16 ワード x 8 ビットの命令メモリマクロ）の特性化。
 
-  usage: python3 scripts/char/char_mem.py [-n cells_mem/REG8x16.spi]
+  usage: python3 $APRTOOLS/char/char_mem.py [-n cells_mem/REG8x16.spi]
                                           [-o char/REG8x16.json] [-j 2]
 
 P&R の本命 `td4_soc_arr_bb` は `REG8x16` をマクロとして持つので、
@@ -64,7 +64,9 @@ from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "REG8x16"
-MODELS = os.environ.get("TR1UM_MODELS", f"{HERE}/models")
+# ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
+from check_comb import models_dir                                 # noqa: E402
+MODELS = models_dir()
 FRAME_LEF = None            # マクロなので面積は cell_area.json から取る
 
 SLEWS = [0.1, 0.25, 0.6, 1.5, 4.0, 8.0, 16.0]      # 標準セルと同じ格子
@@ -288,10 +290,10 @@ def main():
         raise SystemExit(
             f"** ネットリストが無い: {a.netlist}\n"
             f"   設計ネットリストから作るには（リポジトリルートで）:\n"
-            f"     python3 scripts/char/mkmemsrc.py lef/simulation/{CELL}.spice \\\n"
-            f"             -o scripts/char/cells_mem/{CELL}_src.spi\n"
+            f"     python3 $APRTOOLS/char/mkmemsrc.py <設計>/lef/simulation/{CELL}.spice \\\n"
+            f"             -o $APRTOOLS/char/cells_mem/{CELL}_src.spi\n"
             f"   抽出ネットリストから作るには:\n"
-            f"     python3 scripts/char/loadext.py lef/extracted -o scripts/char/cells_mem")
+            f"     python3 $APRTOOLS/char/loadext.py <設計>/lef/extracted -o $APRTOOLS/char/cells_mem")
     if a.ext:
         PORTS = PORTS_EXT
         a.netlist = f"{HERE}/cells_mem/{CELL}.spi"

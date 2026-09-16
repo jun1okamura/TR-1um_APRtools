@@ -34,6 +34,55 @@ CELLDIR = os.environ.get(
 CELLEXT = os.environ.get("TR1UM_CELLEXT", ".spi")
 
 
+# --- PDK のモデルの置き場 ------------------------------------------------
+# ★ **PDK は参照する。リポジトリにコピーしない**（README の方針）。
+#   以前は設計リポジトリの `scripts/char/models/` に 5 本を写していて、
+#   道具を APRtools へ移したときに**入力だけが設計側に残った**。
+#   APRtools には `char/models/` が無いのに `RUN.md` は「置いてあります」と
+#   書いたままで、正本の道具はそのままでは回らなかった（U65）。
+_MODELS_DIR = None
+
+
+def models_dir():
+    """`ip62_models` があるディレクトリ。
+
+    探す順: `TR1UM_MODELS` / `TR1UM_PDK/libs.tech/spice/models` /
+            APRtools の隣の `TR-1um/` / `~/TR-1um/` / `{HERE}/models`（旧）
+    """
+    global _MODELS_DIR
+    if _MODELS_DIR:
+        return _MODELS_DIR
+    env = os.environ.get("TR1UM_MODELS")
+    if env:
+        _MODELS_DIR = env
+        return env
+    cands = []
+    pdk = os.environ.get("TR1UM_PDK")
+    if pdk:
+        cands.append(os.path.join(pdk, "libs.tech", "spice", "models"))
+    # escape-apr は apr/ 用の検査。ここは char/ から見た APRtools の根で、
+    # 隣に置いた PDK を探すための 1 段上がりなので正しい。
+    # lint: ok char/ から APRtools の根を取る（隣の PDK を探すため）
+    root = os.path.dirname(HERE)
+    cands += [
+        os.path.join(os.path.dirname(root), "TR-1um", "libs.tech", "spice", "models"),
+        os.path.expanduser("~/TR-1um/libs.tech/spice/models"),
+        os.path.join(HERE, "models"),
+    ]
+    for c in cands:
+        if os.path.exists(os.path.join(c, "ip62_models")):
+            _MODELS_DIR = c
+            return c
+    raise SystemExit("PDK の ngspice モデル ip62_models が見つからない。\n"
+                     "  export TR1UM_PDK=<PDK を置いた場所>/TR-1um\n"
+                     f"  試した場所: {cands}")
+
+
+def models_include():
+    """デッキの先頭に書く `.include` の 1 行。"""
+    return f".include {models_dir()}/ip62_models"
+
+
 def all_ports_of(cell):
     """`.subckt` 行のポートを**宣言順のまま**返す。
 
@@ -87,7 +136,7 @@ def build(cell, outs):
     ports = ports_of(cell)
 
     L = [f"* {cell} 真理値表 全網羅 ({len(combos)} 通り) -- check_comb.py 生成",
-         f".include {HERE}/models/ip62_models", ""]
+         models_include(), ""]
     L.append(to_xm(f"{CELLDIR}/{cell}{CELLEXT}"))
     # 電源レールの綴りを gnd -> vss に統一したので **Vvss で明示的に接地する**。
     # ngspice は `gnd` だけを節点 0 の別名として自動で扱う。`vss` は扱わない。

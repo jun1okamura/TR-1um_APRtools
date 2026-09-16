@@ -19,7 +19,8 @@ import cellspec
 VDD = 5.0
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
-from check_comb import to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT    # noqa: E402
+from check_comb import (to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT,
+                        models_dir, models_include)                        # noqa: E402
 
 COX = 1.77          # fF/µm²
 def _gds():
@@ -97,7 +98,7 @@ def leak_and_cap(cell):
     ports = ports_of(cell)
     t0, t1 = 200.0, 200.0 + TRAMP
     L = [f"* {cell} 電源チェック -- check_pass.py 生成",
-         f".include {HERE}/models/ip62_models", "",
+         models_include(), "",
          to_xm(f"{CELLDIR}/{cell}{CELLEXT}"), "",
          ".temp 25",
          f"Vvdd vdd 0 PWL(0 {VDD} {t0}n {VDD} {t1}n {VDD+DVDD})",

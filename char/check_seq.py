@@ -28,7 +28,8 @@ RAIL_TOL = 0.25
 HERE = os.path.dirname(os.path.abspath(__file__))
 
 sys.path.insert(0, HERE)
-from check_comb import ports_of, all_ports_of, to_xm, CELLDIR, CELLEXT          # noqa: E402
+from check_comb import (ports_of, all_ports_of, to_xm, CELLDIR, CELLEXT,
+                        models_dir, models_include)                             # noqa: E402
 
 CK = "CK"
 T = 40          # クロック 1 周期の半分 [ns]
@@ -212,7 +213,7 @@ def build(cell, stim, chk, tstop):
     L = [f"* {cell} 順序動作チェック -- check_seq.py 生成",
          (f"* 抽出がピンに昇格させた内部ネット（開放にする）: {' '.join(floating)}"
           if floating else "*"),
-         f".include {HERE}/models/ip62_models", "",
+         models_include(), "",
          to_xm(f"{CELLDIR}/{cell}{CELLEXT}"), "",
          ".temp 25", f"Vvdd vdd 0 {VDD}", "Vvss vss 0 0"]
     for i, p in enumerate(ins):
