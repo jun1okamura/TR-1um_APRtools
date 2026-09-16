@@ -162,13 +162,13 @@ def main(gds=None, only=()):
     #   M2.W1 / M2.S1 が 6 件と、ガードリング状の V1 の bbox が 1 件出る）。
     _scrb = ly.layer(*rules.SCRB_MARK)
     if any(not c.shapes(_scrb).is_empty() for c in ly.each_cell()):
-        sys.exit(f"{cfg.disp(gds)} にはスクライブ認識層 {rules.SCRB_MARK} がある。"
+        sys.exit(f"{cfg.show(gds)} にはスクライブ認識層 {rules.SCRB_MARK} がある。"
                  "\nこれはセルライブラリではない（フレーム / チップ）。"
                  "\nサインオフは apr/drc_pdk.py（PDK の本物のデッキ）で行う。")
     names = sorted(c.name for c in ly.each_cell()
                    if not only or c.name in only)
     bad = 0
-    print(f"=== {cfg.disp(gds)} : {len(names)} cell(s) ===")
+    print(f"=== {cfg.show(gds)} : {len(names)} cell(s) ===")
     for n in names:
         v = check_cell(ly, ly.cell(n), dbu)
         if not v:

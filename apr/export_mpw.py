@@ -107,7 +107,7 @@ def main():
             raise SystemExit(f"入力が無い: {p}")
 
     bad = precheck(a.gds, top)
-    print(f"=== pre-check（{os.path.relpath(a.gds, cfg.ROOT)}）")
+    print(f"=== pre-check（{cfg.show(a.gds)}）")
     if bad:
         for b in bad:
             print(f"  PROBLEM: {b}")
@@ -120,7 +120,7 @@ def main():
              (cir, os.path.join(SRC, f"{top}.{lvs_ext}"))]
     print()
     for s, d in pairs:
-        print(f"  {os.path.relpath(s, cfg.ROOT)}  ->  {os.path.relpath(d, cfg.ROOT)}"
+        print(f"  {cfg.show(s)}  ->  {cfg.show(d)}"
               f"  ({os.path.getsize(s)/1024:.0f} KB)")
         if not a.dry_run:
             shutil.copyfile(s, d)

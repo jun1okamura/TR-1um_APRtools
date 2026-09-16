@@ -93,15 +93,15 @@ def subckt_ports(path, name):
         # ★ フローのどの段もこれを作らなかった（U40）。**要る側がここで作る。**
         #   フレームの GDS から抽出するだけなので、待たせる理由が無い。
         import mkframespice
-        print(f"  {cfg.disp(path)} が無いので作る"
-              f"（{cfg.disp(cfg.FRAME_GDS)} から抽出、combine なし）")
+        print(f"  {cfg.show(path)} が無いので作る"
+              f"（{cfg.show(cfg.FRAME_GDS)} から抽出、combine なし）")
         try:
             mkframespice.write(cfg.FRAME_GDS, name, path, combine=False)
         except Exception as e:
             raise SystemExit(
-                f"{cfg.disp(path)} を作れなかった: {e}\n"
+                f"{cfg.show(path)} を作れなかった: {e}\n"
                 f"  手で: python3 $APRTOOLS/apr/mkframespice.py "
-                f"{cfg.disp(cfg.FRAME_GDS)} {name} --no-combine -o {cfg.disp(path)}")
+                f"{cfg.show(cfg.FRAME_GDS)} {name} --no-combine -o {cfg.show(path)}")
     lines = open(path, encoding="utf-8").read().splitlines()
     for i, line in enumerate(lines):
         if line.strip().startswith(f".subckt {name} "):
@@ -323,7 +323,7 @@ def main():
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     with open(a.out, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
-    print(f"wrote {cfg.disp(a.out)}")
+    print(f"wrote {cfg.show(a.out)}")
 
     print(f"\n{GIO_CELL}: {len(gio_ports)} ポート")
     print(f"{cfg.TOP_CELL_NAME}: {len(core_ports)} ポート")

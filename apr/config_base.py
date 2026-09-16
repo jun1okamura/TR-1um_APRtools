@@ -111,13 +111,17 @@ def getenv(name, default=None, cast=None):
     return cast(v) if cast else v
 
 
-def disp(path, root=None):
-    """ログや生成ファイルに**書き残してよい形**のパス。
+def disp(path, root=None, outside="basename"):
+    """**生成ファイルに書き残してよい形**のパス。
 
     `os.path.relpath(x, cfg.ROOT)` を直に使うと、設計の外にあるものが
     `../../HogeHoge/TR-1um_APRtools/...` になる。**その機械の置き方が
     生成物に焼き付く**ので、リポジトリをまたぐものは `$APRTOOLS/...` と
     書く（2026-09-15、`RING_OSC.spice` の由来コメントで実際に出た）。
+
+    どの根の下にも無いときは `outside` で決める:
+      `"basename"`（既定）… ファイル名だけ。**生成物に書くならこちら**
+      `"abs"`            … 絶対パスのまま。**端末に出すならこちら**（`show()`）
     """
     p = os.path.abspath(path)
     root = os.path.abspath(root or (_NS.get("ROOT") if _NS else ROOT))
@@ -133,7 +137,20 @@ def disp(path, root=None):
         rel = os.path.relpath(p, os.path.abspath(env))
         if not rel.startswith(".."):
             return f"$TR1UM_PDK/{rel}"
-    return os.path.basename(p)
+    return p if outside == "abs" else os.path.basename(p)
+
+
+def show(path, root=None):
+    """**端末に出す形**のパス。`disp()` との違いは「どの根にも無いとき」だけ。
+
+    `disp()` は生成物に焼き付く前提なのでファイル名だけにするが、画面に出す
+    ものは**人がそのまま開ける**必要がある。`/tmp` に置いた GDS のレポートが
+    `drc_probe_drc.lyrdb` とだけ出ても探せない（U58）。
+
+    設計の中にあるもの（＝ほとんど）は `disp()` と同じ相対パスを返すので、
+    見た目は今までどおり。
+    """
+    return disp(path, root, outside="abs")
 
 
 def _g(key, default=None):

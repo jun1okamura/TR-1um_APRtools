@@ -188,7 +188,7 @@ def main(net_path=NET, info_path=INFO, rows=(2, 3, 4, 5, 6), restarts=300,
     insts, width, cellof, net_cells, ports = load(net_path, info_path)
     names = [i.name for i in insts]
     total_w = sum(width.values())
-    print(f"netlist : {cfg.disp(net_path)}")
+    print(f"netlist : {cfg.show(net_path)}")
     print(f"cells   : {len(insts)}   total cell width {total_w:.1f} um")
     print(f"nets    : {len(net_cells)}  (ports {sum(1 for x in net_cells if is_port_net(x, ports))})")
     print(f"limits  : row width <= {MAX_ROW_W} um, row height {ROW_H} um, "

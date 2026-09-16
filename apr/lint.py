@@ -35,7 +35,7 @@
 |---|---|---|
 | `escape-apr` | NG | `apr/` の外を見ている。(a) `os.path.dirname(HERE)` (b) **APRtools のルート + 設計側にしか無いディレクトリ**（`out/` `layout/` `src/` `lef/` …）|
 | `moved-dir` | NG | `cfg.ROOT` + APRtools へ移したディレクトリ名 |
-| `baked-path` | NG | `os.path.relpath(x, cfg.ROOT)` が `print` の外（生成物に焼き付く）→ `cfg.disp()` |
+| `baked-path` | NG | `os.path.relpath(x, cfg.ROOT)` — **場所を問わず**。生成物なら `cfg.disp()`、画面なら `cfg.show()` |
 | `env-direct` | NG | `os.environ` で**外部ツール以外**を読む |
 | `env-knob` | warn | `os.environ` で `APR_*` を直読み → `config_base.getenv()` へ |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない |
@@ -168,14 +168,6 @@ def check_file(path):
             return
         out.append(Finding(sev, cid, path, ln, text, hint))
 
-    # print(...) の中に入っているノードを覚えておく（ログは焼き付かない）
-    in_print = set()
-    for nd in ast.walk(tree):
-        if isinstance(nd, ast.Call) and isinstance(nd.func, ast.Name) \
-                and nd.func.id == "print":
-            for sub in ast.walk(nd):
-                in_print.add(id(sub))
-
     # `X = os.path.dirname(os.path.dirname(...__file__...))` は APRtools の根。
     # ★ `os.path` 形と `pathlib` 形の両方を拾う。`dedup_gates.py` は
     #   `pathlib.Path(__file__).resolve().parent.parent` を 2 段の代入で
@@ -267,10 +259,14 @@ def check_file(path):
                                 f"`{d}/` は設計にも残るが、STDCELL の写しを"
                                 f"指していないか確認する")
                             break
-            if s.startswith("os.path.relpath") and "cfg.ROOT" in s \
-                    and id(nd) not in in_print:
+            # ★ 以前は「`print` の外だけ」NG にしていた（生成物に焼き付くのが
+            #   怖かったので）。だが `print` の中でも、設計の外にあるものは
+            #   `../../../../../tmp/x.gds` と出て**読めない**（U58）。
+            #   `disp()`（生成物用）と `show()`（画面用）が両方あるので、
+            #   **場所を問わず** NG にする。
+            if s.startswith("os.path.relpath") and "cfg.ROOT" in s:
                 add("NG", "baked-path", nd, s,
-                    "生成物に実行した機械の置き方が焼き付く。cfg.disp() を使う")
+                    "生成物に書くなら cfg.disp()、画面に出すなら cfg.show()")
 
         # --- os.environ の直読み ---
         # ★ 変数名は **AST から取る**。行を引用符で split すると、同じ行の

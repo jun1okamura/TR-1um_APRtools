@@ -52,7 +52,7 @@ def report(path, info, density, extra=None):
             seq += n
         rows.append((cell, n, tr, ar))
 
-    print(f"\n=== {cfg.disp(path)} ===")
+    print(f"\n=== {cfg.show(path)} ===")
     print(f"{'cell':12} {'count':>6} {'Tr':>7} {'area(um2)':>11}")
     print("-" * 39)
     for cell, n, tr, ar in rows:

@@ -345,8 +345,8 @@ def main():
     print("  端点の辺:", dict(collections.Counter(r_[5] for r_ in rows)))
     print("  パッドの辺:", dict(collections.Counter(r_[8] for r_ in rows)))
     print(f"  未ボンド: {', '.join(sorted(UNBONDED))}")
-    print(f"\nwrote {os.path.relpath(a.conn, cfg.ROOT)}")
-    print(f"wrote {os.path.relpath(a.plan, cfg.ROOT)}")
+    print(f"\nwrote {cfg.show(a.conn)}")
+    print(f"wrote {cfg.show(a.plan)}")
     return 1 if any(m > n for _s, m, n in worst) else 0
 
 

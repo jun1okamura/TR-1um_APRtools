@@ -191,7 +191,7 @@ def main():
     for side in ("top", "bottom", "left", "right"):
         w, t = geom["channel_" + side]
         print(f"    {side:6s} {w:7.2f} / {t:7.2f} µm")
-    print(f"\nwrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"\nwrote {cfg.show(a.out)}")
     if bad:
         for why, rect in bad:
             print(f"  PROBLEM: {why}" + (f"  {rect}" if rect else ""))

@@ -164,7 +164,7 @@ def main(place_json=PLACE, out_json=None, net_path=None, lef_path=None):
             "top_cell": cfg.TOP_CELL_NAME, "rows": rows}
     os.makedirs(os.path.dirname(out_json), exist_ok=True)
     json.dump(data, open(out_json, "w"), indent=1)
-    print(f"wrote {os.path.relpath(out_json, cfg.ROOT)}")
+    print(f"wrote {cfg.show(out_json)}")
     print(f"  行 {[len(r) for r in rows]}   行幅 {data['row_width']}   "
           f"コア {data['core_w']} x {data['core_h']}")
     print(f"  ch_heights {data['ch_heights']}")

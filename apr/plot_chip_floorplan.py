@@ -92,7 +92,7 @@ def stub_to_ring(x, y, r):
 def draw_connections(ax, plan_path, r):
     """パッド <-> コアピンの対応を、リングを回り込む折れ線で描く。"""
     if not os.path.exists(plan_path):
-        print(f"  （{os.path.relpath(plan_path, cfg.ROOT)} が無いので対応線は描かない）")
+        print(f"  （{cfg.show(plan_path)} が無いので対応線は描かない）")
         return 0
     with open(plan_path, encoding="utf-8") as f:
         plan = json.load(f)
@@ -203,7 +203,7 @@ def main():
     fig.tight_layout(rect=(0.01, 0.045, 0.99, 1))
     os.makedirs(os.path.dirname(a.out) or ".", exist_ok=True)
     fig.savefig(a.out, dpi=140)
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}  "
+    print(f"wrote {cfg.show(a.out)}  "
           f"({len(seen)} 個のピン名、{len(pins)} 個のマーカ、{nconn} 本の対応線)")
     return 0
 

@@ -193,7 +193,7 @@ def main():
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     open(a.out, "w", encoding="utf-8").write("\n".join(L))
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(a.out)}")
     print(f"  クロック {a.period:g} ns / Exec 開始 {t_exec:g} ns / "
           f"終了 {t_stop:g} ns / サンプル {len(samples)} 点")
     return 0

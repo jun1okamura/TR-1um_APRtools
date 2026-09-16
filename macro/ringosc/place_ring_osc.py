@@ -155,7 +155,7 @@ def main():
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     ly.write(a.out)
-    print(f"\nwrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"\nwrote {cfg.show(a.out)}")
     print("配置だけ。OUT / OUTD / ENB / 電源の配線はまだ。")
 
 

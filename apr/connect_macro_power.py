@@ -178,7 +178,7 @@ def main():
     if origin is None:
         print(f"  マクロ {cfg.MACRO_CELL} がレイアウトに無い -- 何もしない")
         d.ly.write(a.out)
-        print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+        print(f"wrote {cfg.show(a.out)}")
         return 0
     mx, my = origin
     print(f"=== マクロ {cfg.MACRO_CELL} @ ({mx:.1f}, {my:.1f})")
@@ -251,7 +251,7 @@ def main():
         d.m2_box(rx0, sy0, rx1, py1)                      # 縦ライザ（ポートまで）
 
     d.ly.write(a.out)
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(a.out)}")
     return 0
 
 

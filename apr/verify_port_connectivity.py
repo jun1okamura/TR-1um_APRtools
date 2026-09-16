@@ -158,7 +158,7 @@ def main(gds=cfg.SQUEEZED_GDS, placement=cfg.PLACEMENT_JSON, net_path=cfg.NET_PA
                  "GND": rules.GND_NET, "VSS": rules.GND_NET,
                  rules.PWR_NET: rules.PWR_NET, rules.GND_NET: rules.GND_NET}
 
-    print(f"=== {os.path.relpath(gds, cfg.ROOT)} ===")
+    print(f"=== {cfg.show(gds)} ===")
     print(f"  {len(parts)} merged M1/M2 shapes, "
           f"{len(set(uf.find(k) for k in uf.p))} connected component(s)\n")
     bad = 0

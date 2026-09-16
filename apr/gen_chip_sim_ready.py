@@ -154,7 +154,7 @@ def main():
     out = a.out or os.path.join(
         SIM, a.top + ("_noosc_sim.spice" if a.no_ringosc else "_sim.spice"))
 
-    print(f"=== 抽出 {os.path.relpath(a.gds, cfg.ROOT)} ({a.top})")
+    print(f"=== 抽出 {cfg.show(a.gds)} ({a.top})")
     r = subprocess.run([sys.executable, EXTRACT, a.gds, a.top, "-o", raw],
                        capture_output=True, text=True)
     if r.returncode != 0:
@@ -190,7 +190,7 @@ def main():
     open(out, "w", encoding="utf-8").write("\n".join(header) + text)
     if not a.keep_extracted:
         pass
-    print(f"wrote {os.path.relpath(out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(out)}")
     print(f"  角括弧 {n_names} 種 / {n_occ} 箇所 -> `_`")
     print(f"  `$` を含む識別子 {n_esc} 箇所 -> 潰した")
     print(f"  ダイオード A=/P= -> AREA=/PJ=  {n_di} 個")

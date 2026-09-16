@@ -343,7 +343,7 @@ def build(plot=None, order_from=None, pads_from_lef=None,
     for f in (gds, leff):
         if os.path.exists(f) and not force:
             raise SystemExit(
-                f"{cfg.disp(f)} は既にある。**STDCELL 正本を書き換える**ので、\n"
+                f"{cfg.show(f)} は既にある。**STDCELL 正本を書き換える**ので、\n"
                 "  承知のうえなら --force。別の場所に出すなら --out-dir。\n"
                 "  ★ 配布している TR-1um_PNR は **既に MEMPORT を含んでいる**"
                 "（`stdcell/CELLS.md`）。\n"
@@ -373,8 +373,8 @@ def build(plot=None, order_from=None, pads_from_lef=None,
     open(leff, "w").write(open(cfg.LIB_LEF).read()
                           + "\n" + "\n".join(L))
 
-    print(f"wrote {cfg.disp(gds)}")
-    print(f"wrote {cfg.disp(leff)}")
+    print(f"wrote {cfg.show(gds)}")
+    print(f"wrote {cfg.show(leff)}")
     print(f"  {CELL} {W} x {H} um   （{SRC_CELL} を R90 して {h_src} x {w_src}、"
           f"右の空き地 {W - h_src:.1f} um に中継）")
     print(f"  上辺パッド {n} 本（信号 {len(sig)} + 電源 {len(pwr_r)}）"
@@ -418,7 +418,7 @@ def draw(path, W, H, mw, allpins, pins):
     ax.tick_params(labelsize=7)
     fig.tight_layout()
     fig.savefig(path, dpi=130)
-    print(f"wrote {os.path.relpath(path, cfg.ROOT)}")
+    print(f"wrote {cfg.show(path)}")
 
 
 if __name__ == "__main__":

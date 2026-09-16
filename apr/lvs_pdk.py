@@ -79,7 +79,7 @@ def summarize(out, rep):
     for l in tail:
         print("  " + l)
     if os.path.exists(rep):
-        print(f"\n  レポート {os.path.relpath(rep, cfg.ROOT)}"
+        print(f"\n  レポート {cfg.show(rep)}"
               f"（{os.path.getsize(rep) // 1024} KB）")
     if ng and not ok:
         return 1
@@ -127,9 +127,9 @@ def main():
     exe = os.environ.get("KLAYOUT", "klayout")
     ver = drc_pdk.klayout_version(exe)
     deck = pdk_lvs_dir()
-    print(f"LVS: {os.path.relpath(a.gds, cfg.ROOT)}  top={top}")
+    print(f"LVS: {cfg.show(a.gds)}  top={top}")
     print(f"  KLayout {'.'.join(map(str, ver))} / デッキ {deck}")
-    print(f"  ソース  {os.path.relpath(sch, cfg.ROOT)}")
+    print(f"  ソース  {cfg.show(sch)}")
     if ver < (0, 29, 0):
         if not a.allow_old_klayout:
             raise SystemExit("  ** KLayout 0.29 以上が要る（02_Device.drc の size_inside）。\n"

@@ -149,7 +149,7 @@ def main():
         raise SystemExit(f"{len(problems)} 件 -- 何も書いていない")
 
     ly.write(a.out)
-    print(f"\nwrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"\nwrote {cfg.show(a.out)}")
     return 0
 
 

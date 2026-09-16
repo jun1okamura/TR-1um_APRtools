@@ -155,7 +155,7 @@ def main():
     exe = os.environ.get("KLAYOUT", "klayout")
     ver = klayout_version(exe)
     deck = pdk_drc_dir()
-    print(f"DRC: {os.path.relpath(a.gds, cfg.ROOT)}  top={top}")
+    print(f"DRC: {cfg.show(a.gds)}  top={top}")
     print(f"  KLayout {'.'.join(map(str, ver))} / デッキ {deck}")
     if ver < (0, 29, 0):
         if not a.allow_old_klayout:
@@ -169,7 +169,7 @@ def main():
     if r.returncode != 0:
         print(r.stdout[-2000:]); print(r.stderr[-2000:])
         raise SystemExit(f"  ** klayout が {r.returncode} で終了した")
-    print(f"  レポート {os.path.relpath(rep, cfg.ROOT)}")
+    print(f"  レポート {cfg.show(rep)}")
     rc = summarize(rep)
     if a.mdp:
         rc |= run_mdp(exe, deck, gds, top, a, rc_drawing=rc)
@@ -187,7 +187,7 @@ def run_mdp(exe, deck, gds, top, a, rc_drawing=0):
     `$input` / `$top_cell` / `$report`。"""
     mdp = os.path.abspath(a.mdp_gds or os.path.splitext(gds)[0] + "_mdp.gds")
     rep2 = os.path.abspath(os.path.splitext(gds)[0] + "_mdp.lyrdb")
-    print(f"\n=== MDP: マスクを起こす -> {os.path.relpath(mdp, cfg.ROOT)}")
+    print(f"\n=== MDP: マスクを起こす -> {cfg.show(mdp)}")
     r = subprocess.run([exe, "-b", "-r", os.path.join(deck, "run_mdp.drc"),
                         "-rd", f"input={gds}", "-rd", f"cellname={top}",
                         "-rd", f"output={mdp}"], capture_output=True, text=True)
@@ -202,7 +202,7 @@ def run_mdp(exe, deck, gds, top, a, rc_drawing=0):
     if r.returncode != 0:
         print(r.stdout[-2000:]); print(r.stderr[-2000:])
         raise SystemExit(f"  ** klayout が {r.returncode} で終了した")
-    print(f"  レポート {os.path.relpath(rep2, cfg.ROOT)}")
+    print(f"  レポート {cfg.show(rep2)}")
     return summarize(rep2)
 
 

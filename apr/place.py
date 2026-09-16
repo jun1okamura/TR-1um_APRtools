@@ -696,7 +696,7 @@ def dump(step, tag, rows, rows_y, macro_inst, info, extra, verbose=True):
     json.dump(data, open(js, "w"), indent=1)
     if verbose:
         used = [sum(w for _, _, _, w in row) for row in rows]
-        print(f"  step{step} {tag:8} -> {os.path.relpath(gds, cfg.ROOT)}")
+        print(f"  step{step} {tag:8} -> {cfg.show(gds)}")
         print(f"        行: " + ", ".join(f"{u:.1f}" for u in used)
               + f" um   コア {cw:.1f} x {ch:.1f} um")
     return gds
@@ -810,7 +810,7 @@ def main(net_path=None, info_path=None, restarts=800, order_passes=40,
     ra = os.path.join(cfg.LAYOUT, "row_assignment.json")
     json.dump({k: v for k, v in assign.items() if k != mname},
               open(ra, "w"), indent=1)
-    print(f"  wrote {os.path.relpath(ra, cfg.ROOT)}")
+    print(f"  wrote {cfg.show(ra)}")
     return gds
 
 

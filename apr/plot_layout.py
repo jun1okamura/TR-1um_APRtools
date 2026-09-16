@@ -73,7 +73,7 @@ def main(paths, out, figsize=None):
                ncol=len(NAMES), fontsize=9, frameon=False)
     fig.tight_layout(rect=(0, 0.04, 1, 1))
     fig.savefig(out, dpi=150)
-    print(f"wrote {os.path.relpath(out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(out)}")
 
 
 if __name__ == "__main__":

@@ -84,7 +84,7 @@ def main(out=None):
     fig.tight_layout(rect=(0, 0.03, 1, 0.97))
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     fig.savefig(out, dpi=130)
-    print(f"wrote {os.path.relpath(out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(out)}")
     return out
 
 

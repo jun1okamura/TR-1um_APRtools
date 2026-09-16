@@ -205,7 +205,7 @@ def check_port_pins(gds, extra=(rules.PWR_NET, rules.GND_NET)):
                 labels.add(t.dtext.string)
     want = expected_ports()
     missing = [p for p in want if p not in labels]
-    print(f"\n=== top-level pin coverage ({os.path.relpath(gds, cfg.ROOT)}) ===")
+    print(f"\n=== top-level pin coverage ({cfg.show(gds)}) ===")
     print(f"  ports expected : {len(want)}")
     print(f"  pin labels     : {len(labels)}  ({', '.join(sorted(labels - set(extra))[:6])}...)")
     if missing:

@@ -83,6 +83,10 @@ class _NoConfig:
         return path
 
     @staticmethod
+    def show(path):
+        return path
+
+    @staticmethod
     def pdk_root():
         v = os.environ.get("TR1UM_PDK")
         if v:

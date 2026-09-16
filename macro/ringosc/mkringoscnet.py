@@ -187,7 +187,7 @@ def main():
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     open(a.out, "w", encoding="utf-8").write("\n".join(lines))
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(a.out)}")
     print(f"  段数      : {N_STAGE} x 2 リング（+ AND 各 1 段）")
     print(f"  INV_X1 {cnt['INV_X1']:4d}  INV3D {cnt['INV3D']:4d}  "
           f"AND2_X1 {cnt['AND2_X1']:3d}  FILL2 {n_fill:4d}  "

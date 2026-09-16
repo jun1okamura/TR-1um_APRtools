@@ -119,17 +119,17 @@ def main():
                          "比べる（電源を配線する前に、他が合っているかを見るため）")
     a = ap.parse_args()
 
-    print(f"=== 抽出 {os.path.relpath(a.gds, cfg.ROOT)} ({a.top})")
+    print(f"=== 抽出 {cfg.show(a.gds)} ({a.top})")
     l2n = klayout_extract.build(a.gds, a.top)
     lay = l2n.netlist().dup()
     if a.out:
         os.makedirs(os.path.dirname(os.path.abspath(a.out)) or ".", exist_ok=True)
         l2n.netlist().write(a.out, db.NetlistSpiceWriter(),
                             f"TR-1um {a.top} — KLayout 抽出 (lvs_pnr.py)")
-        print(f"  wrote {os.path.relpath(a.out, cfg.ROOT)}")
+        print(f"  wrote {cfg.show(a.out)}")
     normalize(lay, combine=a.combine, flat=not a.hier)
 
-    print(f"=== ソース {os.path.relpath(a.src, cfg.ROOT)}")
+    print(f"=== ソース {cfg.show(a.src)}")
     sch = db.Netlist()
     sch.read(a.src, db.NetlistSpiceReader())
     normalize(sch, combine=a.combine, flat=not a.hier)

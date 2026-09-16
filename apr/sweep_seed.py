@@ -99,7 +99,7 @@ def main():
     best = min(ok, key=lambda d: (d["shorts"], d["sum_cross"], d["hpwl"]))
     print(f"\n最良: seed={best['seed']}  短絡 {best['shorts']} 件 "
           f"(交差合計 {best['sum_cross']}, HPWL {best['hpwl']})")
-    print(f"wrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"wrote {cfg.show(a.out)}")
     if not a.no_keep:
         print(f"seed={best['seed']} で配置を作り直す")
         r = run([os.path.join(HERE, "place.py"), "--seed", str(best["seed"]),

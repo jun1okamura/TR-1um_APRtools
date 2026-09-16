@@ -115,8 +115,8 @@ def check_cell_bodies():
     lib = gdstk.read_gds(_cfg.CELL_GDS)
     cells = {c.name: c for c in lib.cells}
     bad = 0
-    print(f"cell bodies: {os.path.relpath(CELL_SPICE, _cfg.ROOT)} vs "
-          f"{os.path.relpath(_cfg.CELL_GDS, _cfg.ROOT)}")
+    print(f"cell bodies: {_cfg.show(CELL_SPICE)} vs "
+          f"{_cfg.show(_cfg.CELL_GDS)}")
     for name in sorted(bodies):
         if name not in cells:
             print(f"  FAIL {name}: no such cell in the GDS")
@@ -140,8 +140,8 @@ def check_cell_bodies():
 
 
 def check_instance_census(routed_gds):
-    print(f"\ninstance census: {os.path.relpath(LVS_SPICE, _cfg.ROOT)} vs "
-          f"{os.path.relpath(routed_gds, _cfg.ROOT)}")
+    print(f"\ninstance census: {_cfg.show(LVS_SPICE)} vs "
+          f"{_cfg.show(routed_gds)}")
     lib = gdstk.read_gds(routed_gds)
     top = next((c for c in lib.cells if c.name == _cfg.TOP_CELL_NAME), None)
     if top is None:

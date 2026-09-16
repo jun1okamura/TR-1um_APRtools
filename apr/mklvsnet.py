@@ -476,7 +476,7 @@ def main():
             f.write("\n".join(fill_lines) + "\n")
         f.write(f".ends {a.top}\n")
 
-    print(f"wrote {cfg.disp(a.out)}")
+    print(f"wrote {cfg.show(a.out)}")
     print(f"  top pin   : {len(top_ports)}  ({' '.join(top_ports)})")
     print(f"  論理セル  : {sum(logical.values())} 個 / {len(logical)} 種")
     print(f"  物理セル  : {sum(phys.values())} 個 / {len(phys)} 種 "

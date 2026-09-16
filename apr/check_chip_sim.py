@@ -70,7 +70,7 @@ def plot(csv, png, t_exec=None):
                     f"(program load then run)", fontsize=10, loc="left")
     fig.tight_layout()
     fig.savefig(png, dpi=140)
-    print(f"wrote {os.path.relpath(png, cfg.ROOT)}")
+    print(f"wrote {cfg.show(png)}")
 
 
 def main():

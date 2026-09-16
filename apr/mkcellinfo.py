@@ -79,7 +79,7 @@ def main():
     os.makedirs(cfg.LAYOUT, exist_ok=True)
     json.dump(info, open(cfg.CELL_INFO, "w"), indent=1, sort_keys=True)
     rows = sum(1 for d in info.values() if abs(d["height_um"] - cfg.ROW_HEIGHT_UM) < 1e-6)
-    print(f"wrote {os.path.relpath(cfg.CELL_INFO, cfg.ROOT)}  ({len(info)} セル)")
+    print(f"wrote {cfg.show(cfg.CELL_INFO)}  ({len(info)} セル)")
     print(f"  行高 {cfg.ROW_HEIGHT_UM} のセル {rows} 個 / それ以外 {len(info)-rows} 個")
     if skip:
         print(f"  prBoundary を持たない中間階層 {len(skip)} 個は除外: "

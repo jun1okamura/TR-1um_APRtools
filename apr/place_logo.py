@@ -196,7 +196,7 @@ def main():
         raise SystemExit("ロゴのせいで DRC が増えた -- 何も書かない")
 
     ly.write(a.out)
-    print(f"\nwrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"\nwrote {cfg.show(a.out)}")
     return 0
 
 

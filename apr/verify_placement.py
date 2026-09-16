@@ -142,7 +142,7 @@ def main(path=None):
     used = [sum(c["w"] for c in row if c["inst"]) for row in d["rows"]]
     fills = [sum(c["w"] for c in row if not c["inst"] and c["cell"] != cfg.TAP_CELL)
              for row in d["rows"]]
-    print(f"配置検証: {os.path.relpath(path, cfg.ROOT)}")
+    print(f"配置検証: {cfg.show(path)}")
     print(f"  ルータ領域 {cw} x {ch} um   チップ側コア高 {cfg.chip_core_height()} um")
     print(f"  行 {d['row_width']} um x {len(d['rows'])}   "
           f"充填率 " + ", ".join(f"{u/usable*100:.0f}%" for u in used)

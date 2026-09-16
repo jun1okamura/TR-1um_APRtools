@@ -1201,7 +1201,7 @@ def main():
     with open(a.out.replace(".gds", "_net_shapes.json"), "w") as f:
         json.dump(dict(d.shapes), f, indent=1)
     layout.write(a.out)
-    print(f"\nwrote {os.path.relpath(a.out, cfg.ROOT)}")
+    print(f"\nwrote {cfg.show(a.out)}")
     return 0
 
 

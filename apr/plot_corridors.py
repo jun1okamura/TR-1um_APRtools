@@ -116,7 +116,7 @@ def main(gds=None, place_json=None, out=None, zoom=None):
         fig.tight_layout(rect=(0, 0.03, 1, 1))
         os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
         fig.savefig(out, dpi=135)
-        print(f"wrote {os.path.relpath(out, cfg.ROOT)}  "
+        print(f"wrote {cfg.show(out)}  "
               f"({len(blocks)} corridors + {len(bus)} bus tracks)")
         return out
     cx = zoom if zoom is not None else min(
@@ -143,7 +143,7 @@ def main(gds=None, place_json=None, out=None, zoom=None):
     fig.tight_layout(rect=(0, 0.03, 1, 1))
     os.makedirs(os.path.dirname(out) or ".", exist_ok=True)
     fig.savefig(out, dpi=135)
-    print(f"wrote {os.path.relpath(out, cfg.ROOT)}  "
+    print(f"wrote {cfg.show(out)}  "
           f"({len(blocks)} corridors, {cfg.PRI_CELL} {cfg.PRI_W} um)")
     return out
 
