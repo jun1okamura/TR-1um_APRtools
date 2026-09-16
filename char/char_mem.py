@@ -432,10 +432,14 @@ def build_read(netlist, bit, slew, rise):
             #   記憶ノードが最初に VDD/2 を上向きに跨いだ時刻。
             L.append(f".meas tran flip{i} WHEN v(xu.{inst}.{node})={VDD / 2:g} "
                      f"RISE=1 TD={IDLE + TW - 10:g}n")
-            # ★ **WEB を上げてから内部の WR が落ちるまで**の実時間。
-            #   これが「アドレスを変える前に空けるべき余裕」そのもの。
+            # ★ **内部 WR のパルスそのもの**を測る。`WEB` 低の幅は
+            #   「デコーダの遅れ + セルが要る幅」の合計なので、分けて出す。
+            #     wrise -> wfall               = 内部 WR の幅（セルが要る方）
+            #     WEB↓ -> wrise / WEB↑ -> wfall = デコーダの遅れ
+            L.append(f".meas tran wrise{i} WHEN v(xu.{wr})={VDD / 2:g} RISE=1 "
+                     f"TD={IDLE:g}n")
             L.append(f".meas tran wfall{i} WHEN v(xu.{wr})={VDD / 2:g} FALL=1 "
-                     f"TD={IDLE + TW - WEB_PRE - 1:g}n")
+                     f"TD={IDLE:g}n")
             # ★ 読む行だけは**セルの内部ノードを全部**追う。どのノードが
             #   反転しそこねているかを見る。1 行ぶんなので本数は少ない。
             for j, nd in enumerate(inner):
@@ -672,11 +676,18 @@ def probe_summary(v):
                 if any(x is not None for x in vals):
                     tr.append("  セル内ノード %d: " % j
                               + " ".join("-" if x is None else f"{x:.1f}" for x in vals))
-            wf = v.get(f"wfall{r}")
+            wf, wr0 = v.get(f"wfall{r}"), v.get(f"wrise{r}")
+            lo_end = IDLE + TW - WEB_PRE
+            lo_beg = lo_end - WEB_LOW
+            if wr0 is not None:
+                tr.append(f"  WEB↓({lo_beg:g} ns) から内部 WR が立つまで = "
+                          f"{wr0 * 1e9 - lo_beg:.1f} ns")
             if wf is not None:
-                up = IDLE + TW - WEB_PRE
-                tr.append(f"  WEB↑({up:g} ns) から内部 WR が落ちるまで = "
-                          f"{wf * 1e9 - up:.1f} ns")
+                tr.append(f"  WEB↑({lo_end:g} ns) から内部 WR が落ちるまで = "
+                          f"{wf * 1e9 - lo_end:.1f} ns")
+            if wf is not None and wr0 is not None:
+                tr.append(f"  ★ 内部 WR の幅 = {(wf - wr0) * 1e9:.1f} ns"
+                          f"（WEB 低の幅 {WEB_LOW:g} ns に対して）")
             fl = v.get(f"flip{r}")
             if fl is not None:
                 tr.append(f"  ★ 反転した時刻 = {fl * 1e9:.1f} ns"
