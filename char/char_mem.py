@@ -56,6 +56,32 @@ P&R の本命 `td4_soc_arr_bb` は `REG8x16` をマクロとして持つので�
 
   （抽出が実行ごとに揺れるという以前の推測は**誤り**。3 回流して同一で、
     REG8x16 の抽出もバイト一致。順が違って見えたのは抽出スコープの違い。）
+
+  ★ **2 つのネットリストは同じ回路であることを確認した**（2026-09-16、
+    ngspice 無しの静的比較）。ここまで分かっているので、残る違いは
+    `AS/AD/PS/PD` だけだと言い切れる:
+
+      素子       1,876 個、W/L の内訳まで一致
+                 （NMOS 3.4u×810 / 4.6u×128、PMOS 7.2u×768 / 10.2u×42 / 12.2u×128）
+      葉セル     TLAT / REGBUF / ADDBUF / DEC2 の 4 つとも**トポロジ一致**
+                 （MOS の d/s は入れ替え可能として正準化して突き合わせ）
+      アレイ     ネット 112 本・インスタンス 145 個で、
+                 **ネットの使われ方の分布まで一致**
+
+    ★ **`--strip` で切り分けを再現できる**（手で消さない）:
+
+        python3 char_mem.py --ext --only read              # そのまま
+        python3 char_mem.py --ext --only read --strip perim   # PS/PD を落とす
+        python3 char_mem.py --ext --only read --strip area    # AS/AD を落とす
+
+    ★ **落とすと 0 になるのではなく、PDK の既定式に戻る** —
+      `AS/AD = w*sdwidth`、`PS/PD = 2*(sdwidth+w)`。つまり設計ネットリストと
+      同じ扱いになる。そして**抽出の実測値はどれも既定以下**
+      （この設計で全素子を確認。比 0.21〜1.00）。
+      容量が**減っている**側が動かず、**増やす**と動く、ということなので、
+      「接合容量が重くて書けない」では説明がつかない。
+      次に見るのは ngspice の BSIM3 が PS/PD をどう食っているか
+      （`cjsw` / `cjswg` は PDK のモデルカードに無く BSIM3 の既定）。
 """
 from __future__ import annotations
 import argparse, json, os, re, subprocess, sys
@@ -274,6 +300,35 @@ def run(deck, tag, need=True):
     return v
 
 
+RE_AREA = re.compile(r"\s+A[SD]=\S+", re.I)
+RE_PERIM = re.compile(r"\s+P[SD]=\S+", re.I)
+
+
+def strip_junction(netlist, mode):
+    """接合パラメータを落とした写しを作り、その道を返す（U2 の切り分け用）。
+
+    ★ **落とすと 0 になるのではなく、PDK のサブサーキットの既定式に戻る**:
+        AS/AD = w*sdwidth        PS/PD = 2*(sdwidth+w)
+    つまり**設計ネットリストと同じ扱い**になる。抽出の実測値はどれも
+    この既定以下（この設計で確認済み）なので、「落とすと動く」は
+    「容量が減ったから」では説明がつかない。そこが U2 の謎。
+    """
+    out = netlist.replace(".spi", "") + f"_no-{mode}.spi"
+    n = 0
+    with open(netlist, encoding="utf-8") as f, open(out, "w", encoding="utf-8") as g:
+        for ln in f:
+            if ln[:2].upper() == "XM" or ln[:1].upper() == "M":
+                before = ln
+                if mode in ("area", "both"):
+                    ln = RE_AREA.sub("", ln.rstrip("\n")) + "\n"
+                if mode in ("perim", "both"):
+                    ln = RE_PERIM.sub("", ln.rstrip("\n")) + "\n"
+                n += (ln != before)
+            g.write(ln)
+    print(f"  {n} 行から落とした")
+    return out
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-n", "--netlist", default=f"{HERE}/cells_mem/{CELL}_src.spi",
@@ -284,6 +339,11 @@ def main():
     ap.add_argument("-o", "--out", default=f"{HERE}/char/{CELL}.json")
     ap.add_argument("-j", "--jobs", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--only", choices=["read", "cap"])
+    ap.add_argument("--strip", choices=["none", "area", "perim", "both"],
+                    default="none",
+                    help="接合パラメータを落とした写しで回す（U2 の切り分け）。"
+                         "area=AS/AD / perim=PS/PD / both=両方。"
+                         "落とすと PDK の既定式に戻る（0 になるのではない）")
     a = ap.parse_args()
     global PORTS
     if not os.path.exists(a.netlist):
@@ -297,6 +357,9 @@ def main():
     if a.ext:
         PORTS = PORTS_EXT
         a.netlist = f"{HERE}/cells_mem/{CELL}.spi"
+    if a.strip != "none":
+        a.netlist = strip_junction(a.netlist, a.strip)
+        print(f"  接合パラメータ {a.strip} を落とした写し: {a.netlist}")
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}}
