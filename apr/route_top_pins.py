@@ -84,7 +84,7 @@ TXM2_LAYER = (49, 0)
 M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
 M1_PAD_SIZE = rules.VIA_PAD
 PAD_HALF = M1_PAD_SIZE / 2.0
-TRACK_PITCH = 5.4  # this session: was 4.0 (v6) -- must match the v7
+TRACK_PITCH = rules.TRACK_PITCH  # this session: was 4.0 (v6) -- must match the v7
                     # recipe's TRACK_PITCH (design_notes 47/48)
 TRACK0_OFFSET = rules.TRACK0_OFFSET
 M1_MIN_GAP = rules.M1_SPACE_MIN

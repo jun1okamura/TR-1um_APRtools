@@ -20,12 +20,13 @@ import argparse, collections, json, os, re, sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+import rules  # noqa: E402  プロセス定数の単一ソース
 import apr_path  # noqa: F401,E402  設計ルートを sys.path へ
 import config as cfg  # noqa: E402
 
 # OSS_FRAME_GIO のコア。パッド内側 1840 x 1840 から四隅の OSS_FRAME_CNR
 # （120 x 120 um x 4）を欠いた分が実際に置ける面積。
-CORE_W = CORE_H = 1840.0
+CORE_W = CORE_H = rules.FRAME_OPENING_UM
 CORE_AREA = CORE_W * CORE_H - 4 * 120.0 * 120.0      # = 3,328,000 um2
 ROW_H = cfg.ROW_HEIGHT_UM
 
@@ -74,7 +75,7 @@ def main():
     print(f"FF {nff} / 組合せ {ncomb} / "
           f"NAND2 換算 {tot/areas['NAND2']['area']:.0f} ゲート")
     print(f"セル幅の総和 {wid:,.0f} um  (行高 {ROW_H} um → 1 行 1840um なら "
-          f"{wid/1840:.1f} 行ぶん)")
+          f"{wid / rules.FRAME_OPENING_UM:.1f} 行ぶん)")
     core = CORE_AREA
     print(f"コア {CORE_W:.0f} x {CORE_H:.0f} um から四隅を欠いて {core/1e6:.3f} mm2")
     for u in (0.5, 0.6, 0.7, 0.8):

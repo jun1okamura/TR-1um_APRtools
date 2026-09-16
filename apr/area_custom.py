@@ -19,6 +19,9 @@
 カスタムセル面積は reference/05_cell_circuits.md (C4004) の値を使用。
 """
 import sys
+import os as _os_r, sys as _sys_r  # noqa: E402
+_sys_r.path.insert(0, _os_r.path.dirname(_os_r.path.abspath(__file__)))
+import rules  # noqa: E402  プロセス定数の単一ソース
 
 print("** scripts/area_custom.py は行高 62.6µm 世代の見込み値。"
       "今の見積りは area_estimate.py / mem_array_estimate.py を使うこと。\n",
@@ -30,7 +33,7 @@ DFFE_STD = DFFR + MUX2      # 10,185.1  現状 STDLIB での enable 付き FF
 DFFE_TG = 4900.0            # TG 型 22T カスタム
 RFCELL = 1100.0             # ラッチ型 10T レジスタファイル 1bit
 MINSIZE = 0.68              # W(P) 10.2->5.1um 化による全体スケール
-CORE = 1840.0 * 1840.0
+CORE = rules.FRAME_OPENING_UM * rules.FRAME_OPENING_UM
 
 def rows(label, ff_std, comb_area, mem_bits=0, mem_extra=0.0, a_std=None):
     """ff_std: STDLIB DFFE で数えた FF 数, comb_area: 組合せセル面積[um2]

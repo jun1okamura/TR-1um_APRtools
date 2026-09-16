@@ -31,6 +31,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 
 import klayout.db as db                                     # noqa: E402
 
@@ -41,7 +42,7 @@ SRC = os.path.join(cfg.ROOT, "src")
 INFO = os.path.join(cfg.ROOT, "info.yaml")
 
 FRAME_OK = {"OSS_FRAME", "OSS_FRAME_TEG"}
-DIE = 2500.0
+DIE = rules.DIE_UM
 DBU = 0.001
 
 

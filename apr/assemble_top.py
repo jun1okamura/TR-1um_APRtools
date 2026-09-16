@@ -59,6 +59,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 
 import klayout.db as db                                     # noqa: E402
 
@@ -75,7 +76,7 @@ def measured_inner_wall(layout, cell, x0, x1):
         r += db.Region(cell.begin_shapes_rec(layout.layer(*L)))
     r.merge()
     u = layout.dbu
-    strip = db.Region(db.Box(int(x0 / u), int(-1250 / u), int(x1 / u), int(1250 / u)))
+    strip = db.Region(db.Box(int(x0 / u), int(-rules.DIE_HALF / u), int(x1 / u), int(rules.DIE_HALF / u)))
     boxes = [p.bbox() for p in (r & strip).each()]
     above = min((b.bottom * u for b in boxes if b.bottom * u > 0), default=None)
     below = max((b.top * u for b in boxes if b.top * u < 0), default=None)

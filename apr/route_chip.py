@@ -154,7 +154,7 @@ LANE_PITCH = rules.CHIP_LANE_PITCH         # M2 3.4 + 最小間隔 2.0。コア�
 GND_RING_R = getattr(cfg, "CHIP_GND_RING_R", rules.CHIP_GND_RING_R)
 VDD_RING_R = getattr(cfg, "CHIP_VDD_RING_R", rules.CHIP_VDD_RING_R)
 RING_W = rules.CHIP_RING_W
-RING_VIA = 6.8           # 10 µm 同士の重なりに収まる 2x2 カット
+RING_VIA = rules.CHIP_STRIP_VIA   # 10 µm 同士の重なりに収まる 2x2 カット
 WALL = rules.FRAME_INNER_WALL             # 開口の内壁（実測。四隅まで同じ）
 
 # ---- コアの電源をチャネルで束ねるバス -----------------------------------
@@ -172,7 +172,7 @@ WALL = rules.FRAME_INNER_WALL             # 開口の内壁（実測。四隅ま
 # 上のチャネルはコア上端 780.2 からレーン 0 の 813.7 まで 33.5 µm。
 # M1 バスを 2 本入れる: GND を内側（790.0）、VDD を外側（804.0）。
 BUS_W = rules.CHIP_BUS_W
-TAP_STUB_W = 3.4         # コア側の M2 ポート幅そのまま。段差を作らない
+TAP_STUB_W = rules.M2_WIRE_WIDTH  # コア側の M2 ポート幅そのまま。段差を作らない
 VDD_BUS_Y = getattr(cfg, "CHIP_VDD_BUS_Y", 804.0)        # M1 799.0…809.0。レーン 0 の M1 縁 814.5 と 5.5 空く
 GND_BUS_Y = getattr(cfg, "CHIP_GND_BUS_Y", 790.0)        # M1 785.0…795.0。コア上端 780.2 と 4.8 空く
 # --- I2C 移植 (22): バー <-> フレームの電源ピンは V10 と同じ形 ------------
@@ -239,7 +239,7 @@ STRAP_W = 6.0
 # 下側の 440 µm は**行の右側の空き**（行幅 1150.2、マクロ左端 1198.8）を
 # 通る。実測でこの 2 列は M2 も V1 も空で、横切るのは別ネットの M1 だけ
 # （左列で 23 本）。M2 x M1 なので via を打たなければ何も起きない。
-MACRO_RISER_W = 3.4      # マクロのポート幅ちょうど。段差を作らない
+MACRO_RISER_W = rules.M2_WIRE_WIDTH  # マクロのポート幅ちょうど。段差を作らない
 
 # --- I2C 移植 (23): 両脇の M2 電源を M1 に落として上下のバーへ ---------------
 # コアも RING_OSC も、いちばん外側の TAP 柱が **M2 の縦ストラップ**で全高を
@@ -281,7 +281,7 @@ RO_VIA_BOT_Y = -763.0    # 同（下）
 #        ロゴの上を縦に降りて RING_OSC 上の VDD バーへ
 CORE_GND_TIE_Y = -190.0
 CORE_VDD_SWITCH_Y = -198.0
-FLANK_W = 3.4            # コアのストラップ幅ちょうど
+FLANK_W = rules.M2_WIRE_WIDTH     # コアのストラップ幅ちょうど
 # via を 2 カット縦積みするぶん、スタブをバーの中心より先まで伸ばす
 # （V10 の VIA_STACK_MARGIN と同じ）。
 VIA_STACK_MARGIN = 3.5
@@ -415,7 +415,8 @@ def group_signals(signals):
 #   上下 = 垂直 = M2  3.4 + 2.0 = 5.4
 #   左右 = 水平 = M1  1.8 + 1.4 = 3.2
 STUB_SEP = {"TOP": M2_WIRE_W + 2.0, "BOTTOM": M2_WIRE_W + 2.0,
-            "LEFT": M1_WIRE_W + 1.4, "RIGHT": M1_WIRE_W + 1.4}
+            "LEFT": M1_WIRE_W + rules.M1_SPACE_MIN,
+            "RIGHT": M1_WIRE_W + rules.M1_SPACE_MIN}
 EPS = 1e-6
 
 
@@ -774,7 +775,7 @@ def power_ringosc(d, plan, taps, risers, macro_at, ct, cb):
         # 幅も 3.4 ちょうどに合わせて、段差のない継ぎ目にする。
         for tx in xs:
             d.wire("M2", tx, ct, tx, bus_y + VIA_STACK_MARGIN, TAP_STUB_W)
-            d.via(tx, bus_y, TAP_STUB_W, 6.8)     # 縦に 2 カット
+            d.via(tx, bus_y, TAP_STUB_W, rules.CHIP_STRIP_VIA)     # 縦に 2 カット
         d.net = None
         print(f"{net} バス M1 y={bus_y} x [{lo:.1f}, {hi:.1f}]、"
               f"上辺タップ {len(xs)} 本 {xs}")
@@ -787,7 +788,7 @@ def power_ringosc(d, plan, taps, risers, macro_at, ct, cb):
         d.net = net
         for rx, ry in risers[net]:
             d.wire("M2", rx, ry, rx, bus_y, MACRO_RISER_W)
-            d.via(rx, bus_y, MACRO_RISER_W, 6.8)
+            d.via(rx, bus_y, MACRO_RISER_W, rules.CHIP_STRIP_VIA)
         d.net = None
     if macro_at:
         print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "
@@ -939,7 +940,7 @@ def power_top_only(d, plan, taps, risers, macro_at, ct, cb):
         # 幅も 3.4 ちょうどに合わせて、段差のない継ぎ目にする。
         for tx in xs:
             d.wire("M2", tx, ct, tx, bus_y + VIA_STACK_MARGIN, TAP_STUB_W)
-            d.via(tx, bus_y, TAP_STUB_W, 6.8)     # 縦に 2 カット
+            d.via(tx, bus_y, TAP_STUB_W, rules.CHIP_STRIP_VIA)     # 縦に 2 カット
         d.net = None
         print(f"{net} バス M1 y={bus_y} x [{lo:.1f}, {hi:.1f}]、"
               f"上辺タップ {len(xs)} 本 {xs}")
@@ -952,7 +953,7 @@ def power_top_only(d, plan, taps, risers, macro_at, ct, cb):
         d.net = net
         for rx, ry in risers[net]:
             d.wire("M2", rx, ry, rx, bus_y, MACRO_RISER_W)
-            d.via(rx, bus_y, MACRO_RISER_W, 6.8)
+            d.via(rx, bus_y, MACRO_RISER_W, rules.CHIP_STRIP_VIA)
         d.net = None
     if macro_at:
         print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "
@@ -1034,11 +1035,12 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
         for rx, _ in risers[net]:
             lo, hi = min(lo, rx - 8.0), max(hi, rx + 8.0)
         d.wire("M1", lo, bus_y, hi, bus_y, BUS_W)
-        y_in = ct - 1.5 if edge == "TOP" else cb + 1.5
+        y_in = (ct - rules.V1_SPACE_MIN if edge == "TOP"
+                    else cb + rules.V1_SPACE_MIN)
         y_out = bus_y + 3.5 if edge == "TOP" else bus_y - 3.5
         for tx in xs:
             d.wire("M2", tx, y_in, tx, y_out, TAP_STUB_W)
-            d.via(tx, bus_y, TAP_STUB_W, 6.8)
+            d.via(tx, bus_y, TAP_STUB_W, rules.CHIP_STRIP_VIA)
         d.net = None
         print(f"{net} バス M1 y={bus_y} x [{lo:.1f}, {hi:.1f}]、"
               f"タップ {len(xs)} 本 {xs}")
@@ -1047,7 +1049,7 @@ def power_top_bottom(d, plan, taps, risers, macro_at, ct, cb):
         d.net = net
         for rx, ry in risers[net]:
             d.wire("M2", rx, ry, rx, bus_y, MACRO_RISER_W)
-            d.via(rx, bus_y, MACRO_RISER_W, 6.8)
+            d.via(rx, bus_y, MACRO_RISER_W, rules.CHIP_STRIP_VIA)
         d.net = None
     if macro_at:
         print(f"{cfg.MACRO_CELL} @ {macro_at} のポートからバーへ: "

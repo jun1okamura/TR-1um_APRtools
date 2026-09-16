@@ -25,6 +25,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as cfg                                    # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 import klayout.db as db                                     # noqa: E402
 
 IN_GDS = os.path.join(cfg.CHIP, "step1_assembled.gds")
@@ -151,7 +152,7 @@ def main():
 
     # ---- 実測 3: 左右チャネルの残り
     print(f"  左右チャネル: 壁 ±920.0 に対し RING_OSC は x ±{max(abs(box[0]),abs(box[2])):.1f}"
-          f" まで来る → 残り {920.0 - max(abs(box[0]), abs(box[2])):.1f} µm")
+          f" まで来る → 残り {rules.FRAME_INNER_WALL - max(abs(box[0]), abs(box[2])):.1f} µm")
 
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     ly.write(a.out)

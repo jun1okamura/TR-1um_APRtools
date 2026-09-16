@@ -205,7 +205,7 @@ if TRACK_PITCH < _TRACK_PITCH_MIN - 1e-9:
                     # recover the extra area this coarser pitch costs.
 TRACK0_OFFSET = 2.0
 LANE_MARGIN = 2.0
-X_GRID = 5.4              # cell/pin grid pitch -- all jog/search X steps use this
+X_GRID = rules.SITE_W     # cell/pin grid pitch -- all jog/search X steps use this
 # --- TD4 移植 (1): 行幅を設定から取る ---------------------------------------
 # 原本は 1620.0 を直書きしていた。TD4 の行スタックは 1177.2 um で、コア幅
 # (1598.4) とは別物 -- コアの右 399.6 um は REG8x16 マクロが占める。
@@ -840,7 +840,7 @@ def main(placement_json=PLACEMENT_JSON, in_gds=IN_GDS, out_gds=OUT_GDS,
 
     next_free_idx = list(channel_total)
     channel_used_x = defaultdict(list)  # (channel, idx) -> [(net, cx), ...]
-    MIN_VIA_X_SEP = M1_PAD_SIZE + 1.4
+    MIN_VIA_X_SEP = M1_PAD_SIZE + rules.M1_SPACE_MIN
 
     # --- TD4 移植 (13) ---------------------------------------------------
     # 同じネットでも via_1 のカット同士は離す必要がある。カット 1.4 µm・
@@ -850,7 +850,7 @@ def main(placement_json=PLACEMENT_JSON, in_gds=IN_GDS, out_gds=OUT_GDS,
     # 実測: `rom_data[3]` のマクロ側ライザ着地 x=21.6 と `_166_.A` のピン
     # x=24.3 が同じトランク (y=18.2) に 2.7 µm 間隔で並び、V1 space 1.3 µm
     # の違反 1 件になっていた（唯一の残存 DRC）。
-    SAME_NET_VIA_MIN = 2.9
+    SAME_NET_VIA_MIN = rules.VIA_CENTER_MIN
 
     def collides(channel, idx, cxs, exclude_net=None):
         """v17 (design_notes, this session): `exclude_net`, if given,

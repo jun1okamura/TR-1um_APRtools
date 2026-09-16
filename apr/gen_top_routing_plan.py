@@ -78,7 +78,7 @@ PAD_ONLY_NETS = {"DIS": "P7"}
 # コア側は rules.PWR_NET/GND_NET（小文字）。PAD_MAP のタイ先と
 # フレーム側は従来どおり大文字なので両方を電源として扱う。
 POWER_NETS = {"VDD", "GND", "VSS", rules.PWR_NET, rules.GND_NET}
-SITE = 5.4                      # リングのトラック間隔（コア内と同じ）
+SITE = rules.SITE_W             # リングのトラック間隔（コア内と同じ）
 PIN_LAYERS = (((49, 0), (49, 1), "M2"), ((48, 0), (48, 1), "M1"))
 
 

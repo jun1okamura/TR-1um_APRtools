@@ -110,7 +110,7 @@ V1_LAYER = (19, 0)
 M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
 M1_PAD_SIZE = rules.VIA_PAD
 PAD_HALF = M1_PAD_SIZE / 2.0
-TRACK_PITCH = 5.4  # v17 (design_notes 47/48): must match
+TRACK_PITCH = rules.TRACK_PITCH  # v17 (design_notes 47/48): must match
                     # route_channels.py's TRACK_PITCH exactly --
                     # this script's track-index math (find_own_trunk,
                     # try_fix_vertical's track relocation) only makes
@@ -129,7 +129,7 @@ M1_MIN_GAP = rules.M1_SPACE_MIN  # v18 (design_notes 47/48): M1 min-space DRC ru
                    # behind 20 new DRC violations this script introduced
                    # after the TRACK_PITCH=5.4 fix (e.g. scl_row0's and
                    # _134_[3]'s own via pads landing only ~0.5um apart).
-X_GRID = 5.4
+X_GRID = rules.SITE_W
 
 EPS = 1e-6
 VIA_MATCH_EPS_UM = 0.06

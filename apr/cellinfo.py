@@ -18,13 +18,16 @@ M2 配線トラックは prBoundary 左端から 2.7 + n*5.4（= 半ピッチオ
 """
 from __future__ import annotations
 import argparse, json, sys
+import os as _os_r, sys as _sys_r  # noqa: E402
+_sys_r.path.insert(0, _os_r.path.dirname(_os_r.path.abspath(__file__)))
+import rules  # noqa: E402  プロセス定数の単一ソース
 
 try:
     import gdstk
 except ImportError:
     sys.exit("pip install gdstk --break-system-packages")
 
-ROW_H, POLY_PITCH, W_BASE = 59.4, 5.4, 5.4   # 2026-09-11 に行高を 64.8 -> 59.4 に変更
+ROW_H, POLY_PITCH, W_BASE = 59.4, rules.SITE_W, rules.SITE_W   # 2026-09-11 に行高を 64.8 -> 59.4 に変更
 COX = 1.77                                   # fF/µm²（Tox 19.5nm, eps_ox 3.9 -> 1.77e-3 F/m²）
 L_BOUND, L_NWELL, L_POLY, L_PIN, L_LBL = (235, 0), (140, 0), (8, 1), (49, 1), (48, 1)
 L_PIMP, L_NIMP = (3, 1), (3, 2)

@@ -36,7 +36,7 @@ import klayout.db as db                                     # noqa: E402
 
 M1, M2, V1 = (13, 0), (20, 0), (19, 0)
 # フレームがコアに向けて出している電源のランドマーク（GDS 実測）
-FRAME_VDD_PIN = (200.0, 927.0)       # M1 (50,920)-(350,934)
+FRAME_VDD_PIN = (200.0, rules.CHIP_VDD_PIN_Y)       # M1 (50,920)-(350,934)
 FRAME_VSS_PIN = (-200.0, -926.0)     # M2 (-450,-934)-(50,-920)
 
 
