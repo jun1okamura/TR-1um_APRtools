@@ -270,6 +270,12 @@ def build_cap(netlist, pin_idx, kind):
     return "\n".join(L)
 
 
+# ★ 実験ごとにデッキとログの置き場を分ける。以前は decks/ logs/ が 1 つで、
+#   `--strip` を替えて回すと**前の実験のログを上書き**していた（切り分けの
+#   比較ができない。生産者と消費者が同じ場所を取り合う形）。
+RUNTAG = "src"
+
+
 def run(deck, tag, need=True):
     """1 デッキ回して .meas の結果を返す。
 
@@ -277,13 +283,14 @@ def run(deck, tag, need=True):
     ネットリストが 1 つ無いだけで 56 デッキぶん静かに空回りしたことがある
     （`cells_mem/REG8x16_src.spi` の include に失敗していた）。
     """
-    os.makedirs(f"{HERE}/decks", exist_ok=True)
-    os.makedirs(f"{HERE}/logs", exist_ok=True)
-    p = f"{HERE}/decks/{tag}.spi"
+    dd, ld = f"{HERE}/decks/{RUNTAG}", f"{HERE}/logs/{RUNTAG}"
+    os.makedirs(dd, exist_ok=True)
+    os.makedirs(ld, exist_ok=True)
+    p = f"{dd}/{tag}.spi"
     open(p, "w").write(deck)
     r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", p], capture_output=True, text=True, timeout=3600)
     log = r.stdout + r.stderr
-    open(f"{HERE}/logs/{tag}.log", "w").write(log)
+    open(f"{ld}/{tag}.log", "w").write(log)
     v = {}
     for ln in log.splitlines():
         m = re.match(r"^\s*([a-z]\w*)\s*=\s*([-\d.eE+]+)", ln)
@@ -296,7 +303,7 @@ def run(deck, tag, need=True):
         raise SystemExit(
             f"** {tag}: ngspice が値を 1 つも返さなかった（exit {r.returncode}）\n"
             + "\n".join(f"   {w}" for w in why[:5])
-            + f"\n   デッキ: {p}\n   ログ:   {HERE}/logs/{tag}.log")
+            + f"\n   デッキ: {p}\n   ログ:   {ld}/{tag}.log")
     return v
 
 
@@ -341,9 +348,14 @@ def main():
     ap.add_argument("--ext", action="store_true",
                     help="抽出ネットリスト（cells_mem/REG8x16.spi）を使う。"
                          "**現状これは書込みが効かない。下の注意を参照**")
-    ap.add_argument("-o", "--out", default=f"{HERE}/char/{CELL}.json")
+    # ★ 既定の出力先も実験ごとに分ける。`--ext` や `--strip` の結果が
+    #   **正本の char/REG8x16.json を上書きしない**ようにするため。
+    ap.add_argument("-o", "--out", default=None)
     ap.add_argument("-j", "--jobs", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--only", choices=["read", "cap"])
+    ap.add_argument("--quick", action="store_true",
+                    help="代表 1 点（ADD[0] / slew 1.5ns / rise）だけ回す。"
+                         "書込みが効いているかを見るだけならこれで足りる")
     ap.add_argument("--strip", choices=["none", "area", "perim", "both"],
                     default="none",
                     help="接合パラメータを落とした写しで回す（U2 の切り分け）。"
@@ -351,7 +363,11 @@ def main():
                          "落とすと PDK の既定式に戻る（0 になるのではない）")
     a = ap.parse_args()
     need_ngspice()                              # 先に確かめる（決定 23）
-    global PORTS
+    global PORTS, RUNTAG
+    RUNTAG = ("ext" if a.ext else "src") + ("" if a.strip == "none" else f"_no-{a.strip}")
+    if a.out is None:
+        a.out = (f"{HERE}/char/{CELL}.json" if RUNTAG == "src"
+                 else f"{HERE}/char/{CELL}_{RUNTAG}.json")
     if a.ext:
         PORTS = PORTS_EXT
     if a.netlist is None:                       # -n が無いときだけこちらが決める
@@ -373,8 +389,9 @@ def main():
            "read": {}, "cap": {}, "bit_spread": {}}
 
     if a.only in (None, "read"):
-        jobs = [(b, si, sl, rise)
-                for b in range(4) for si, sl in enumerate(SLEWS) for rise in (True, False)]
+        jobs = ([(0, 3, SLEWS[3], True)] if a.quick else
+                [(b, si, sl, rise)
+                 for b in range(4) for si, sl in enumerate(SLEWS) for rise in (True, False)])
         def one(j):
             b, si, sl, rise = j
             tag = f"mem_a{b}_s{si}_{'r' if rise else 'f'}"
@@ -386,6 +403,17 @@ def main():
                 print(f"  [{k+1:>2}/{len(jobs)}] ADD[{j[0]}] slew {j[2]:>5}ns "
                       f"{'rise' if j[3] else 'fall'}  d(CL=100fF) = "
                       f"{(v.get('d3') or 0)*1e9:.2f} ns  chk = {v.get('chk')}", flush=True)
+        if a.quick:
+            # ★ 代表 1 点だけなので表は作らない。**書込みが効いたかだけ**出す。
+            v = out[(0, 3, True)]
+            chk = v.get("chk")
+            print(f"\n  読出し直前の Q[0] = {chk}  "
+                  f"（word0 = 0x00 なので **0V 付近なら書込みが効いている**。"
+                  f"5V 付近なら効いていない）")
+            print(f"  ADD[0] -> Q[0] の遅延 = "
+                  f"{(v.get('d0') or 0)*1e9:.2f} ns（0.00 は測れなかったということ）")
+            print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
+            return
         for b in range(4):
             arc = {}
             for key, rise in (("cell_rise", True), ("cell_fall", False)):
