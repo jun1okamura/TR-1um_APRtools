@@ -716,6 +716,26 @@ def sweep_edge(a, vals, knob="edge"):
               f"{'保持する' if ok else '保持しない'}")
     good = [e for e, _, ok in rows if ok]
     bad = [e for e, _, ok in rows if not ok]
+    # ★ **境界を JSON に残す。** Liberty に載る数字が「端末の行を人が写した
+    #   もの」になっていると、写し間違いも条件の取り違えも検出できない
+    #   （決定 21 と同じ形）。道具が書いた値を道具が読む。
+    if good and bad:
+        prev = {}
+        if os.path.exists(a.out):
+            try: prev = json.load(open(a.out))
+            except Exception: prev = {}
+        lim = prev.setdefault("limits", {})
+        # ★ 振っているつまみ自身は条件ではないので `cond` から外す
+        #   （最後に試した値が「条件」として残ると読み違える）
+        cond = {"EDGE": EDGE, "WEB_PRE": WEB_PRE, "WEB_LOW": WEB_LOW,
+                "D_HOLD": D_HOLD, "parasitics": "none"}
+        cond.pop({"edge": "EDGE", "webpre": "WEB_PRE",
+                  "weblow": "WEB_LOW", "dhold": "D_HOLD"}[knob], None)
+        lim[knob] = {"pass": min(good), "fail": max(bad), "unit": "ns",
+                     "netlist": os.path.basename(a.netlist), "cond": cond}
+        prev.setdefault("cell", CELL)
+        json.dump(prev, open(a.out, "w"), indent=1)
+        print(f"  -> {os.path.basename(a.out)} の limits.{knob} に記録した")
     print()
     if good and bad:
         print(f"  ★ 境界: {max(bad):g} ns では保持せず、{min(good):g} ns では保持する")
