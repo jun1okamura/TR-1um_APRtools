@@ -8,10 +8,21 @@ GDS とトップセル名を取り、件数を stdout に出すだけ（ファ�
 ★ **トップセル名を省くとコアのセル名にフォールバックする。** 以前は渡した
   GDS と無関係にコア名で固定していて、チップレベルの GDS に当てると
   **何も検査せずに 0 件を返していた**（実 DRC は 50 件出した）。
-★ **フレーム単体に 1.4 超の V1 が 17 個ある**（同名セルの重ね合わせ）。
-  チップで数えるときのベースラインは 0 ではなく 17。
-★ 値とレイヤ番号を直書きしている。`rules.py` に同じものがあるので、
-  そちらへ寄せるかは未決（U4: `drc_check_cells.py` だけ値が違う件も同根）。
+
+★ **デッキと同じ除外を当てる**（U54、`00_Layers.drc`）。以前は生のレイヤで
+  数えていたので、チップに当てると**フレームの構造を違反として数えていた**:
+
+      M2 幅 1 / M2 間隔 5   スクライブの構造。`MASK` を引けば消える
+      V1 カット > 1.4 が 17  パッド開口 17 個の下の 70x70 パッド via 16 個と、
+                             `MASK` の下の 2374 角のリング 1 個
+
+  これを「ベースラインは 0 ではなく 17」と**手で憶えて運用していた**。
+  `MASK` + `SCRB` を引き、カット寸法は `V1P`（`PO` に触れる V1）を外す
+  （デッキは `V1.WP` という別の規則で見る）ようにしたので、**きれいなチップは
+  素直に 0 と出る**。手で憶えるしきい値は、増えたときに気づけない。
+
+★ `SCRB` の導出（`TEMP.holes` の switch）は再現していない。認識層 (80,0) を
+  そのまま引いているだけなので**近似**。サインオフは `drc_pdk.py`。
 """
 
 # --- ported from TR-1um_Async_I2C/script/ by scripts/port_i2c_scripts.py ---
@@ -26,59 +37,71 @@ import rules  # noqa: E402  プロセス定数・レイヤ番号の単一ソー�
 import sys
 import klayout.db as db
 
-GDS = sys.argv[1] if len(sys.argv) > 1 else None
-# BUG FOUND 2026-08-29 (design_notes.md 79.8): TOP_CELL was hardcoded to
-# the CORE cell name regardless of which GDS was passed in. Every call
-# this session against layout/step8/v9_top_routed.gds (chip-level, top
-# cell "tr_1um_i2c_slave_async") was silently checking the CORE cell
-# _cfg.TOP_CELL_NAME instead -- which is nested INSIDE the chip
-# cell, not the other way around, so begin_shapes_rec() on it never saw
-# any of the chip-level power/signal routing at all. Every "0 violations"
-# report for the chip-level GDS this session was checking nothing
-# relevant. Real KLayout DRC (run by the user) found 50 real violations
-# this script had completely missed as a direct result. Fixed: accept an
-# explicit top-cell override (2nd CLI arg), defaulting to the core name
-# only for backward compatibility with the earlier core-only checks.
-TOP_CELL = sys.argv[2] if len(sys.argv) > 2 else _cfg.TOP_CELL_NAME
+def main(gds=None, top_cell=None):
+    gds = gds or (sys.argv[1] if len(sys.argv) > 1 else None)
+    if not gds:
+        sys.exit("usage: drc_check.py <gds> [<top_cell>]")
+    # ★ トップセル名は**必ず渡す**。以前は渡した GDS と無関係にコア名で
+    #   固定していて、チップに当てると何も見ていなかった（2026-08-29）。
+    top_cell = top_cell or (sys.argv[2] if len(sys.argv) > 2
+                            else _cfg.TOP_CELL_NAME)
 
-layout = db.Layout()
-layout.read(GDS)
-dbu = layout.dbu
-top = layout.cell(TOP_CELL)
+    layout = db.Layout()
+    layout.read(gds)
+    dbu = layout.dbu
+    top = layout.cell(top_cell)
+    if top is None:
+        sys.exit(f"top cell {top_cell} が {_cfg.show(gds)} に無い")
+
+    def idx(l):
+        return layout.layer(*l)
+
+    def raw(l):
+        return db.Region(top.begin_shapes_rec(idx(l))).merged()
+
+    # デッキは全層を `input(...).not(MASK + SCRB)` で読む（`00_Layers.drc`）
+    excl = (raw(rules.MASK) + raw(rules.SCRB_MARK)).merged()
+
+    def reg(l):
+        r = raw(l)
+        return (r - excl).merged() if not excl.is_empty() else r
+
+    def check(layer, minw, mins, label):
+        r = reg(layer)
+        w = r.width_check(int(round(minw / dbu)))
+        s_ = r.space_check(int(round(mins / dbu)))
+        print(f"{label}: width viol={w.count()} space viol={s_.count()}")
+
+    check(rules.M1, rules.M1_WIDTH_MIN, rules.M1_SPACE_MIN, 'M1')
+    check(rules.M2, rules.M2_WIDTH_MIN, rules.M2_SPACE_MIN, 'M2')
+
+    m1, m2 = reg(rules.M1), reg(rules.M2)
+    ga = (reg(rules.GC) + reg(rules.GR)).merged()      # GA = GC + GR
+    v1 = db.Region(top.begin_shapes_rec(idx(rules.V1)))
+    if not excl.is_empty():
+        v1 = v1 - excl
+
+    print('V1 space viol:', v1.space_check(int(round(rules.V1_SPACE_MIN / dbu))).count())
+    print('V1 enclosed by M1<1.0 viol:',
+          v1.enclosed_check(m1, int(round(rules.V1_ENC_M1 / dbu))).count())
+    print('V1 enclosed by M2<1.0 viol:',
+          v1.enclosed_check(m2, int(round(rules.V1_ENC_M2 / dbu))).count())
+    print(f'V1-GA space<{rules.V1_GA_SPACE_MIN} viol:',
+          v1.separation_check(ga, int(round(rules.V1_GA_SPACE_MIN / dbu))).count())
+
+    # V1 のカットは 1.4 角ちょうど（V1.W1）。**パッドの V1 は別規則**なので外す
+    #   （デッキ: `V1P = V1.interacting(PO)` / `V1.WP: V1(P) Wmin < 60.0`）。
+    # 2026-09-14: assemble_top.py が同名セル（`via_1` / `via_1$1`）を重ねて
+    #   カットが 0.75 µm ずれ、幅 2.15 の V1 が 15 個できていた。間隔だけ見て
+    #   いると V1.S1 でしか出ないので、幅も数える。
+    po = reg(rules.PO)
+    v1s = v1 - v1.interacting(po) if not po.is_empty() else v1
+    _big = [p for p in v1s.merged().each()
+            if p.bbox().width() * dbu > rules.V1_CUT + 1e-4
+            or p.bbox().height() * dbu > rules.V1_CUT + 1e-4]
+    print(f'V1 cut > {rules.V1_CUT} viol: {len(_big)}')
+    return 0
 
 
-def idx(l):
-    return layout.layer(*l)
-
-
-def check(layer, minw, mins, label):
-    r = db.Region(top.begin_shapes_rec(idx(layer))).merged()
-    w = r.width_check(int(round(minw / dbu)))
-    s = r.space_check(int(round(mins / dbu)))
-    print(f"{label}: width viol={w.count()} space viol={s.count()}")
-
-
-check(rules.M1, rules.M1_WIDTH_MIN, rules.M1_SPACE_MIN, 'M1')
-check(rules.M2, rules.M2_WIDTH_MIN, rules.M2_SPACE_MIN, 'M2')
-
-m1 = db.Region(top.begin_shapes_rec(idx(rules.M1))).merged()
-m2 = db.Region(top.begin_shapes_rec(idx(rules.M2))).merged()
-gc = db.Region(top.begin_shapes_rec(idx(rules.GC))).merged()
-v1 = db.Region(top.begin_shapes_rec(idx(rules.V1)))
-
-print('V1 space viol:', v1.space_check(int(round(rules.V1_SPACE_MIN / dbu))).count())
-print('V1 enclosed by M1<1.0 viol:', v1.enclosed_check(m1, int(round(rules.V1_ENC_M1 / dbu))).count())
-print('V1 enclosed by M2<1.0 viol:', v1.enclosed_check(m2, int(round(rules.V1_ENC_M2 / dbu))).count())
-print('V1-GC space<1.2 viol:', v1.separation_check(gc, int(round(1.2 / dbu))).count())
-
-# V1 のカットは 1.4 角ちょうど（V1.W1: bbox_max > 1.4）。
-# 2026-09-14: assemble_top.py が同名セル（コアとフレームに両方ある
-# `via_1` / `via_1$1`）を KLayout の既定 AddToCell で重ねてしまい、
-# カットが 0.75 µm ずれて重なって幅 2.15 の V1 が 15 個できていた。
-# 図形の間隔だけ見ていると V1.S1 でしか出ないので、幅も数える。
-# ※ フレーム単体にも 1.4 を超える V1 が 17 個ある（ボンドパッド下など）。
-#   チップで数えるときはその 17 個がベースライン。
-_big = [p for p in v1.merged().each()
-        if p.bbox().width() * dbu > rules.V1_CUT + 1e-4
-        or p.bbox().height() * dbu > rules.V1_CUT + 1e-4]
-print(f'V1 cut > 1.4 viol: {len(_big)}')
+if __name__ == "__main__":
+    sys.exit(main())
