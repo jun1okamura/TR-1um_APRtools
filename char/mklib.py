@@ -361,6 +361,27 @@ def emit_pad(cell, d, o):
     o.append(f'{IND}}}')
 
 
+def hold_arc(d, knob, what):
+    """`WEB` 立上りに対する保持の制約。`limits` に無ければ**何も書かない**。
+
+    ★ **測っていない数字は書かない。** Liberty に値があると、読んだ人も
+      STA も「測った」と受け取る。
+    """
+    x = d.get("limits", {}).get(knob)
+    if not x:
+        return f'{IND*3}/* {what}の保持: 未測定（limits.{knob} が無い） */'
+    return "\n".join([
+        f'{IND*3}/* {what}の保持。WEB 立上りのあとこれだけ動かせない。'
+        f'{x["fail"]:g}ns では壊れ {x["pass"]:g}ns で保つ。配線容量なし */',
+        f'{IND*3}timing () {{',
+        f'{IND*4}related_pin : "WEB";',
+        f'{IND*4}timing_type : hold_rising;',
+        f'{IND*4}rise_constraint (scalar) {{ values("{x["pass"]:.4f}"); }}',
+        f'{IND*4}fall_constraint (scalar) {{ values("{x["pass"]:.4f}"); }}',
+        f'{IND*3}}}',
+    ])
+
+
 def emit_macro(cell, d, o):
     """メモリマクロ（`REG8x16`）。
 
@@ -375,11 +396,18 @@ def emit_macro(cell, d, o):
     `timing` は `bus (Q)` の中に置く（全ビットに効く）。ビット間の差は
     測定でも 0.0% だったので、4 本のアドレスビットぶんだけ書けば足りる。
 
-    **まだ入っていないもの**（`char_mem.py` が測っていない）:
-      * `D` / `ADD` の `WEB` 立上りに対する setup / hold
-      * `WEB` -> `Q`（書込み中に Q が追従する経路）
-      * `WEB` の最小ローパルス幅
-    書込みタイミングを STA で見るにはこれらが要る。読出しパスだけなら足りる。
+    **書込みパスも入れた**（2026-09-16、U7）。`char_mem.py` の実測:
+
+      `WEB` -> `Q`        書込み中に `Q` が追従する経路（7x7 の表）
+      `WEB` の最小低幅    `limits.weblow`（`min_pulse_width`）
+      `ADD` / `D` の保持  `limits.webpre` / `limits.dhold`（`hold_rising`）
+
+    ★ **setup は測っていない。** `WEB↑` より前にデータが要る時間は
+      掃引していないので書かない。**無い数字は書かない**（あると読んだ人が
+      信じてしまう）。
+
+    ★ **条件: 配線容量は入っていない**（決定、2026-09-16）。`AS/AD/PS/PD`
+      だけが実測なので、保持と最小幅は**実測より大きくなる側**に外れる。
     """
     area = AREAS[cell]["area"]
     caps = d["cap"]
@@ -400,17 +428,32 @@ def emit_macro(cell, d, o):
     o.append(f'{IND*3}direction : input;')
     o.append(f'{IND*3}capacitance : {cap_add:.3f};')
     o.append(f'{IND*3}max_transition : {d["slews"][-1]:g};')
+    o.append(hold_arc(d, "webpre", "アドレス"))
     o.append(f'{IND*2}}}')
+    lim = d.get("limits", {})
     o.append(f'{IND*2}pin (WEB) {{')
     o.append(f'{IND*3}direction : input;')
     o.append(f'{IND*3}capacitance : {caps["WEB"]:.3f};')
     o.append(f'{IND*3}max_transition : {d["slews"][-1]:g};')
+    if "weblow" in lim:
+        x = lim["weblow"]
+        o.append(f'{IND*3}/* 書込みに要る低パルスの最小幅。{x["fail"]:g}ns では'
+                 f'書けず {x["pass"]:g}ns で書ける（{x["unit"]} 刻み {abs(x["pass"]-x["fail"]):g}）。'
+                 f'配線容量なし */')
+        o.append(f'{IND*3}timing () {{')
+        o.append(f'{IND*4}related_pin : "WEB";')
+        o.append(f'{IND*4}timing_type : min_pulse_width;')
+        o.append(f'{IND*4}fall_constraint (scalar) {{')
+        o.append(f'{IND*5}values("{x["pass"]:.4f}");')
+        o.append(f'{IND*4}}}')
+        o.append(f'{IND*3}}}')
     o.append(f'{IND*2}}}')
     o.append(f'{IND*2}bus (D) {{')
     o.append(f'{IND*3}bus_type : bus{nd};')
     o.append(f'{IND*3}direction : input;')
     o.append(f'{IND*3}capacitance : {cap_d:.3f};')
     o.append(f'{IND*3}max_transition : {d["slews"][-1]:g};')
+    o.append(hold_arc(d, "dhold", "データ"))
     o.append(f'{IND*2}}}')
     o.append(f'{IND*2}bus (Q) {{')
     o.append(f'{IND*3}bus_type : bus{nd};')
@@ -425,6 +468,19 @@ def emit_macro(cell, d, o):
         for key in ("cell_rise", "rise_transition", "cell_fall", "fall_transition"):
             o.append(f'{IND*4}{key} (mem_template_7x7) {{')
             o.append(values_block(arc[key], IND * 5))
+            o.append(f'{IND*4}}}')
+        o.append(f'{IND*3}}}')
+    wq = d.get("webq")
+    if wq:
+        o.append(f'{IND*3}/* 書込み中に Q が追従する経路。同じ行を読みながら'
+                 f'書いたときの WEB↓ -> Q。測定は 0xFF -> 0x00 -> 0xFF の順 */')
+        o.append(f'{IND*3}timing () {{')
+        o.append(f'{IND*4}related_pin : "WEB";')
+        o.append(f'{IND*4}timing_sense : non_unate;')
+        o.append(f'{IND*4}timing_type : combinational;')
+        for key in ("cell_rise", "rise_transition", "cell_fall", "fall_transition"):
+            o.append(f'{IND*4}{key} (mem_template_7x7) {{')
+            o.append(values_block(wq[key], IND * 5))
             o.append(f'{IND*4}}}')
         o.append(f'{IND*3}}}')
     o.append(f'{IND*2}}}')
