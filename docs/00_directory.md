@@ -167,6 +167,7 @@ CLK_NETS      = [...]
 | **設計** | 各リポジトリ `config.py` | トップセル名 2 つ、RTL/NET パス、行数、チャネル予算、`PAD_MAP`、名指しネット、TB |
 
 現状これらが混ざっている代表例:
+
 - `route_chip.py` に**フレーム幾何の定数が 30 個以上ベタ書き**（`LANE_R0` / リング半径 / バス y / ストリップ / `RO_*`）
 - `LANE_R0 = 847.0` は「コア端 816.3 の 30.7 µm 外」＝ **コア幅 1620 固定に依存**
 - DRC 値が `drc_check.py` / `check_chip.py` / `drc_check_cells.py` / `place_logo.py` の

@@ -36,6 +36,7 @@ python3 apr/plot_layout.py layout/step10/route_step_6_squeezed.gds -o layout/rou
 ## 2. step5 — 配置 JSON への変換
 
 `place.py` の出力を**ルータのスキーマ**に直す:
+
 - LEF のピン矩形を絶対座標化
 - ネット解決（バスの別名は `BUS_PORT_NET_ALIAS` でビットごとに展開が要る。
   スカラーは `netlist_parser` の union-find が解決する）
