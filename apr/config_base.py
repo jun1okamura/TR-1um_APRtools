@@ -344,6 +344,11 @@ STA_NON_SIGNAL_PORTS = ["VDD", "GND"]   # 構造インスタンスの電源ピ�
 # `report_macro.tcl` を連結し、**Liberty に書いた制約を STA が実際に見ているか**
 # まで報告する（U73 — 書いただけでは見られていないことがある）。例: ["u_mem"]
 STA_MACRO_INSTS = []
+# **論理的にあり得ないパス**を STA から外す（ピン名でもポート名でもよい）。
+# `-from <ポート>` の `STA_FALSE_PATH_FROM` と違い、**途中を通る**もの。
+# ★ 根拠を設計の config.py に**必ず書く**こと。false path は「ここは見なくて
+#   よい」という主張なので、根拠の無い指定は検査を黙って減らす。
+STA_FALSE_PATH_THROUGH = []
 LOGO_SCALE = 1                  # ロゴの縮約（1 = 等倍）
 LOGO_COLS = None                # 切り出す列 "0:64" など。None で全幅
 LOGO_ROWS = 1                   # 縦に何枚積むか（空きが縦に広い設計用）

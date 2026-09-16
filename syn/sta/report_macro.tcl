@@ -36,8 +36,16 @@ foreach _m $MACROS {
             puts [format "     %-10s period %g" [get_name $c] [get_property $c period]]
         }
     }
-    mtry "マクロへ向かう hold（`library hold time` の行が出れば hold_rising が効いている）" {
-        report_checks -to [get_pins $_m/*] -path_delay min -digits 3 -endpoint_path_count 4
+    mtry "マクロへ向かう hold の一覧（`library hold time` が出れば hold_rising が効いている）" {
+        # ★ **本数を絞らない。** 4 本に絞っていたら `D[0..3]` しか出ず、
+        #   同じ制約が付いている `ADD` 側が見えなかった（2026-09-16）。
+        #   `ADD` は書込みのたびに `ld_addr + 1` で動くので、そちらの方が効く。
+        report_checks -to [get_pins $_m/*] -path_delay min -digits 3 \
+                      -endpoint_path_count 24 -format summary
+    }
+    mtry "hold が破れているものだけ（詳細）" {
+        report_checks -to [get_pins $_m/*] -path_delay min -digits 3 \
+                      -endpoint_path_count 24 -slack_max 0
     }
     mtry "マクロを通る最長パス（読出し ADD -> Q が critical に乗っているか）" {
         report_checks -through [get_pins $_m/Q*] -path_delay max -digits 3 -endpoint_path_count 1

@@ -60,3 +60,17 @@ if {$p1 ne ""} {
     puts "  => 周期を変えても slack が動かない（クロックに紐づかない経路）。最小周期は出せない"
   }
 }
+
+# ★ **最小周期は reg->reg だけの値。** 他のグループが違反していたら、
+#   そちらが実際の上限を決める。TD4 で `in->reg` が -15.031 ns 違反している
+#   のに見出しは「16.58 MHz」と出た（2026-09-16）。**見出しの数字が
+#   いちばん目に入るので、条件を一緒に出す。**
+set _w [path_of -path_delay max]
+if {$_w ne "" && [get_property $_w slack] < 0} {
+  puts [format "  ** reg->reg 以外にも違反がある（最悪 slack %.3f ns / %s -> %s）。" \
+        [get_property $_w slack] \
+        [get_property [get_property $_w startpoint] full_name] \
+        [get_property [get_property $_w endpoint] full_name]]
+  puts "     上の最小周期は **reg->reg だけ**の値。あり得ないパスなら config.py の"
+  puts "     STA_FALSE_PATH_THROUGH / STA_FALSE_PATH_FROM に根拠つきで書くこと"
+}

@@ -28,6 +28,7 @@ print(" ".join(getattr(c, "STA_FALSE_PATH_FROM", []) or []))
 print(" ".join(getattr(c, "STA_NON_SIGNAL_PORTS", []) or []))
 print(" ".join(getattr(c, "STA_MACRO_INSTS", []) or []))
 print(getattr(c, "NET_PATH", "") or "")
+print(" ".join(getattr(c, "STA_FALSE_PATH_THROUGH", []) or []))
 PY
 ) || { echo "config.py が読めない（PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
 LIB=${LIB:-$(echo "$CFG" | sed -n 1p)}
@@ -36,6 +37,7 @@ FALSEPATH=${FALSEPATH:-$(echo "$CFG" | sed -n 3p)}
 NONSIG=${NONSIG:-$(echo "$CFG" | sed -n 4p)}
 MACROS=${MACROS:-$(echo "$CFG" | sed -n 5p)}
 FINAL=$(echo "$CFG" | sed -n 6p)
+FPTHRU=${FPTHRU:-$(echo "$CFG" | sed -n 7p)}
 [ -n "$CLK" ] || { echo "config.py に STA_CLK_PORT が無い" >&2; exit 1; }
 [ -f "$LIB" ] || { echo "$LIB が無い" >&2; exit 1; }
 [ -f "$NET" ] || { echo "$NET が無い" >&2; exit 1; }
@@ -77,7 +79,7 @@ T=$(mktemp "${TMPDIR:-/tmp}/sta_XXXXXX.tcl")
 { echo "set NET $NET"; echo "set TOP $TOP"; echo "set PER $PER"
   echo "set LIB $LIB"; echo "set CLK $CLK"
   echo "set FALSEPATH [list $FALSEPATH]"; echo "set NONSIG [list $NONSIG]"
-  echo "set MACROS [list $MACROS]"
+  echo "set MACROS [list $MACROS]"; echo "set FPTHRU [list $FPTHRU]"
   echo "set HERE $HERE"; cat "$HERE/setup.tcl"; cat "$RPT"
   # マクロがある設計では、制約が**実際に見られているか**まで出す（U73）。
   [ -n "$MACROS" ] && cat "$HERE/report_macro.tcl"; } > "$T"

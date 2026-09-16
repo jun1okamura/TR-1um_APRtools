@@ -38,6 +38,23 @@ foreach fp $FALSEPATH {
   if {[llength [get_ports -quiet $fp]]} { set_false_path -from [get_ports $fp] }
 }
 
+# **論理的にあり得ないパス**（`STA_FALSE_PATH_THROUGH`）。
+# ★ これは「見なくてよい」という**主張**なので、根拠は設計の config.py に書く。
+#   例（TD4）: マクロの `WEB -> Q`（書込み中に Q が追従する経路）は
+#   `wr_hi = ~exec & wr & nibsel` で **exec=0 のときしか動かない**のに対し、
+#   コアの FF は全部 `en = exec` で止まっている。つまり書込みで動いた Q を
+#   捕まえる FF が 1 つも無い。構造としては繋がっているので STA は見てしまう。
+foreach fp $FPTHRU {
+  set o [get_pins -quiet $fp]
+  if {![llength $o]} { set o [get_ports -quiet $fp] }
+  if {[llength $o]} {
+    set_false_path -through $o
+    puts "  （false path: $fp を通るパスを外した。根拠は config.py）"
+  } else {
+    puts "  ** STA_FALSE_PATH_THROUGH の $fp がネットリストに無い"
+  }
+}
+
 # --- 周期に依存する制約は proc にまとめる --------------------------------
 # report.tcl が**周期を変えて 2 回測る**ため（最小周期の求め方は report.tcl の
 # 冒頭を参照）。set_input_delay / set_output_delay は -add_delay を付けなければ
