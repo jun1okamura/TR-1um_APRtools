@@ -360,6 +360,14 @@ def build_read(netlist, bit, slew, rise):
             # ★ **読出しの瞬間**（chk と同じ時刻）。書いた行がまだ 0 を
             #   持っているか、そしてそのとき **RD が立っているのはどの行か**。
             L.append(f".meas tran str{i} FIND v(xu.{inst}.{node}) AT={read_time():g}n")
+            # ★ **5 つのワードを書くあいだの足取り**。word0 に 0 を書いたあと、
+            #   どのワードの書込みで消えるのかを見る（WR の MAX だけでは
+            #   「いつ立ったか」が分からない）。
+            for k in range(len(WORDS)):
+                L.append(f".meas tran w{k}s{i} FIND v(xu.{inst}.{node}) "
+                         f"AT={IDLE + TW / 2 + k * TW:g}n")
+                L.append(f".meas tran w{k}r{i} FIND v(xu.{wr}) "
+                         f"AT={IDLE + TW / 2 + k * TW:g}n")
             L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={read_time():g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
@@ -518,6 +526,18 @@ def probe_summary(v):
         print(f"    0 を保持している行 = {zero}")
         print(f"    RD が立っている行   = {rdon}")
         print("    -> 重なっていなければ「書く行」と「読む行」が食い違っている")
+        # ★ 読む行の足取りを 5 ワードぶん並べる。どの書込みで消えるかが見える。
+        for r in rdon:
+            tr = []
+            for k in range(len(WORDS)):
+                st, wr_ = v.get(f"w{k}s{r}"), v.get(f"w{k}r{r}")
+                if st is None: continue
+                tr.append(f"word{WORDS[k][0]}: 記憶 {st:.1f} "
+                          f"/ WR {'**立つ**' if (wr_ or 0) > VDD / 2 else '0'}")
+            if tr:
+                print(f"    行 {r}（読む行）の足取り:")
+                for x in tr: print(f"      {x}")
+                print(f"      読出し時 {val(f'str{r}', VDD):.1f}")
     print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
           "どちらも正常ならラッチ側")
 
