@@ -502,6 +502,72 @@ def build_read(netlist, bit, slew, rise):
     return "\n".join(L)
 
 
+def build_webq(netlist, slew):
+    """`WEB` -> `Q`（書込み中に `Q` が追従する経路）。U7 の 4 項目目。
+
+    ★ **専用の刺激にする。** `build_read` の波形は「5 ワード書いてから読む」
+    形で、`Q` が動く向きが**セルの電源投入時の状態任せ**になる。ここは
+    遅延を測るので、**同じアドレスに逆の値を順に書いて**、落ちる縁と
+    上がる縁の両方を確実に作る。
+
+        ADD = 0 のまま（読出しも同じ行を選ぶので `Q` が書込みに追従する）
+        ① 0xFF を書く      初期化
+        ② 0x00 を書く      `WEB↓` -> `Q` 立下り を測る
+        ③ 0xFF を書く      `WEB↓` -> `Q` 立上り を測る
+
+    負荷は `build_read` と同じく `Q[0..6]` に 7 点並べて 1 デッキで済ませる。
+    """
+    tf = full_ramp(slew)
+    w = WEB_LOW
+    t1 = IDLE
+    t2 = t1 + w + SETTLE
+    t3 = t2 + w + SETTLE
+    tend = t3 + w + SETTLE + TAIL
+
+    add = [[(0.0, 0)] for _ in range(4)]          # ADD = 0 で固定
+    dat = [[(0.0, VDD)] for _ in range(8)]        # まず 0xFF
+    web = [(0.0, VDD), (t1, 0), (t1 + w, VDD)]
+    for i in range(8):                            # ② の前に 0x00 へ
+        dat[i].append((t2 - SETTLE / 2, 0))
+    web += [(t2, 0), (t2 + w, VDD)]
+    for i in range(8):                            # ③ の前に 0xFF へ
+        dat[i].append((t3 - SETTLE / 2, VDD))
+    web += [(t3, 0), (t3 + w, VDD)]
+
+    L = [f"* {CELL} WEB -> Q  入力遷移 {slew}ns  -- char_mem.py 生成"]
+    L += header(netlist)
+    for j in range(4):
+        L.append(f"Va{j} a{j}s 0 {pwl(step(add[j]) + [(tend, 0)])}")
+        L.append(f"Ra{j} a{j}s A{j} 0.001")
+    for i in range(8):
+        drive(L, f"d{i}", f"DD{i}", dat[i] + [(tend, dat[i][-1][1])])
+    # ★ 測る縁だけ指定のスルーで振る（他の縁は EDGE のまま）
+    wpts = step(web)
+    L.append(f"Vweb webs 0 {pwl(wpts + [(tend, VDD)])}")
+    L.append(f"Rweb webs WEB 0.001")
+    L.append(f"XU {PORTS} {CELL}")
+    for i, cl in enumerate(LOADS):
+        L.append(f"C{i} QQ{i} 0 {cl}f")
+    L.append(f"C7 QQ7 0 {LOADS[0]}f")
+    L.append(f".tran {max(min(slew, 0.5) / 20, 0.05):g}n {tend:g}n")
+    vt = VDD * TH / 100
+    lo, hi = VDD * LO / 100, VDD * HI / 100
+    for i in range(8):
+        L.append(f".meas tran f{i} TRIG v(WEB) VAL={vt:g} FALL=1 TD={t2 - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={vt:g} FALL=1 TD={t2 - 1:g}n")
+        L.append(f".meas tran r{i} TRIG v(WEB) VAL={vt:g} FALL=1 TD={t3 - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={vt:g} RISE=1 TD={t3 - 1:g}n")
+        L.append(f".meas tran ft{i} TRIG v(QQ{i}) VAL={hi:g} FALL=1 TD={t2 - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={lo:g} FALL=1 TD={t2 - 1:g}n")
+        L.append(f".meas tran rt{i} TRIG v(QQ{i}) VAL={lo:g} RISE=1 TD={t3 - 1:g}n "
+                 f"TARG v(QQ{i}) VAL={hi:g} RISE=1 TD={t3 - 1:g}n")
+    # 書けたことの確認（②のあと 0、③のあと 5）
+    L.append(f".meas tran chk0 FIND v(QQ0) AT={t3 - 1:g}n")
+    L.append(f".meas tran chk1 FIND v(QQ0) AT={tend - TAIL / 2:g}n")
+    L += ["", ".end", ""]
+    return "\n".join(L)
+
+
 def build_cap(netlist, pin_idx, kind):
     """入力ピンに流れ込む電荷から容量を出す。kind は 'add' / 'web' / 'd'。"""
     sl = 2.0
@@ -772,7 +838,7 @@ def main():
     #   **正本の char/REG8x16.json を上書きしない**ようにするため。
     ap.add_argument("-o", "--out", default=None)
     ap.add_argument("-j", "--jobs", type=int, default=max(1, (os.cpu_count() or 2)))
-    ap.add_argument("--only", choices=["read", "cap"])
+    ap.add_argument("--only", choices=["read", "cap", "webq"])
     ap.add_argument("--probe", action="store_true",
                     help="書込みの経路を段ごとに見る（U2）。行選択の WR 線が"
                          "1 本でも上がるかを測り、デコーダ側かラッチ側かを分ける")
@@ -850,7 +916,7 @@ def main():
         sweep_edge(a, holds, "dhold")
         return
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
-           "read": {}, "cap": {}, "bit_spread": {}}
+           "read": {}, "cap": {}, "bit_spread": {}, "webq": {}}
     # ★ `--only` のときは**測らなかった部分を既存の JSON から引き継ぐ**。
     #   以前は測った部分だけの JSON で丸ごと上書きしていたので、
     #   `--only read` を 1 回流すと **`cap` が消えた**（実際に踏んだ。
@@ -861,8 +927,9 @@ def main():
             prev = json.load(open(a.out))
         except Exception:
             prev = {}
-        measured = {"read", "bit_spread"} if a.only == "read" else {"cap"}
-        for k in ("read", "cap", "bit_spread"):
+        measured = ({"read", "bit_spread"} if a.only == "read"
+                    else {"cap"} if a.only == "cap" else {"webq"})
+        for k in ("read", "cap", "bit_spread", "webq"):
             if k not in measured:
                 res[k] = prev.get(k, {})
         print(f"  --only {a.only}: 測らない部分は {os.path.basename(a.out)} から引き継ぐ "
@@ -927,6 +994,25 @@ def main():
                     if v.get("d0") and v.get("d7"):
                         sp.append(abs(v["d7"] - v["d0"]) / v["d0"])
             res["bit_spread"][f"ADD[{b}]"] = max(sp) if sp else None
+
+    if a.only == "webq":
+        # ★ WEB -> Q（書込み中に Q が追従する経路）。U7 の 4 項目目。
+        sl = [SLEWS[3]] if a.quick else SLEWS
+        fall = {"cell_fall": [], "fall_transition": []}
+        rise = {"cell_rise": [], "rise_transition": []}
+        for si, x in enumerate(sl):
+            v = run(build_webq(a.netlist, x), f"webq_s{si}")
+            fall["cell_fall"].append([v.get(f"f{i}") for i in range(7)])
+            fall["fall_transition"].append([v.get(f"ft{i}") for i in range(7)])
+            rise["cell_rise"].append([v.get(f"r{i}") for i in range(7)])
+            rise["rise_transition"].append([v.get(f"rt{i}") for i in range(7)])
+            c0, c1 = v.get("chk0"), v.get("chk1")
+            ok = (c0 is not None and c0 < VDD / 2) and (c1 is not None and c1 > VDD / 2)
+            print(f"  slew {x:>5}ns  WEB->Q 立下り "
+                  f"{(v.get('f3') or 0)*1e9:6.2f} ns / 立上り "
+                  f"{(v.get('r3') or 0)*1e9:6.2f} ns  (CL=100fF)  "
+                  f"書込み確認 {'○' if ok else '×'}", flush=True)
+        res["webq"] = {"slews": sl, **fall, **rise}
 
     if a.only in (None, "cap"):
         for kind, n in (("add", 4), ("web", 1), ("d", 8)):
