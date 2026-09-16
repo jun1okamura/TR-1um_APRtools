@@ -229,6 +229,33 @@ def read_time():
     return write_phase()[3] + SETTLE - 5
 
 
+def tlat_inner(netlist):
+    """`TLAT` の**内部ノード**（ポートでも電源でもないもの）を全部返す。
+
+    ★ どのノードが反転しそこねているかを名前で決め打ちしない（決定 22）。
+    4 本しかないので全部測る。
+    """
+    lines = []
+    for ln in open(netlist, encoding="utf-8"):
+        ln = ln.rstrip("\n")
+        if ln.startswith("+") and lines: lines[-1] += " " + ln[1:].strip()
+        else: lines.append(ln)
+    ports, nodes, cur = [], [], None
+    for ln in lines:
+        t = ln.split()
+        if not t: continue
+        if t[0].lower() == ".subckt":
+            cur = t[1]
+            if cur == "TLAT": ports = t[2:]
+            continue
+        if t[0].lower() == ".ends": cur = None; continue
+        if cur == "TLAT" and t[0].upper().startswith(("M", "XM")):
+            for n in t[1:5]:
+                if n not in ports and n not in nodes:
+                    nodes.append(n)
+    return nodes
+
+
 def tlat_rows(netlist):
     """行ごとに 1 個ずつ TLAT を選び、`(インスタンス名, WR, WRB, RD, 記憶ノード)` を返す。
 
@@ -354,6 +381,7 @@ def build_read(netlist, bit, slew, rise):
         L.append(f".meas tran webat FIND v(WEB) AT={tw0:g}n")
         # ★ 行ごとに 1 個、TLAT の中を覗く。WR と **WRB が相補か**（帰還の
         #   トランスファゲートが切れているか）と、記憶ノードが動いたか。
+        inner = tlat_inner(netlist)
         for i, (inst, wr, wrb, rd, node) in enumerate(tlat_rows(netlist)):
             L.append(f".meas tran wrbat{i} FIND v(xu.{wrb}) AT={tw0:g}n")
             L.append(f".meas tran st{i} FIND v(xu.{inst}.{node}) AT={tw0:g}n")
@@ -373,6 +401,12 @@ def build_read(netlist, bit, slew, rise):
                 #   記憶ノードが浮く（浮けば接合のリークで VDD 側へ戻る）。
                 L.append(f".meas tran w{k}b{i} FIND v(xu.{wrb}) "
                          f"AT={IDLE + TW / 2 + k * TW:g}n")
+            # ★ 読む行だけは**セルの内部ノードを全部**追う。どのノードが
+            #   反転しそこねているかを見る。1 行ぶんなので本数は少ない。
+            for j, nd in enumerate(inner):
+                for k in range(len(WORDS)):
+                    L.append(f".meas tran n{j}w{k}r{i} FIND v(xu.{inst}.{nd}) "
+                             f"AT={IDLE + TW / 2 + k * TW:g}n")
             L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={read_time():g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
@@ -557,6 +591,14 @@ def probe_summary(v):
                 tr.append(f"word{WORDS[k][0]}: 記憶 {st:.1f} "
                           f"/ WR {'**立つ**' if (wr_ or 0) > VDD / 2 else '0'}"
                           f" / WRB {'-' if wb is None else format(wb, '.1f')}{hold}")
+            nodes = sorted({int(k[1:k.index("w")]) for k in v
+                            if k.startswith("n") and "w" in k and k.endswith(f"r{r}")
+                            and k[1:k.index("w")].isdigit()})
+            for j in nodes:
+                vals = [v.get(f"n{j}w{k}r{r}") for k in range(len(WORDS))]
+                if any(x is not None for x in vals):
+                    tr.append("  セル内ノード %d: " % j
+                              + " ".join("-" if x is None else f"{x:.1f}" for x in vals))
             if tr:
                 print(f"    行 {r}（読む行）の足取り:")
                 for x in tr: print(f"      {x}")
