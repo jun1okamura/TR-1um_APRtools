@@ -398,7 +398,13 @@ def build_read(netlist, bit, slew, rise):
         L.append(f".meas tran webmin MIN v(WEB) FROM=0n TO={t:g}n")
         # ★ **word0 を書いている瞬間**を切って見る。範囲の MAX/MIN では
         #   「立った」ことしか分からず、**同時に**立っているかが分からない。
-        tw0 = IDLE + TW / 2
+        # ★ **実際の低の窓の真ん中**を取る。IDLE + TW/2 に決め打ちしていたので、
+        #   `--web-low` を縮めると**窓の外を覗いて**「WR が立っている行 = 0 本」
+        #   と出ていた（つまみを足したら、それに依存する時刻も直す）。
+        def _lo(k):                      # ワード k の低の窓
+            t = IDLE + k * TW
+            return t + TW - WEB_PRE - WEB_LOW, t + TW - WEB_PRE
+        tw0 = sum(_lo(0)) / 2
         for i, n in enumerate(tlat_nets(netlist, "WR")):
             L.append(f".meas tran wrat{i} FIND v(xu.{n}) AT={tw0:g}n")
         for i, n in enumerate(tlat_nets(netlist, "D")):
@@ -417,8 +423,9 @@ def build_read(netlist, bit, slew, rise):
             #   どのワードの書込みで消えるのかを見る（WR の MAX だけでは
             #   「いつ立ったか」が分からない）。
             for k in range(len(WORDS)):
+                # 記憶ノードは**書込みが終わった直後**（WEB↑ の後）を見る
                 L.append(f".meas tran w{k}s{i} FIND v(xu.{inst}.{node}) "
-                         f"AT={IDLE + TW / 2 + k * TW:g}n")
+                         f"AT={_lo(k)[1] + WEB_PRE / 2:g}n")
                 # ★ **中点の値ではなく窓の最大**にする。中点の FIND では
                 #   「そのワードの途中で一瞬立った」を取りこぼす。
                 L.append(f".meas tran w{k}r{i} MAX v(xu.{wr}) "
@@ -437,15 +444,15 @@ def build_read(netlist, bit, slew, rise):
             #     wrise -> wfall               = 内部 WR の幅（セルが要る方）
             #     WEB↓ -> wrise / WEB↑ -> wfall = デコーダの遅れ
             L.append(f".meas tran wrise{i} WHEN v(xu.{wr})={VDD / 2:g} RISE=1 "
-                     f"TD={IDLE:g}n")
+                     f"TD={_lo(0)[0] - 1:g}n")
             L.append(f".meas tran wfall{i} WHEN v(xu.{wr})={VDD / 2:g} FALL=1 "
-                     f"TD={IDLE:g}n")
+                     f"TD={_lo(0)[0] - 1:g}n")
             # ★ 読む行だけは**セルの内部ノードを全部**追う。どのノードが
             #   反転しそこねているかを見る。1 行ぶんなので本数は少ない。
             for j, nd in enumerate(inner):
                 for k in range(len(WORDS)):
                     L.append(f".meas tran n{j}w{k}r{i} FIND v(xu.{inst}.{nd}) "
-                             f"AT={IDLE + TW / 2 + k * TW:g}n")
+                             f"AT={_lo(k)[1] + WEB_PRE / 2:g}n")
             L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={read_time():g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
@@ -637,7 +644,10 @@ def probe_summary(v):
               + "\n    最小: " + ", ".join(f"{v[k]:.2f}" for k in dmn))
     if wat:
         on = [int(k[4:]) for k in wat if val(k, 0) > VDD / 2]
-        print(f"\n  ★ word0（= 0x00）を書いている瞬間 t={IDLE + TW / 2:g}ns:")
+        lo_b = IDLE + TW - WEB_PRE - WEB_LOW
+        lo_e = IDLE + TW - WEB_PRE
+        print(f"\n  ★ word0（= 0x00）を書いている瞬間 t={(lo_b + lo_e) / 2:g}ns"
+              f"（WEB 低は {lo_b:g}〜{lo_e:g} ns）:")
         print(f"    WEB = {v.get('webat'):.2f}  "
               f"WR が立っている行 = **{len(on)} 本**（1 本であるべき）")
         print("    D = " + " ".join(f"{v[k]:.1f}" for k in dat)
@@ -677,8 +687,7 @@ def probe_summary(v):
                     tr.append("  セル内ノード %d: " % j
                               + " ".join("-" if x is None else f"{x:.1f}" for x in vals))
             wf, wr0 = v.get(f"wfall{r}"), v.get(f"wrise{r}")
-            lo_end = IDLE + TW - WEB_PRE
-            lo_beg = lo_end - WEB_LOW
+            lo_end, lo_beg = lo_e, lo_b
             if wr0 is not None:
                 tr.append(f"  WEB↓({lo_beg:g} ns) から内部 WR が立つまで = "
                           f"{wr0 * 1e9 - lo_beg:.1f} ns")
