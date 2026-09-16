@@ -236,7 +236,7 @@ def run(cell):
     deck = build(cell, stim, chk, tstop)
     dpath = f"{HERE}/decks/{cell}_seq.spi"
     open(dpath, "w").write(deck)
-    r = subprocess.run(["ngspice", "-b", dpath], capture_output=True, text=True, timeout=600)
+    r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", dpath], capture_output=True, text=True, timeout=600)
     log = r.stdout + r.stderr
     open(f"{HERE}/logs/{cell}_seq.log", "w").write(log)
     vals = {}

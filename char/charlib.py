@@ -6,7 +6,7 @@ import itertools, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from check_comb import (to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT,
-                        models_dir, models_include)                         # noqa: E402
+                        models_dir, models_include, need_ngspice)           # noqa: E402
 
 VDD = 5.0
 TEMP = 25
@@ -73,7 +73,8 @@ NPROC = 1
 def run_ngspice(deck, tag, timeout=600):
     dpath = f"{HERE}/decks/{tag}.spi"
     open(dpath, "w").write(deck)
-    r = subprocess.run(["ngspice", "-b", dpath], capture_output=True, text=True,
+    need_ngspice()
+    r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", dpath], capture_output=True, text=True,
                        timeout=timeout, env=ENV1)
     log = r.stdout + r.stderr
     open(f"{HERE}/logs/{tag}.log", "w").write(log)

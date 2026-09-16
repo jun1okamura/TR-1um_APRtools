@@ -91,7 +91,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "REG8x16"
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
-from check_comb import models_dir                                 # noqa: E402
+from check_comb import models_dir, need_ngspice                                 # noqa: E402
 MODELS = models_dir()
 FRAME_LEF = None            # マクロなので面積は cell_area.json から取る
 
@@ -281,7 +281,7 @@ def run(deck, tag, need=True):
     os.makedirs(f"{HERE}/logs", exist_ok=True)
     p = f"{HERE}/decks/{tag}.spi"
     open(p, "w").write(deck)
-    r = subprocess.run(["ngspice", "-b", p], capture_output=True, text=True, timeout=3600)
+    r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", p], capture_output=True, text=True, timeout=3600)
     log = r.stdout + r.stderr
     open(f"{HERE}/logs/{tag}.log", "w").write(log)
     v = {}
@@ -331,7 +331,12 @@ def strip_junction(netlist, mode):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("-n", "--netlist", default=f"{HERE}/cells_mem/{CELL}_src.spi",
+    # ★ 既定は **None**。実際の道は --ext を見てから決める。
+    #   以前は既定に設計ネットリストの道を入れていて、**存在チェックが
+    #   --ext の差し替えより前**に走ったので、--ext を付けても
+    #   「使いもしない設計ネットリストが無い」で止まっていた（決定 23 の仲間 —
+    #   判定の対象が確定する前に判定していた）。
+    ap.add_argument("-n", "--netlist", default=None,
                     help="既定は設計ネットリスト由来。--ext で抽出由来に切り替える")
     ap.add_argument("--ext", action="store_true",
                     help="抽出ネットリスト（cells_mem/REG8x16.spi）を使う。"
@@ -345,18 +350,21 @@ def main():
                          "area=AS/AD / perim=PS/PD / both=両方。"
                          "落とすと PDK の既定式に戻る（0 になるのではない）")
     a = ap.parse_args()
+    need_ngspice()                              # 先に確かめる（決定 23）
     global PORTS
-    if not os.path.exists(a.netlist):
-        raise SystemExit(
-            f"** ネットリストが無い: {a.netlist}\n"
-            f"   設計ネットリストから作るには（リポジトリルートで）:\n"
-            f"     python3 $APRTOOLS/char/mkmemsrc.py <設計>/lef/simulation/{CELL}.spice \\\n"
-            f"             -o $APRTOOLS/char/cells_mem/{CELL}_src.spi\n"
-            f"   抽出ネットリストから作るには:\n"
-            f"     python3 $APRTOOLS/char/loadext.py <設計>/lef/extracted -o $APRTOOLS/char/cells_mem")
     if a.ext:
         PORTS = PORTS_EXT
-        a.netlist = f"{HERE}/cells_mem/{CELL}.spi"
+    if a.netlist is None:                       # -n が無いときだけこちらが決める
+        a.netlist = (f"{HERE}/cells_mem/{CELL}.spi" if a.ext
+                     else f"{HERE}/cells_mem/{CELL}_src.spi")
+    if not os.path.exists(a.netlist):
+        how = (f"     python3 $APRTOOLS/char/loadext.py <設計>/lef/extracted "
+               f"-o $APRTOOLS/char/cells_mem" if a.ext else
+               f"     python3 $APRTOOLS/char/mkmemsrc.py <設計>/lef/simulation/{CELL}.spice \\\n"
+               f"             -o $APRTOOLS/char/cells_mem/{CELL}_src.spi")
+        raise SystemExit(
+            f"** ネットリストが無い: {a.netlist}\n"
+            f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
     if a.strip != "none":
         a.netlist = strip_junction(a.netlist, a.strip)
         print(f"  接合パラメータ {a.strip} を落とした写し: {a.netlist}")

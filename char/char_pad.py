@@ -30,7 +30,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "OSS_ESD_5V_DIO"
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
-from check_comb import models_dir                                 # noqa: E402
+from check_comb import models_dir, need_ngspice                                 # noqa: E402
 MODELS = models_dir()
 # パッドセルの面積。標準セルの cell_area.json（STDCELL の GDS 実測）には
 # 入っていないので、フレームの LEF の MACRO ... SIZE から読む。
@@ -87,7 +87,7 @@ def run(deck, tag, netlist):
     os.makedirs(f"{HERE}/logs", exist_ok=True)
     p = f"{HERE}/decks/{tag}.spi"
     open(p, "w").write(deck)
-    r = subprocess.run(["ngspice", "-b", p], capture_output=True, text=True, timeout=900)
+    r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", p], capture_output=True, text=True, timeout=900)
     log = r.stdout + r.stderr
     open(f"{HERE}/logs/{tag}.log", "w").write(log)
     v = {}

@@ -78,6 +78,19 @@ def models_dir():
                      f"  試した場所: {cands}")
 
 
+def need_ngspice():
+    """`ngspice` が PATH に無いときは**読める文で**止める。
+
+    ★ 素の `subprocess.run` だと `FileNotFoundError` の traceback が出るだけで、
+      何が足りないのか分からない（`check_chip_sim.py` の matplotlib と同じ）。
+    """
+    import shutil
+    if shutil.which(os.environ.get("NGSPICE", "ngspice")) is None:
+        raise SystemExit("** ngspice が無い（PATH に見つからない）。\n"
+                         "   macOS なら: brew install ngspice\n"
+                         "   別の場所のものを使うなら NGSPICE=/path/to/ngspice")
+
+
 def models_include():
     """デッキの先頭に書く `.include` の 1 行。"""
     return f".include {models_dir()}/ip62_models"
@@ -185,7 +198,7 @@ def run(cell, outs, verbose=False):
     deck, ins, combos = build(cell, outs)
     dpath = f"{HERE}/decks/{cell}_func.spi"
     open(dpath, "w").write(deck)
-    r = subprocess.run(["ngspice", "-b", dpath], capture_output=True, text=True, timeout=300)
+    r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", dpath], capture_output=True, text=True, timeout=300)
     log = r.stdout + r.stderr
     open(f"{HERE}/logs/{cell}_func.log", "w").write(log)
     vals = {}

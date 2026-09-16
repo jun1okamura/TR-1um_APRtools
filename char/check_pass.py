@@ -112,7 +112,7 @@ def leak_and_cap(cell):
           "", ".end", ""]
     dpath = f"{HERE}/decks/{cell}_pwr.spi"
     open(dpath, "w").write("\n".join(L))
-    r = subprocess.run(["ngspice", "-b", dpath], capture_output=True, text=True, timeout=120)
+    r = subprocess.run([os.environ.get("NGSPICE", "ngspice"), "-b", dpath], capture_output=True, text=True, timeout=120)
     log = r.stdout + r.stderr
     open(f"{HERE}/logs/{cell}_pwr.log", "w").write(log)
 
