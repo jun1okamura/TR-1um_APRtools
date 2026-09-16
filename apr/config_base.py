@@ -8,7 +8,8 @@
     CHIP_TOP_CELL     = "tr_1um_jun1okamura_spi"
     NET_PATH          = "layout/spi_slave_sclk_net_pnr.v"
     N_ROWS            = 2
-    CORE_WIDTH_TRACKS = 299
+    CORE_WIDTH_TRACKS = 296       # x 5.4 = 1598.4。4 列の上限 1614.6 まで
+                                  # FILL3 1 個ぶん（16.2）の余裕を残す（U17）
     CH_HEIGHTS        = [140.4, 900.0, 162.0]
     PAD_MAP           = {...}
 
@@ -261,9 +262,25 @@ SITE_UM = rules.SITE_W
 TRACK_PITCH = getenv("TRACK_PITCH", rules.TRACK_PITCH, float)
 TAP_CELL = "TAP2"
 TAP_W = 10.8
-TAP_PITCH = 534.6               # I2C 実チップ実測
+# ★ **PDK の規則ではない**（U15、2026-09-16 に確認）。`TR-1um_Drawing_Layer_DR_Table.csv`
+#   に TAP / ウェルタップの**最大間隔の規則は存在しない**（`Wmax` は M1/M2 の 45 だけ）。
+#   534.6 = 5.4 × 99 は **I2C 実チップの実測から取った自前の慣習値**。
+#   ラッチアップ耐性の観点で「動いた実物と同じにしておく」という判断であって、
+#   これを超えたから不良、という性質のものではない。
+#   実例: 提出済みの SCLK_SPI（64.8 版）は最終間隔 **540.0**（1 サイトぶん超過）
+#   だが、PDK の DRC デッキは通っている。作り直した 59.4 版は 518.4 で慣習内。
+TAP_PITCH = 534.6               # I2C 実チップ実測（PDK 規則ではない。上のコメント）
 
 _FILL_W = {"FILL1": 5.4, "FILL2": 10.8, "FILL3": 16.2}
+# ★ **`FILL1` は既定で使わない**（U16、2026-09-16 に現状維持と決定）。
+#   `FILL1`（5.4 幅）は v59_4 に**実在しセル DRC もクリーン**なので、技術的に
+#   使えないわけではない。入れると**サイトグリッドの倍数ならどんな隙間も
+#   埋まる**ので詰め込みは楽になる。
+#   既定オフにしている理由は**再現**: 3 設計とも 10.8 / 16.2 だけで詰めた
+#   配置で DRC / LVS / ngspice まで通してあり、`FILL1` を足すと詰め方が
+#   変わって提出物と別の配置になる。
+#   **新しい設計で詰め切れないときは `APR_USE_FILL1=1` で試す**。よければ
+#   その設計の `config.py` に書く（決定 14）。
 FILLS = [("FILL3", 16.2), ("FILL2", 10.8)]
 if getenv("USE_FILL1", False, bool):
     FILLS = FILLS + [("FILL1", 5.4)]

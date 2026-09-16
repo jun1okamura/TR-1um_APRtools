@@ -34,6 +34,12 @@
 
 ```
 BUF_X4, BUF_X16   ← LEF に MACRO はあるが GDS にセルが無い
+                     ★ **実装しないと決めた**（U3、2026-09-16）。正本の v59_4 は
+                       GDS・LEF・Liberty・cell_char のどこにも持っていないので既に清潔。
+                       幽霊 MACRO が残るのは**凍結した v64_8 の LEF だけ**で、
+                       凍結世代は触らない（決定 17）。踏んでも
+                       `gen_placement_gds.py` が `cells missing from …` で止まる。
+                       駆動力が要るなら `BUF_X2` を並べる。
 ```
 
 これは `TR-1um_SCLK_SPI/design_notes.md` §14.6 で「使うと黙って `BUF_X1` になる」と
