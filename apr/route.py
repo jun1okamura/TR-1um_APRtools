@@ -3,7 +3,9 @@
 
 The stage order and every routing script are those of
 TR-1um_Async_I2C/script/run_v10_pipeline.py; only the paths, the top cell
-name and the per-design net sets are this project's (see scripts/PORTING.md).
+name and the per-design net sets are this project's
+(移植の方式は `legacy/sclk_spi/PORTING.md`。`scripts/PORTING.md` は SCLK_SPI の
+置き場で、APRtools では `legacy/` に取ってある — U10).
 
 Stages, each leaving its own GDS:
 
@@ -162,7 +164,7 @@ FORCE_JOG_NETS = {n for n in cfg.getenv("FORCE_JOG", "").split("\x1f") if n}
 
 # Top-level port directions as seen from the GIO frame.  Derived from the
 # netlist's own port declarations by the ported highlight_top_pins module,
-# so it cannot drift out of step with the design (see scripts/PORTING.md).
+# so it cannot drift out of step with the design (`legacy/sclk_spi/PORTING.md`).
 def _port_dir():
     import highlight_top_pins as h
     return dict(h.PORT_DIR_DERIVED)

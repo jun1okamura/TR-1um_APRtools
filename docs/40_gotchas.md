@@ -3,7 +3,8 @@
 作成: 2026-09-14
 出典: `TR-1um_SCLK_SPI/design_notes.md`、`TR-1um_I2C_2026/scripts/pnr/README.md`、
 `TR-1um_I2C_2026/spice/LVS_analysis.md`、`TR-1um_TD4/layout/*/simulation/README.md`、
-`scripts/char/RUN.md`、`scripts/sta/README.md`
+`char/RUN.md`、`syn/sta/README.md`（後の 2 つは APRtools 内。移す前は
+`scripts/char/` `scripts/sta/` だった）
 
 **設計が変わっても再発するもの**だけを集めた。設計固有の経緯は各設計リポジトリの
 `design_notes.md` に残す。
@@ -323,6 +324,7 @@ PDK 既定の `AS/AD = w*sdwidth`、`PS/PD = 2*(sdwidth+w)` は
 ```sh
 python3 apr/lint.py          # NG があれば 1 で終わる
 python3 apr/lint.py -v       # warn も全部出す
+#   既定で見るのは apr/ macro/ char/（legacy/ は凍結、templates/ は設計側の見本）
 ```
 
 `selfcheck.py` が `--- 0. 実行環境 ---` で `NG n / warn n` を出すので、
@@ -336,6 +338,7 @@ python3 apr/lint.py -v       # warn も全部出す
 | `env-direct` | NG | 外部ツール以外の環境変数を直読み | — |
 | `env-knob` | warn | `APR_*` の直読み（`getenv()` へ） | 変数名の一覧が散る |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない | `POWER_NETS = {"VDD","GND"}` / `KeyError: 'GND'` |
+| `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている | `genjobs.py` の `-o` 既定が `/home/claude/char/pack`（U35 の続き）|
 
 ### ★ ノイズを出すリンタは 2 回目に誰も回さない
 

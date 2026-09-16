@@ -149,7 +149,7 @@ yosys の出力を P&R に渡せる形にする。
 | `cmp_gds.py` | ○ | 240 |  | 2 つの GDS が同じものかを判定する。**生バイトはタイムスタンプで毎回変わる**ので `cmp` ではなくこれ |
 | `pin_grid_check.py` |  | 165 |  | prBoundary とピンが配置グリッドに乗っているか |
 | `mk_drc_probe.py` |  | 92 |  | **DRC チェッカが空振りしていないか**を見るための違反セルを合成する。`T_OK` は否定対照 |
-| `lint.py` | ○ | 516 |  | 「パスと名前」を静的に検査する。`escape-apr` / `moved-dir` / `baked-path` / `env-knob` / `rail-map` / `file-table` / `drc-const`。`--constants` で「`rules.py` の値と一致する数値リテラル」の一覧も出せる |
+| `lint.py` | ○ | 542 |  | 「パスと名前」を静的に検査する。`escape-apr` / `moved-dir` / `baked-path` / `env-knob` / `rail-map` / `file-table` / `drc-const` / `foreign-path`。**既定で `apr/` `macro/` `char/` を見る**。`--constants` で「`rules.py` の値と一致する数値リテラル」の一覧も出せる |
 | `selfcheck.py` | ○ | 224 |  | KLayout 無しで実行環境・命名規則・チップの縦の詰まり・つまみの現在値を点検する |
 
 ### H. シミュレーション（ngspice / IRSIM）

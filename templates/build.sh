@@ -8,7 +8,9 @@
 #   4  per-row clock buffers    *_net_bufth.v         -> *_net_pnr.v
 #   5  size report for every stage
 #
-#   Each step is a standalone, parameterised script -- see scripts/SCRIPTS.md.
+#   Each step is a standalone, parameterised script -- see
+#   <APRtools>/legacy/sclk_spi/SCRIPTS.md （移植元の説明。SCLK_SPI では
+#   scripts/SCRIPTS.md だった）.
 #
 #   env overrides:  TOP=  SRC=  ROWS=  LIB=  BUFTH_NETS=  CLK_NETS=
 #                   ROW_BUF_CELL=

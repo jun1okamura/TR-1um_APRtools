@@ -3,6 +3,10 @@
 
   usage: python3 apr/lint.py [ディレクトリ...] [--warn-only] [-v]
 
+既定で見るのは `apr/` `macro/` `char/`。`legacy/` は凍結なので対象外、
+`templates/` は**設計側の `config.py` の見本**（`ROOT` が設計の根を指す）
+なので対象外。
+
 ## なぜこれが要るか
 
 `TR-1um_I2C_2026` を APRtools へ移す作業で壊れたのは **7 件、全部
@@ -41,6 +45,7 @@
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない |
 | `file-table` | NG | `apr/*.py` と `apr/README.md` の分類表が食い違っている |
 | `drc-const` | NG | プロセス定数の写し。(a) `M1_*` / `M2_*` / `V1_*` … への**数値リテラル代入** (b) **argparse の既定**に書かれた同じもの |
+| `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている（`/home/…` `/Users/…` `/sessions/…` `/var/folders/…` `/opt/homebrew/…`）|
 
 `--constants` を付けると、**`rules.py` の「まるくない」値と一致する数値リテラル**を
 全部並べる（合否には関係しない。`docs/90_improvement_notes.md` U62 の作業リスト）。
@@ -100,6 +105,17 @@ def _rules_distinct():
 
 
 RULES_DISTINCT = _rules_distinct()
+
+# ★ **自分のホーム以外の機械のパス**。仮名化の作業（U35）は `/Users/<自分>` と
+#   同期フォルダ名だけを探したので、**回した機械が別だった時期のパス**が残った:
+#     char/genjobs.py      -o の既定が `/home/claude/char/pack`（クラウド側の作業場）
+#     I2C の TB 2 本       `.include '/home/claude/work/.../ip62_models'`（= U24）
+#     旧世代のスクリプト群  `/sessions/<セッション名>/mnt/...` を直書き
+#   どれも**その機械以外では存在しないパス**で、既定値に入っていると
+#   「回したら落ちる」までは気づかない（決定 21 と同じ届かなさ）。
+#   凍結した `legacy/` は対象外（SKIP_DIRS）。記録としての言及はコメントに書く。
+FOREIGN_PATH = re.compile(
+    r"^/(home|Users|sessions|Volumes|var/folders|private/var|opt/homebrew)/")
 
 DRC_NAME = re.compile(
     r"^(M1|M2|V1|GC|CO)_(W|S|WIDTH|SPACE|MIN|MAX|GAP|CUT|ENC|PAD|PITCH"
@@ -219,6 +235,11 @@ def check_file(path):
 
     _inner_div = set()
     for nd in ast.walk(tree):
+        # --- foreign-path ---
+        if isinstance(nd, ast.Constant) and isinstance(nd.value, str) \
+                and FOREIGN_PATH.match(nd.value):
+            add("NG", "foreign-path", nd, nd.value.split()[0][:60],
+                "別の機械の絶対パス。`cfg.ROOT` / `HERE` / 環境変数から組む")
         # --- escape-apr / moved-dir / baked-path / env-* ---
         # --- drc-const ---
         if isinstance(nd, ast.Assign) and nd in tree.body \
@@ -328,7 +349,10 @@ def check_file(path):
         name = env_key(nd)
         if name is not None:
             parent = (lines[nd.lineno - 1] if nd.lineno - 1 < len(lines) else "").strip()
-            if name in EXTERNAL_ENV or name.startswith("XSCHEM"):
+            # ★ `TR1UM_*` は **PDK / セルライブラリの場所**を指す系統で、
+            #   `APR_*` のノブとは別（`char/` の道具は `config.py` を持たない
+            #   単体ツールとして Mac で回すので、こちらの前置を使う）。
+            if name in EXTERNAL_ENV or name.startswith(("XSCHEM", "TR1UM_")):
                 continue
             if name.startswith("APR_"):
                 add("warn", "env-knob", nd, parent,
@@ -453,8 +477,10 @@ def main():
     ap = argparse.ArgumentParser(
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("roots", nargs="*",
-                    default=[here, os.path.join(os.path.dirname(here), "macro")],
-                    help="既定: apr/ と macro/")
+                    default=[here,
+                             os.path.join(os.path.dirname(here), "macro"),
+                             os.path.join(os.path.dirname(here), "char")],
+                    help="既定: apr/ と macro/ と char/")
     ap.add_argument("--warn-only", action="store_true",
                     help="NG があっても 0 で終わる")
     ap.add_argument("-v", "--verbose", action="store_true", help="warn も全部出す")
