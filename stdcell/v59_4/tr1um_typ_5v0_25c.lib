@@ -3259,7 +3259,7 @@ library (tr1um_typ_5v0_25c) {
       direction : input;
       capacitance : 73.155;
       max_transition : 16;
-      /* アドレスの保持。WEB 立上りのあとこれだけ動かせない。5.5ns では壊れ 6ns で保つ。配線容量なし */
+      /* アドレスの保持。WEB 立上りのあとこれだけ動かせない。5.5ns では壊れ 6ns で保つ。配線容量なし。 ★ **設計側が WEB をクロックとして宣言したときだけ** OpenSTA が見る （create_clock が無いと「パス無し」になる。3.1.0 で確認） */
       timing () {
         related_pin : "WEB";
         timing_type : hold_rising;
@@ -3269,10 +3269,10 @@ library (tr1um_typ_5v0_25c) {
     }
     pin (WEB) {
       direction : input;
-      clock : true;   /* 書込みストローブ。min_pulse_width の対象 */
       capacitance : 82.797;
       max_transition : 16;
-      /* 書込みに要る低パルスの最小幅。10.5ns では書けず 11ns で書ける（ns 刻み 0.5）。配線容量なし */
+      /* 書込みに要る低パルスの最小幅。10.5ns では書けず 11ns で書ける（刻み 0.5ns）。配線容量なし。
+         ★ **OpenSTA はこれを見ない**（3.1.0 で確認。`clock : true` を足しても、低 5ns のクロックを当てても違反が出ない。`set_min_pulse_width` をピンに当てても無反応、クロックに当てると別のピンを検査する）。**記録として置いてあるだけ**で、担保は ngspice の回帰側。 */
       timing () {
         related_pin : "WEB";
         timing_type : min_pulse_width;
@@ -3286,7 +3286,7 @@ library (tr1um_typ_5v0_25c) {
       direction : input;
       capacitance : 82.750;
       max_transition : 16;
-      /* データの保持。WEB 立上りのあとこれだけ動かせない。5.5ns では壊れ 6ns で保つ。配線容量なし */
+      /* データの保持。WEB 立上りのあとこれだけ動かせない。5.5ns では壊れ 6ns で保つ。配線容量なし。 ★ **設計側が WEB をクロックとして宣言したときだけ** OpenSTA が見る （create_clock が無いと「パス無し」になる。3.1.0 で確認） */
       timing () {
         related_pin : "WEB";
         timing_type : hold_rising;

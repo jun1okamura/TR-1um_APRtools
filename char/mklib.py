@@ -372,7 +372,9 @@ def hold_arc(d, knob, what):
         return f'{IND*3}/* {what}の保持: 未測定（limits.{knob} が無い） */'
     return "\n".join([
         f'{IND*3}/* {what}の保持。WEB 立上りのあとこれだけ動かせない。'
-        f'{x["fail"]:g}ns では壊れ {x["pass"]:g}ns で保つ。配線容量なし */',
+        f'{x["fail"]:g}ns では壊れ {x["pass"]:g}ns で保つ。配線容量なし。'
+        f' ★ **設計側が WEB をクロックとして宣言したときだけ** OpenSTA が見る '
+        f'（create_clock が無いと「パス無し」になる。3.1.0 で確認） */',
         f'{IND*3}timing () {{',
         f'{IND*4}related_pin : "WEB";',
         f'{IND*4}timing_type : hold_rising;',
@@ -433,19 +435,24 @@ def emit_macro(cell, d, o):
     lim = d.get("limits", {})
     o.append(f'{IND*2}pin (WEB) {{')
     o.append(f'{IND*3}direction : input;')
-    # ★ **書込みストローブなのでクロックピンとして宣言する。**
-    #   これが無いと OpenSTA は `min_pulse_width` を見ない（実測:
-    #   要求 11ns に対して低 5ns のクロックを当てても違反が出なかった）。
-    #   `hold_rising` の方は設計側が WEB に create_clock を当てれば
-    #   `clock : true` 無しでも効いた。
-    o.append(f'{IND*3}clock : true;   /* 書込みストローブ。min_pulse_width の対象 */')
+    # ★ `clock : true` は**足さない**。足しても何も変わらなかったから
+    #   （実測 2026-09-16、OpenSTA 3.1.0）:
+    #     `min_pulse_width` は `clock : true` の有無に関わらず**見られない**
+    #     `hold_rising` は設計側の `create_clock` だけで効く
+    #   **効かない仕掛けをライブラリに残すと、次に読んだ人が
+    #   「これで効いているはず」と誤解する。**
     o.append(f'{IND*3}capacitance : {caps["WEB"]:.3f};')
     o.append(f'{IND*3}max_transition : {d["slews"][-1]:g};')
     if "weblow" in lim:
         x = lim["weblow"]
         o.append(f'{IND*3}/* 書込みに要る低パルスの最小幅。{x["fail"]:g}ns では'
-                 f'書けず {x["pass"]:g}ns で書ける（{x["unit"]} 刻み {abs(x["pass"]-x["fail"]):g}）。'
-                 f'配線容量なし */')
+                 f'書けず {x["pass"]:g}ns で書ける（刻み {abs(x["pass"]-x["fail"]):g}{x["unit"]}）。'
+                 f'配線容量なし。')
+        o.append(f'{IND*3}   ★ **OpenSTA はこれを見ない**（3.1.0 で確認。'
+                 f'`clock : true` を足しても、低 5ns のクロックを当てても違反が出ない。'
+                 f'`set_min_pulse_width` をピンに当てても無反応、クロックに当てると'
+                 f'別のピンを検査する）。**記録として置いてあるだけ**で、'
+                 f'担保は ngspice の回帰側。 */')
         o.append(f'{IND*3}timing () {{')
         o.append(f'{IND*4}related_pin : "WEB";')
         o.append(f'{IND*4}timing_type : min_pulse_width;')

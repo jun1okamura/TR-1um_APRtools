@@ -155,10 +155,27 @@ sh syn/sta/sta.sh <netlist> <top> <period_ns> syn/sta/path.tcl   # クリティ�
   TD4 / I2C はリセットが**電源投入時に一度きり**なので `set_false_path` で正しいが、
   **SCLK_SPI の `cnt_rstn = rstn & ~cs_n` はフレームごとに解除される**ので
   前提が成り立たない（20 FF 中 4 個。余裕は半周期あるが**測っていない**）
-- `REG8x16` は**読出しパスだけ**が `.lib` に入っている（`bus (Q)` の
-  `related_pin: "ADD[0..3]"` 組合せアーク）。**読出しは STA に当たる。**
-  書込み（`D`/`ADD` の setup/hold、`WEB` -> `Q`、`WEB` 最小ローパルス幅）は
-  未特性化なので、書込みタイミングは STA で見えない（U7）
+- `REG8x16` は**読出しも書込みも** `.lib` に入った（U7、2026-09-16）。
+  ただし **STA が実際に見るものは限られる**。OpenSTA 3.1.0 で確認した:
+
+  | `.lib` の中身 | OpenSTA は | 条件 |
+  |---|---|---|
+  | `ADD -> Q` / `WEB -> Q` の組合せアーク | **見る** | — |
+  | `ADD` / `D` の `hold_rising`（6.0 ns）| **見る** | ★ **設計側が `WEB` をクロックとして宣言したときだけ** |
+  | `WEB` の `min_pulse_width`（11 ns）| **見ない** | 記録として置いてあるだけ |
+
+  ★ **`REG8x16` を使う設計は `WEB` にクロックを当てること。**
+  当てないと書込みの保持は「パス無し」で素通りする（実測）。
+
+  ```tcl
+  create_clock -name WEBCK -period <周期> [get_pins <マクロ>/WEB]
+  ```
+
+  ★ **最小ローパルス幅は STA では担保できない。** ライブラリに書いても
+  `clock : true` を足しても違反が出ず、`set_min_pulse_width` はピンに
+  当てると無反応、クロックに当てると**別のピンを検査する**。
+  **ngspice の回帰で見るしかない**（`char_mem.py --web-low` の掃引）。
+  数字は `char/char/REG8x16.json` の `limits.weblow`。
 
 ### OpenSTA のビルド
 
