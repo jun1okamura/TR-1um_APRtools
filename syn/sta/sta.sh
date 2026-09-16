@@ -28,7 +28,7 @@ print(" ".join(getattr(c, "STA_FALSE_PATH_FROM", []) or []))
 print(" ".join(getattr(c, "STA_NON_SIGNAL_PORTS", []) or []))
 print(" ".join(getattr(c, "STA_MACRO_INSTS", []) or []))
 print(getattr(c, "NET_PATH", "") or "")
-print(" ".join(getattr(c, "STA_FALSE_PATH_THROUGH", []) or []))
+print(getattr(c, "STA_EXTRA_TCL", "") or "")
 PY
 ) || { echo "config.py が読めない（PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
 LIB=${LIB:-$(echo "$CFG" | sed -n 1p)}
@@ -37,7 +37,11 @@ FALSEPATH=${FALSEPATH:-$(echo "$CFG" | sed -n 3p)}
 NONSIG=${NONSIG:-$(echo "$CFG" | sed -n 4p)}
 MACROS=${MACROS:-$(echo "$CFG" | sed -n 5p)}
 FINAL=$(echo "$CFG" | sed -n 6p)
-FPTHRU=${FPTHRU:-$(echo "$CFG" | sed -n 7p)}
+EXTRA=${EXTRA:-$(echo "$CFG" | sed -n 7p)}
+if [ -n "$EXTRA" ]; then
+  [ -f "$EXTRA" ] || { echo "STA_EXTRA_TCL が無い: $EXTRA" >&2; exit 1; }
+  echo "  設計の追加制約: ${EXTRA#$PWD/}"
+fi
 [ -n "$CLK" ] || { echo "config.py に STA_CLK_PORT が無い" >&2; exit 1; }
 [ -f "$LIB" ] || { echo "$LIB が無い" >&2; exit 1; }
 [ -f "$NET" ] || { echo "$NET が無い" >&2; exit 1; }
@@ -79,8 +83,11 @@ T=$(mktemp "${TMPDIR:-/tmp}/sta_XXXXXX.tcl")
 { echo "set NET $NET"; echo "set TOP $TOP"; echo "set PER $PER"
   echo "set LIB $LIB"; echo "set CLK $CLK"
   echo "set FALSEPATH [list $FALSEPATH]"; echo "set NONSIG [list $NONSIG]"
-  echo "set MACROS [list $MACROS]"; echo "set FPTHRU [list $FPTHRU]"
-  echo "set HERE $HERE"; cat "$HERE/setup.tcl"; cat "$RPT"
+  echo "set MACROS [list $MACROS]"
+  echo "set HERE $HERE"; cat "$HERE/setup.tcl"
+  # 設計固有の制約は setup.tcl の**後**（クロックも駆動セルも決まってから当てる）
+  [ -n "$EXTRA" ] && cat "$EXTRA"
+  cat "$RPT"
   # マクロがある設計では、制約が**実際に見られているか**まで出す（U73）。
   [ -n "$MACROS" ] && cat "$HERE/report_macro.tcl"; } > "$T"
 # 電源ピンの Warning 201 をたたむ。

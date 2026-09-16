@@ -161,21 +161,41 @@ sh syn/sta/sta.sh <netlist> <top> <period_ns> syn/sta/path.tcl   # クリティ�
   | `.lib` の中身 | OpenSTA は | 条件 |
   |---|---|---|
   | `ADD -> Q` / `WEB -> Q` の組合せアーク | **見る** | — |
-  | `ADD` / `D` の `hold_rising`（6.0 ns）| **見る** | ★ **設計側が `WEB` をクロックとして宣言したときだけ** |
+  | `ADD` / `D` の `hold_rising`（6.0 ns）| **見る** | ★ **`WEB` がクロックとして伝播しているときだけ** |
   | `WEB` の `min_pulse_width`（11 ns）| **見ない** | 記録として置いてあるだけ |
 
-  ★ **`REG8x16` を使う設計は `WEB` にクロックを当てること。**
-  当てないと書込みの保持は「パス無し」で素通りする（実測）。
+  ★ **`WEB` がクロックから作られていれば、宣言は要らない**（2026-09-16、TD4 の実設計で確認）。
+  TD4 の `WEB` は `mem_wrap.py` が置く `OR2(clk_buf, ~wr_hi)` なので、`clk` の
+  クロックネットワークがそのまま伝播し、`library hold time 6.000` が出た。
+  **`WEB` が外から入る独立した線のときだけ**、設計側で当てる:
 
   ```tcl
   create_clock -name WEBCK -period <周期> [get_pins <マクロ>/WEB]
   ```
+
+  ★ **`setup` は Liberty に書いていない**ので、マクロへ向かう最長パスは
+  「パス無し」になる。**これが正しい姿**（測っていない数字は書かない。U7）。
+
+  ★ **マクロを使う設計は `STA_MACRO_INSTS` を書くこと。**
+  `syn/sta/report_macro.tcl` が連結され、上の表のどれが実際に効いたかが
+  出力に現れる。**「Liberty に書いた」で終わりにしない**（U73 / U74）。
 
   ★ **最小ローパルス幅は STA では担保できない。** ライブラリに書いても
   `clock : true` を足しても違反が出ず、`set_min_pulse_width` はピンに
   当てると無反応、クロックに当てると**別のピンを検査する**。
   **ngspice の回帰で見るしかない**（`char_mem.py --web-low` の掃引）。
   数字は `char/char/REG8x16.json` の `limits.weblow`。
+
+- **論理的にあり得ないパスは、根拠を制約の隣に書いて外す**（`STA_EXTRA_TCL`）。
+  TD4 の例（`TR-1um_TD4/scripts/sta_constraints.tcl`）:
+
+  | 外したもの | 根拠 |
+  |---|---|
+  | `WEB -> Q`（書込み中に `Q` が追従する経路）| 書込みは `exec=0` のときだけ。そのとき `en = exec` でコアの FF は全部止まっている。**捕まえる FF が 1 つも無い** |
+  | `nib_lo -> u_mem/D`（データ保持 6.0 ns）| `nibsel` が、書込みを終える `WEB↑`（=1）と `nib_lo` の取り込み（=0）を**逆の極性で排他に選ぶ** |
+
+  ★ **当たった個数を必ず出す。** 名前が変わって 0 個に当たっても SDC は
+  無言で通る（U74 と同じ「回っていないのに OK」）。
 
 ### OpenSTA のビルド
 
