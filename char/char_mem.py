@@ -220,7 +220,7 @@ def tlat_nets(netlist, pin):
 
 
 def tlat_rows(netlist):
-    """行ごとに 1 個ずつ TLAT を選び、`(インスタンス名, WR, WRB, 記憶ノード)` を返す。
+    """行ごとに 1 個ずつ TLAT を選び、`(インスタンス名, WR, WRB, RD, 記憶ノード)` を返す。
 
     ★ **記憶ノードの名前は写さない**（抽出は `n4`、設計は `n3`。決定 22）。
     `.SUBCKT TLAT` の中で「ゲートが `WR`/`WRB` で、片方の端子が `D`」の
@@ -263,7 +263,7 @@ def tlat_rows(netlist):
             m = dict(zip(order, t[1:1 + len(order)]))
             if m["WR"] in seen: continue
             seen.add(m["WR"])
-            rows.append((t[0], m["WR"], m["WRB"], store))
+            rows.append((t[0], m["WR"], m["WRB"], m["RD"], store))
     return rows
 
 
@@ -344,9 +344,13 @@ def build_read(netlist, bit, slew, rise):
         L.append(f".meas tran webat FIND v(WEB) AT={tw0:g}n")
         # ★ 行ごとに 1 個、TLAT の中を覗く。WR と **WRB が相補か**（帰還の
         #   トランスファゲートが切れているか）と、記憶ノードが動いたか。
-        for i, (inst, wr, wrb, node) in enumerate(tlat_rows(netlist)):
+        for i, (inst, wr, wrb, rd, node) in enumerate(tlat_rows(netlist)):
             L.append(f".meas tran wrbat{i} FIND v(xu.{wrb}) AT={tw0:g}n")
             L.append(f".meas tran st{i} FIND v(xu.{inst}.{node}) AT={tw0:g}n")
+            # ★ **読出しの瞬間**（chk と同じ時刻）。書いた行がまだ 0 を
+            #   持っているか、そしてそのとき **RD が立っているのはどの行か**。
+            L.append(f".meas tran str{i} FIND v(xu.{inst}.{node}) AT={T0 - 5:g}n")
+            L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={T0 - 5:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
 
@@ -581,6 +585,18 @@ def main():
                               f"（相補でなければ帰還が切れていない）")
                         print(f"      記憶ノード = {st:.2f}  "
                               f"（D = 0 を書いているので 0 に落ちるべき）")
+                    strv = sorted((k for k in v if k.startswith("str")),
+                                  key=lambda k: int(k[3:]))
+                    rdv = sorted((k for k in v if k.startswith("rdat")),
+                                 key=lambda k: int(k[4:]))
+                    if strv:
+                        zero = [int(k[3:]) for k in strv if (v[k] or 5) < VDD / 2]
+                        rdon = [int(k[4:]) for k in rdv if (v[k] or 0) > VDD / 2]
+                        print(f"\n  ★ 読出しの瞬間 t={T0 - 5:g}ns:")
+                        print(f"    0 を保持している行 = {zero}")
+                        print(f"    RD が立っている行   = {rdon}")
+                        print("    -> 重なっていなければ「書く行」と「読む行」が"
+                              "食い違っている")
                 print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
                       "どちらも正常ならラッチ側")
             print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
