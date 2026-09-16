@@ -40,7 +40,10 @@
 | `env-knob` | warn | `os.environ` で `APR_*` を直読み → `config_base.getenv()` へ |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない |
 | `file-table` | NG | `apr/*.py` と `apr/README.md` の分類表が食い違っている |
-| `drc-const` | NG | `M1_*` / `M2_*` / `V1_*` … に**数値リテラル**を代入している → `rules.py` を引く |
+| `drc-const` | NG | プロセス定数の写し。(a) `M1_*` / `M2_*` / `V1_*` … への**数値リテラル代入** (b) **argparse の既定**に書かれた同じもの |
+
+`--constants` を付けると、**`rules.py` の「まるくない」値と一致する数値リテラル**を
+全部並べる（合否には関係しない。`docs/90_improvement_notes.md` U62 の作業リスト）。
 """
 from __future__ import annotations
 
@@ -73,6 +76,31 @@ DESIGN_ONLY_DIRS = ("out", "layout", "src", "lef", "hdl", "ngspice", "reference"
 # ★ `WN_` は入れない。`macro/regfile/mkspice.py` の `WN_TLAT` は
 #   **N ウェルではなく NMOS のチャネル幅**（W of N）で、名前だけが衝突する。
 #   名前の形だけで決めると、こういう別物を巻き込む。
+# argparse の引数名がこれを含むなら、数値の既定はプロセス定数の疑い。
+ARG_GRID_NAME = re.compile(
+    r"(pitch|offset|width|space|gap|cut|enc|track|site|row.?h|wire|trunk|grid)", re.I)
+
+# `rules.py` の値のうち**まるくない**もの（偶然の一致が起きにくい）。
+# まるい数は普通の定数としてよく出るので外す（`lw=1.0` のような別物を拾わない）。
+_ROUND = {0.0, 1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 12.0, 16.0, 20.0, 45.0,
+          64.0, 100.0, 1000.0, 0.001}
+
+
+def _rules_distinct():
+    import rules as _r
+    out = {}
+    for _k, _v in vars(_r).items():
+        if _k.startswith("_") or isinstance(_v, bool) \
+                or not isinstance(_v, (int, float)):
+            continue
+        _f = round(float(_v), 6)
+        if _f not in _ROUND:
+            out.setdefault(_f, _k)
+    return out
+
+
+RULES_DISTINCT = _rules_distinct()
+
 DRC_NAME = re.compile(
     r"^(M1|M2|V1|GC|CO)_(W|S|WIDTH|SPACE|MIN|MAX|GAP|CUT|ENC|PAD|PITCH"
     r"|OFFSET|TRUNK|WIRE|SIZE)")
@@ -209,6 +237,31 @@ def check_file(path):
                         and not isinstance(_v.value, bool):
                     add("NG", "drc-const", nd, f"{_nm} = {_v.value}",
                         "プロセス定数を写している。`rules.py` を引く（決定 11）")
+
+        # --- drc-const (b): argparse の既定に書かれた写し ---
+        # ★ (a) は**モジュール直下の代入しか見ない**ので、
+        #   `ap.add_argument("--pitch", default=5.4)` を素通りしていた
+        #   （`pin_grid_check.py` が実例。U26 で見つかった）。
+        #   引数の名前は `--pitch` のように弱い手がかりなので、
+        #   **名前の語彙**と**値が rules の「まるくない」定数と一致するか**の
+        #   両方で見る。まるい数（1.0 / 2.0 / 45.0 …）は偶然が多いので外す。
+        if isinstance(nd, ast.Call) and isinstance(nd.func, ast.Attribute) \
+                and nd.func.attr == "add_argument" \
+                and os.path.basename(path) != "rules.py":
+            _opt = next((a.value for a in nd.args
+                         if isinstance(a, ast.Constant) and isinstance(a.value, str)), "")
+            _dv = next((k.value for k in nd.keywords if k.arg == "default"), None)
+            if isinstance(_dv, ast.Constant) and isinstance(_dv.value, (int, float)) \
+                    and not isinstance(_dv.value, bool):
+                _v = round(float(_dv.value), 6)
+                _why = None
+                if ARG_GRID_NAME.search(_opt or ""):
+                    _why = "引数名がグリッド / DRC の語彙"
+                elif _v in RULES_DISTINCT:
+                    _why = f"値が rules.{RULES_DISTINCT[_v]} と同じ"
+                if _why:
+                    add("NG", "drc-const", nd, f'{_opt} default={_dv.value}',
+                        f"{_why}。既定は `rules.py` から取る（決定 11 / U26）")
 
         # (b') pathlib 形: <APRtools の根> / "out" / ...
         #   `a / "out" / "x.v"` は BinOp が入れ子になるので、**外側 1 つだけ**
@@ -349,6 +402,52 @@ def walk(roots):
                     yield os.path.join(dp, f)
 
 
+
+# 図の道具は対象外（`lw=1.4` / `ms=3.4` は線幅と点サイズで、**たまたま**
+# プロセス定数と同じ数なだけ。実測で 69 -> 52 件に減った）。
+CONST_SKIP_FILES = ("plot_", "block_report.py", "mem_array_estimate.py")
+# matplotlib の見た目のキーワード。ここに来る数字は寸法ではない。
+PLOT_KWARGS = {"lw", "linewidth", "ms", "markersize", "alpha", "fontsize",
+               "labelpad", "elinewidth", "capsize", "rotation", "dpi", "zorder"}
+
+
+def report_constants(roots):
+    """`rules.py` の「まるくない」値と一致する数値リテラルを全部並べる。
+
+    **合否には関係しない**（`SUMMARY` にも入れない）。`drc-const` が NG に
+    できるのは「名前で分かるもの」だけで、`RING_VIA = 6.8` のように
+    **名前が違うだけの写し**は名前からは分からない。値で当たりを付けて
+    人が見るための一覧。作業リストは `docs/90_improvement_notes.md` の U62。
+    """
+    found = []
+    for path in walk(roots):
+        base = os.path.basename(path)
+        if base == "rules.py" or base.startswith(CONST_SKIP_FILES[0]) \
+                or base in CONST_SKIP_FILES[1:]:
+            continue
+        src = io.open(path, encoding="utf-8").read()
+        try:
+            tree = ast.parse(src)
+        except SyntaxError:
+            continue
+        lines = src.splitlines()
+        skip = set()
+        for nd in ast.walk(tree):
+            if isinstance(nd, ast.Call):
+                for kw in nd.keywords:
+                    if kw.arg in PLOT_KWARGS:
+                        for sub in ast.walk(kw.value):
+                            skip.add(id(sub))
+        for nd in ast.walk(tree):
+            if isinstance(nd, ast.Constant) and isinstance(nd.value, (int, float)) \
+                    and not isinstance(nd.value, bool) and id(nd) not in skip:
+                v = round(float(nd.value), 6)
+                if v in RULES_DISTINCT:
+                    found.append((path, nd.lineno, v, RULES_DISTINCT[v],
+                                  lines[nd.lineno - 1].strip()[:60]))
+    return found
+
+
 def main():
     here = os.path.dirname(os.path.abspath(__file__))
     ap = argparse.ArgumentParser(
@@ -359,6 +458,8 @@ def main():
     ap.add_argument("--warn-only", action="store_true",
                     help="NG があっても 0 で終わる")
     ap.add_argument("-v", "--verbose", action="store_true", help="warn も全部出す")
+    ap.add_argument("--constants", action="store_true",
+                    help="rules.py の値と一致する数値リテラルを並べる（合否に関係しない）")
     a = ap.parse_args()
 
     found, n_files = [], 0
@@ -379,6 +480,18 @@ def main():
             print(f"  [{f.sev:4}] {f.cid:<11} {rel}:{f.line}")
             print(f"           {f.text[:96]}")
             print(f"           -> {f.hint}")
+
+    if a.constants:
+        rows = report_constants(a.roots)
+        print(f"\n--- rules.py の値と一致する数値リテラル {len(rows)} 箇所 ---")
+        print("    （合否には関係しない。名前が違うだけの写しを人が見るための一覧）")
+        cur = None
+        for pth, ln, v, nm, text in sorted(rows):
+            rel = os.path.relpath(pth, os.path.dirname(here))
+            if rel != cur:
+                cur = rel
+                print(f"  {rel}")
+            print(f"    {ln:5d}  {v:>8} = rules.{nm:<18} {text}")
 
     print(f"lint: {n_files} ファイル")
     if ng:
