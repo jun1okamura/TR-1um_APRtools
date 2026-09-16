@@ -96,8 +96,8 @@ setup/hold は二分探索をやめて**掃引**にしてあります。二分�
 
 ```sh
 python3 collect.py -p pack      # results.txt -> char/*.json
-python3 mklib.py -o ../../lef/tr1um_typ_5v0_25c.lib
-python3 verify_lib.py ../../lef/tr1um_typ_5v0_25c.lib
+python3 mklib.py -o ../stdcell/v59_4/tr1um_typ_5v0_25c.lib
+python3 verify_lib.py ../stdcell/v59_4/tr1um_typ_5v0_25c.lib
 ```
 
 `verify_lib.py` は `char/_verify.json`（collect.py が置きます）があれば
@@ -107,14 +107,18 @@ ngspice を回さず、**手順 3 と同じ実行の実測値**で検算しま�
 
 ## 何が出れば成功か
 
-`verify_lib.py` の 4 段がすべて「逸脱なし」なら `.lib` は使えます。
+`verify_lib.py` の 5 段がすべて「逸脱なし」なら `.lib` は使えます。
+引数を省くと `char/` → `stdcell/<版>/` の順に探します。**見つからなければ
+「要確認」**で終わります（回らなかった検査を「OK」と言わないため。U74）。
 
 1. **表の健全性** — 欠損なし、負荷を増やすと必ず遅くなる（単調）
 2. **格子の外での照合** — 入力遷移 1.0 ns / 負荷 150 fF（どちらも格子点では
    ない）での ngspice 実測と、`.lib` を線形補間した値のずれが 15% 未満
 3. **入力容量の妥当性** — INV_X1 が INV_X1 を N 個駆動したときの実測遅延と、
    `.lib` を「負荷 = N × capacitance」で引いた値のずれが 20% 未満
-4. **`.lib` の構文** — 括弧の対応と必須項目
+4. **マクロの書込みパス** — `REG8x16.json` の `webq` / `limits` が `.lib` に
+   **値まで一致して**出ているか。測っていない制約が紛れていないか
+5. **`.lib` の構文** — 括弧の対応と必須項目
 
 動作確認では 2 が 0.2〜1.0%、3 が 0.2〜2.5% で一致しています。
 
@@ -145,22 +149,27 @@ ngspice を回さず、**手順 3 と同じ実行の実測値**で検算しま�
 
 ---
 
-# RSLATCH を足す（`run_rslatch.sh`）
+# セルを 1 つ足す（`run_rslatch.sh`）
 
-`lef/tr1um_typ_5v0_25c.lib` には **`RSLATCH` だけ入っていない**（LEF と GDS には
-ある）。Async I2C は SR ラッチを 3 個使うので、`.lib` に無いと `abc -liberty` が
-貼れず OpenSTA も遅延を持てない。これを埋めるための一式。
+★ **`RSLATCH` は正本 `stdcell/v59_4/tr1um_typ_5v0_25c.lib` に既に入っています。**
+これは「セルを 1 つ特性化して `.lib` に足す」手順を**動く形で残したもの**で、
+そのまま流すと同じ値が出ます（増えたセル 0・変わったセル 0）。
+
+元の経緯: Async I2C は SR ラッチを 3 個使うので、`.lib` に無いと `abc -liberty`
+が貼れず OpenSTA も遅延を持てない。それを埋めるために作った一式です。
 
 ```sh
-cd scripts/char
-./run_rslatch.sh -j 18          # -j 既定は物理コア数
+cd <APRtools>/char
+./run_rslatch.sh -j 18
 ```
+
+`-j` の既定は物理コア数です。
 
 デッキは 136 本しかないので 1 分もかからない。中でやっているのは
 
 | 段 | 中身 |
 |---|---|
-| 0 | `lef/extracted/RSLATCH.extracted` → `cells_ext/RSLATCH.spi`（無ければ） |
+| 0 | `stdcell/<版>/extracted/RSLATCH.extracted` → `cells_ext/RSLATCH.spi`（無ければ） |
 | 1 | `char_latch.py gen` → `pack_rslatch/decks/` に 136 本 |
 | 2 | `runjobs.sh -p pack_rslatch` で並列実行 → `results.txt` |
 | 3 | `char_latch.py collect` → `char/RSLATCH.json` と格子外での検算 |

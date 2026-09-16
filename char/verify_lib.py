@@ -3,7 +3,7 @@
 
   usage: python3 verify_lib.py [tr1um_typ_5v0_25c.lib]
 
-3 段構え:
+5 段構え:
 
   1. **表そのものの健全性** — 欠損が無いか、値が正か、
      負荷を増やすと遅延が増えるか、入力遷移を鈍らせると遅延が増えるか。
@@ -16,6 +16,18 @@
   3. **入力容量の照合** — INV_X1 で INV_X1 を N 個駆動したときの実測遅延が、
      .lib を「負荷 = N x capacitance(A)」で引いた値と合うか。
      合えば、.lib に書いた capacitance が遅延計算に使える量だと言える。
+
+  4. **マクロの書込みパス** — `char/REG8x16.json` の `webq` と `limits` が
+     .lib に**値まで含めて**出ているか。表の形が template と合っているか。
+     測っていない制約（setup）が紛れ込んでいないか。
+
+  5. **.lib の構文** — 括弧の対応と必須項目。
+
+★ **検算する .lib が無いときは「OK」ではなく「要確認」。**
+  既定の場所が `char/` 固定（= `mklib.py` の既定の出力先）だったせいで、
+  正本を `stdcell/<版>/` に置いたあと引数無しで流すと **4-5 段目が丸ごと
+  飛んだまま「判定: OK」**と出ていた（2026-09-16 に発覚）。
+  回らなかった検査は OK ではない。
 """
 from __future__ import annotations
 import json, os, re, subprocess, sys
@@ -81,10 +93,21 @@ def check_tables():
                     if a.get(k) is not None:
                         groups.append((f"{a['related_pin']}->{a['pin']} {k}", a[k]))
         elif d.get("macro"):
-            # REG8x16 のようなマクロ。アークは read[<ADD ピン>] の下にある。
+            # REG8x16 のようなマクロ。読出しアークは read[<ADD ピン>] の下、
+            # 書込みアーク（WEB -> Q）は webq の下にある。
+            # ★ **生成側（mklib.emit_macro）が出す表は全部ここに載せる。**
+            #   載せ忘れると「検算 OK」が「検算していない」を意味してしまう。
             for ad, arc in sorted(d.get("read", {}).items()):
                 for k, t in arc.items():
                     groups.append((f"{ad}->Q {k}", t))
+            wq = d.get("webq")
+            if wq:
+                if wq.get("slews") != sl:
+                    print(f"  ! {name} webq: 入力遷移の格子が読出し側と違う "
+                          f"({wq.get('slews')} vs {sl})"); ng += 1
+                for k in ("cell_rise", "rise_transition",
+                          "cell_fall", "fall_transition"):
+                    groups.append((f"WEB->Q {k}", wq.get(k)))
         else:
             for a in d["arcs"]:
                 for k in ("cell_rise", "cell_fall", "rise_transition", "fall_transition"):
@@ -225,8 +248,149 @@ def check_cap():
     return ng
 
 
+def lib_default():
+    """検算する .lib を探す。`mklib.py` の既定の出力先 → 正本の順。
+
+    見つからなければ `None` を返し、**呼び手は NG として数える**。
+    """
+    ver = os.environ.get("TR1UM_STDCELL", "v59_4")
+    for p in (f"{HERE}/tr1um_typ_5v0_25c.lib",
+              f"{HERE}/../stdcell/{ver}/tr1um_typ_5v0_25c.lib"):
+        if os.path.exists(p):
+            return os.path.normpath(p)
+    return None
+
+
+def _block(txt, start):
+    """txt[start] 以降の最初の `{` から、対応する `}` までを返す"""
+    i = txt.index("{", start)
+    depth = 0
+    for j in range(i, len(txt)):
+        if txt[j] == "{":
+            depth += 1
+        elif txt[j] == "}":
+            depth -= 1
+            if depth == 0:
+                return txt[start:j + 1]
+    return None
+
+
+def lib_cell_block(txt, cell):
+    m = re.search(r"^\s*cell \(%s\)\s*\{" % re.escape(cell), txt, re.M)
+    return None if not m else _block(txt, m.start())
+
+
+def timing_groups(blk):
+    """`timing () { ... }` を括弧の対応で切り出す（入れ子の values も込み）"""
+    for m in re.finditer(r"timing \(\)\s*\{", blk):
+        g = _block(blk, m.start())
+        if g:
+            yield g
+
+
+# scalar 制約の値だけを拾う。表（`values("a, b, ...", \ ...)`）は
+# 数字の直後に `"` が来ないので、この正規表現には掛からない。
+SCALAR_V = re.compile(r'values\(\s*"(-?[\d.]+(?:[eE][-+]?\d+)?)"\s*\)')
+
+
+def check_macro(path):
+    """マクロが **測った通りに .lib へ出ているか**（json ⇔ .lib）。
+
+    U73 の教訓は「Liberty に書いた」で終わりにしないこと。ここでは
+    **書いたはずの値が .lib の中に本当にあるか**を突き合わせる。
+    （その制約を STA が見るかどうかは別の話で、`syn/sta/check_macro_arcs.tcl`
+    の担当。見ないと分かっている `min_pulse_width` も、.lib には
+    記録として出ている必要がある。）
+    """
+    print("\n--- 4. マクロの書込みパス（json ⇔ .lib）---")
+    if not path:
+        print("  ! 検算する .lib が見つからない"); return 1
+    txt = open(path).read()
+    ng, seen_any = 0, False
+    for f in sorted(os.listdir(f"{HERE}/char")):
+        if not f.endswith(".json") or f.startswith("_"):
+            continue
+        d = json.load(open(f"{HERE}/char/{f}"))
+        if not d.get("macro"):
+            continue
+        seen_any = True
+        name = d["cell"]
+        blk = lib_cell_block(txt, name)
+        if blk is None:
+            print(f"  ! {name}: .lib に cell ({name}) が無い"); ng += 1; continue
+        ns, nl = len(d["slews"]), len(d["loads"])
+
+        # (a) 表の形が template と合っているか
+        tabs = [(f"{ad}->Q", arc) for ad, arc in sorted(d.get("read", {}).items())]
+        if d.get("webq"):
+            tabs.append(("WEB->Q", d["webq"]))
+        for label, arc in tabs:
+            for k in ("cell_rise", "rise_transition", "cell_fall", "fall_transition"):
+                t = arc.get(k)
+                if not t or len(t) != ns or any(len(r) != nl for r in t):
+                    shape = "無し" if not t else f"{len(t)}x{len(t[0])}"
+                    print(f"  ! {name} {label} {k}: 表が {ns}x{nl} でない（{shape}）")
+                    ng += 1
+
+        # (b) limits そのものの筋
+        lim = d.get("limits", {})
+        for knob, x in sorted(lim.items()):
+            if not (x["pass"] > x["fail"] > 0):
+                print(f"  ! {name} limits.{knob}: "
+                      f"pass {x['pass']} > fail {x['fail']} > 0 になっていない"); ng += 1
+            if x.get("netlist") != d.get("netlist"):
+                print(f"  ! {name} limits.{knob}: 表と違うネットリストで測っている"
+                      f"（{x.get('netlist')} vs {d.get('netlist')}）"); ng += 1
+
+        # (c) .lib に出ているか — 値まで突き合わせる
+        got = {}
+        for g in timing_groups(blk):
+            m = re.search(r"timing_type\s*:\s*(\w+)\s*;", g)
+            tt = m.group(1) if m else "(無指定)"
+            got.setdefault(tt, []).extend(float(v) for v in SCALAR_V.findall(g))
+        exp = {}
+        if "weblow" in lim:
+            exp["min_pulse_width"] = [lim["weblow"]["pass"]]
+        h = [lim[k]["pass"] for k in ("webpre", "dhold") if k in lim]
+        if h:
+            exp["hold_rising"] = sorted(h * 2)    # rise/fall で 2 本ずつ
+        exp["combinational"] = None               # 本数だけ見る（表は (a) で見た）
+        for tt, want in exp.items():
+            have = got.get(tt)
+            if have is None:
+                print(f"  ! {name}: .lib に {tt} が無い（json には測定値がある）")
+                ng += 1; continue
+            if want is None:
+                continue
+            if len(have) != len(want) or any(
+                    abs(a - b) > 1e-4 for a, b in zip(sorted(have), want)):
+                print(f"  ! {name} {tt}: .lib の値 {sorted(have)} が "
+                      f"json の {want} と違う"); ng += 1
+        narc = len(got.get("combinational", [])) or \
+            sum(1 for g in timing_groups(blk) if "combinational" in g)
+        nwant = len(d.get("read", {})) + (1 if d.get("webq") else 0)
+        if narc != nwant:
+            print(f"  ! {name}: 組合せアークが {narc} 本（json からは {nwant} 本）")
+            ng += 1
+
+        # (d) 測っていない制約が紛れていないか
+        for tt in sorted(got):
+            if tt.startswith("setup") or tt.startswith("recovery") \
+                    or tt.startswith("removal"):
+                print(f"  ! {name}: 測っていない {tt} が .lib にある"); ng += 1
+
+        print(f"  {name}: 組合せアーク {narc} 本 / "
+              f"{' / '.join(f'{k} {sorted(v)}' for k, v in sorted(got.items()) if v)}")
+    if not seen_any:
+        print("  マクロの json が無い（検査するものが無い）")
+    print("  逸脱なし" if ng == 0 else f"  ** {ng} 件")
+    return ng
+
+
 def check_lib_syntax(path):
-    print(f"\n--- 4. .lib の構文（括弧の対応・必須項目）---")
+    print(f"\n--- 5. .lib の構文（括弧の対応・必須項目）---")
+    if not path:
+        print("  ! 検算する .lib が見つからない"); return 1
     txt = open(path).read()
     depth, ng = 0, 0
     for i, ch in enumerate(txt):
@@ -249,13 +413,15 @@ def check_lib_syntax(path):
 
 
 if __name__ == "__main__":
-    lib = sys.argv[1] if len(sys.argv) > 1 else f"{HERE}/tr1um_typ_5v0_25c.lib"
+    lib = sys.argv[1] if len(sys.argv) > 1 else lib_default()
     print("=" * 72)
     print(" Liberty 検算")
     print("=" * 72)
+    # ★ 機械依存のパスをログに焼き付けない（U24）。char/ からの相対で出す。
+    shown = os.path.relpath(lib, HERE) if lib else "** 見つからない **"
+    print(f" 検算する .lib: {shown}")
     n = check_tables() + check_offgrid() + check_cap()
-    if os.path.exists(lib):
-        n += check_lib_syntax(lib)
+    n += check_macro(lib) + check_lib_syntax(lib)
     print("\n" + "=" * 72)
     print("判定: OK" if n == 0 else f"判定: 要確認 {n} 件")
     sys.exit(1 if n else 0)

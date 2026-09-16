@@ -1,13 +1,17 @@
 #!/bin/bash
-# RSLATCH を ngspice で特性化して lef/tr1um_typ_5v0_25c.lib に足す。
+# セルを 1 つ ngspice で特性化して正本の .lib に足す（見本は RSLATCH）。
 #
-#   usage: cd scripts/char && ./run_rslatch.sh [-j 並列数] [-m モデルのディレクトリ]
+#   usage: cd <APRtools>/char && ./run_rslatch.sh [-j 並列数] [-m モデルのディレクトリ]
+#
+# ★ **RSLATCH は正本 `stdcell/<版>/tr1um_typ_5v0_25c.lib` に既に入っている。**
+#   これは「セルを 1 つ足す」手順を動く形で残したもので、流すと同じ値が出る
+#   （`.bak` との比較で「増えた: なし / 中身が変わった: なし」になる）。
 #
 # Mac（ngspice がある機械）で流す前提。デッキは 250 本ほどなので
 # 18 コアなら 1 分かからない。
 #
 # 何をするか:
-#   1. lef/extracted/RSLATCH.extracted -> cells_ext/RSLATCH.spi（無ければ）
+#   1. stdcell/<版>/extracted/RSLATCH.extracted -> cells_ext/RSLATCH.spi（無ければ）
 #   2. char_latch.py gen      デッキを pack_rslatch/decks/ に書き出す
 #   3. runjobs.sh             並列に流して pack_rslatch/results.txt に集める
 #   4. char_latch.py collect  char/RSLATCH.json を作り、格子の外で検算する
@@ -22,7 +26,10 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 cd "$HERE"
 
 PACK="$HERE/pack_rslatch"
-LIB="$HERE/../../lef/tr1um_typ_5v0_25c.lib"
+# ★ 正本は `stdcell/<版>/`（U65 で設計側の複製を消した）。
+#   `../../lef/` は設計リポジトリに居た頃の道で、APRtools ではリポジトリの外を指す。
+STDCELL="${TR1UM_STDCELL:-v59_4}"
+LIB="$HERE/../stdcell/$STDCELL/tr1um_typ_5v0_25c.lib"
 MODELS="${TR1UM_MODELS:-}"
 # ★ 既定は PDK を参照する（リポジトリにモデルを写さない。U65）。
 if [ -z "$MODELS" ]; then
@@ -39,7 +46,7 @@ while getopts "j:m:h" o; do
   case "$o" in
     j) J="$OPTARG" ;;
     m) MODELS="$OPTARG" ;;
-    h) sed -n '2,20p' "$0"; exit 0 ;;
+    h) sed -n '2,23p' "$0"; exit 0 ;;
     *) exit 2 ;;
   esac
 done
@@ -55,7 +62,8 @@ command -v python3 >/dev/null || die "python3 が無い"
 
 say "0. セルの SPICE ネットリスト"
 if [ ! -f "$HERE/cells_ext/RSLATCH.spi" ]; then
-  python3 loadext.py ../../lef/extracted -o cells_ext || die "loadext.py に失敗"
+  python3 loadext.py "../stdcell/$STDCELL/extracted" -o cells_ext \
+    || die "loadext.py に失敗"
 fi
 grep -q '^\.SUBCKT RSLATCH' "$HERE/cells_ext/RSLATCH.spi" \
   || die "cells_ext/RSLATCH.spi が壊れている"
