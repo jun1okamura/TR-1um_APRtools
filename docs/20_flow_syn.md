@@ -151,8 +151,14 @@ sh syn/sta/sta.sh <netlist> <top> <period_ns> syn/sta/path.tcl   # クリティ�
 - **配線容量ゼロ**（P&R 前なのでネット容量は駆動セルの負荷だけ）。
   **TR-1um の M2 は幅 3.4 µm と太いので、実配線が乗ると悪化する**
 - **クロックツリー無し**（`set_ideal_network` で skew 0）
-- `RSTB` の `recovery` / `removal` と `min_pulse_width` が未特性化
-- `REG8x16` のタイミングが `.lib` に無い（マクロを使う設計は STA にかけられない）
+- `RSTB` の `recovery` / `removal` と `min_pulse_width` が未特性化（U8）。
+  TD4 / I2C はリセットが**電源投入時に一度きり**なので `set_false_path` で正しいが、
+  **SCLK_SPI の `cnt_rstn = rstn & ~cs_n` はフレームごとに解除される**ので
+  前提が成り立たない（20 FF 中 4 個。余裕は半周期あるが**測っていない**）
+- `REG8x16` は**読出しパスだけ**が `.lib` に入っている（`bus (Q)` の
+  `related_pin: "ADD[0..3]"` 組合せアーク）。**読出しは STA に当たる。**
+  書込み（`D`/`ADD` の setup/hold、`WEB` -> `Q`、`WEB` 最小ローパルス幅）は
+  未特性化なので、書込みタイミングは STA で見えない（U7）
 
 ### OpenSTA のビルド
 
@@ -182,7 +188,9 @@ SYN_LIB = None                   # 既定 = stdcell_file("tr1um_typ_5v0_25c.lib"
 SYN_TOP = "spi_slave_sclk"
 STA_CLK_PORT = "sclk"            # クロックを入れるポート
 STA_PERIOD_NS = 100.0
-STA_FALSE_PATH_FROM = ["rstn"]   # recovery/removal は未特性化なので外す
+STA_FALSE_PATH_FROM = ["rstn"]   # recovery/removal は未特性化なので外す（★ U8:
+                                 #   外してよいのは「電源投入時だけのリセット」
+                                 #   と確かめた設計だけ。設計ごとに見ること）
 STA_NON_SIGNAL_PORTS = []        # 構造セルの電源ポート（I2C は VDD/GND）
 ```
 

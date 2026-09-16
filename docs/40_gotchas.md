@@ -742,7 +742,11 @@ ABC は同じ入力に繋がった同じセルを何個も撒き、それが**�
 ### 8-5. STA にまだ入っていない前提
 
 配線容量ゼロ（**TR-1um の M2 は幅 3.4 µm と太いので実配線が乗ると悪化する**）、
-クロックツリー無し、`RSTB` の recovery/removal と min_pulse_width 未特性化。
+クロックツリー無し、`RSTB` の recovery/removal と min_pulse_width 未特性化
+（**`set_false_path -from rstn` で外してよいのは「電源投入時だけのリセット」と
+確かめた設計だけ**。SCLK_SPI の `cnt_rstn = rstn & ~cs_n` はフレームごとに
+解除されるので前提が崩れる — U8）。`REG8x16` は**読出しアークだけ**が入っている
+（書込みの setup/hold は未特性化 — U7）。
 Liberty のタイミングがプレースホルダの版は**面積見積もり専用で STA に使えない**。
 
 ### 8-6. OpenSTA のビルド（macOS Apple Silicon）
