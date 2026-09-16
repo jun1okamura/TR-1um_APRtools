@@ -1,6 +1,6 @@
 # check_macro_arcs.tcl -- REG8x16 の書込み制約を OpenSTA が見るかの確認。
 #
-#   sta -no_splash -exit -f syn/sta/check_macro_arcs.tcl
+#   sta -no_splash -exit syn/sta/check_macro_arcs.tcl
 #   （LIB / NET は環境変数で差し替えられる）
 #
 # ★ 「Liberty が読める」と「制約が使われる」は別（U7）。read_liberty が
