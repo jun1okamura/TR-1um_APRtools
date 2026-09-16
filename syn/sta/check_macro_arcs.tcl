@@ -68,3 +68,19 @@ try "低の幅 5ns のクロックに差し替える（要求は 11ns）" {
 try "最小パルス幅（違反が出るはず）" {
     report_check_types -min_pulse_width -digits 3
 }
+
+puts "\n===== D. SDC の set_min_pulse_width なら効くか ====="
+# ★ ライブラリの min_pulse_width は（clock : true を足しても）出なかった。
+#   OpenSTA が見ていないのなら、**設計側の SDC で担保する**しかない。
+#   その道が使えるかをここで確かめる。使えるなら手順に書く。
+try "set_min_pulse_width 11 を WEB に当てる" {
+    set_min_pulse_width 11 [get_pins u_mem/WEB]
+}
+try "最小パルス幅（低 5ns なので違反が出るはず）" {
+    report_check_types -min_pulse_width -digits 3
+}
+try "クロックに直接当てる形も試す" {
+    set_min_pulse_width 11 [get_clocks WEBCK]
+    report_check_types -min_pulse_width -digits 3
+}
+try "全部の検査の内訳" { report_check_types -max_delay -min_delay -digits 3 }
