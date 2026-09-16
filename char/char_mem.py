@@ -135,6 +135,11 @@ IDLE = 100.0            # 最初の書込みの前に置く待ち時間 [ns]
 TW = 120.0              # 1 ワードの書込みに使う時間 [ns]
 SETTLE = 100.0          # 書込み後に落ち着かせる時間 [ns]
 TAIL = 400.0            # 測定エッジの後ろに取る時間 [ns]
+# ★ **WEB を上げてから次のワードのアドレス / データを変えるまでの余裕** [ns]。
+#   内部の WEB は 16 個の DEC2 の NOR2 を駆動するバッファを通るので遅い
+#   （IDLE が要るのと同じ理由。この docstring の冒頭を参照）。ここが足りないと
+#   **アドレスが変わる瞬間にまだ書込みが有効**で、前の行に次のデータが入る。
+WEB_PRE = 5.0
 WORDS = [(0, 0x00), (1, 0xFF), (2, 0xFF), (4, 0xFF), (8, 0xFF)]
 
 APIN = [f"A{j}" for j in range(4)]
@@ -193,7 +198,7 @@ def write_phase():
             add[j].append((t, VDD if (a >> j) & 1 else 0))
         for i in range(8):
             dat[i].append((t, VDD if (d >> i) & 1 else 0))
-        web += [(t, VDD), (t + 20, 0), (t + TW - 20, 0), (t + TW - 5, VDD)]
+        web += [(t, VDD), (t + 20, 0), (t + TW - 20, 0), (t + TW - WEB_PRE, VDD)]
         t += TW
     return add, dat, web, t
 
@@ -557,7 +562,7 @@ def strip_junction(netlist, mode):
 
 
 
-def sweep_edge(a, edges):
+def sweep_edge(a, vals, knob="edge"):
     """刺激の縁を振って、**書込みが保持できる境界**を出す（U7 / U2）。
 
     `TLAT` にキーパーが無いので、トランスファゲートが閉じるときの電荷注入に
@@ -567,15 +572,17 @@ def sweep_edge(a, edges):
     ★ 縁は `WEB` だけでなく `ADD` / `D` にも同じ値がかかる（`step()` が
       全部の刺激を同じ台形にする）。**分けて振りたくなったらここを直す。**
     """
-    global EDGE
+    global EDGE, WEB_PRE
+    label = {"edge": "縁", "webpre": "WEB 余裕"}[knob]
     rows = []
-    for e in edges:
-        EDGE = e
-        v = run(build_read(a.netlist, 0, SLEWS[3], True), f"edge{e:g}")
+    for e in vals:
+        if knob == "edge": EDGE = e
+        else: WEB_PRE = e
+        v = run(build_read(a.netlist, 0, SLEWS[3], True), f"{knob}{e:g}")
         chk = v.get("chk")
         ok = chk is not None and chk < VDD / 2
         rows.append((e, chk, ok))
-        print(f"  縁 {e:>6.2f} ns  読出し直前の Q[0] = "
+        print(f"  {label} {e:>6.2f} ns  読出し直前の Q[0] = "
               f"{'—' if chk is None else format(chk, '.3f')}  "
               f"{'保持する' if ok else '保持しない'}")
     good = [e for e, _, ok in rows if ok]
@@ -583,11 +590,11 @@ def sweep_edge(a, edges):
     print()
     if good and bad:
         print(f"  ★ 境界: {max(bad):g} ns では保持せず、{min(good):g} ns では保持する")
-        print(f"     -> `WEB` の縁は **{min(good):g} ns 以上**が要る（この条件で）")
+        print(f"     -> {label}は **{min(good):g} ns 以上**が要る（この条件で）")
     elif good:
-        print(f"  ★ 振った範囲（{min(edges):g}〜{max(edges):g} ns）では**全部保持した**")
+        print(f"  ★ 振った範囲（{min(vals):g}〜{max(vals):g} ns）では**全部保持した**")
     else:
-        print(f"  ★ 振った範囲（{min(edges):g}〜{max(edges):g} ns）では**どれも保持しない**")
+        print(f"  ★ 振った範囲（{min(vals):g}〜{max(vals):g} ns）では**どれも保持しない**")
     print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
 
 
@@ -691,6 +698,9 @@ def main():
     ap.add_argument("--probe", action="store_true",
                     help="書込みの経路を段ごとに見る（U2）。行選択の WR 線が"
                          "1 本でも上がるかを測り、デコーダ側かラッチ側かを分ける")
+    ap.add_argument("--web-pre", default=None,
+                    help="WEB を上げてから次のワードのアドレス/データを変える"
+                         "までの余裕 [ns]（既定 5）。**カンマ区切りで掃引できる**")
     ap.add_argument("--edge", default=None,
                     help="刺激の縁の時間 [ns]（既定 0.1）。**カンマ区切りで複数**"
                          "書くと掃引して、書込みが保持できる境界を出す（U7 / U2）")
@@ -725,16 +735,22 @@ def main():
         raise SystemExit(
             f"** ネットリストが無い: {a.netlist}\n"
             f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
-    global EDGE
+    global EDGE, WEB_PRE
     edges = ([float(x) for x in a.edge.split(",")] if a.edge else [])
     if len(edges) == 1:
         EDGE = edges[0]
+    pres = ([float(x) for x in a.web_pre.split(",")] if a.web_pre else [])
+    if len(pres) == 1:
+        WEB_PRE = pres[0]
     if a.strip != "none":
         a.netlist = strip_junction(a.netlist, a.strip)
         print(f"  接合パラメータ {a.strip} の写し: {a.netlist}")
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     if len(edges) > 1:                      # ★ 掃引なら普通の測定はしない
-        sweep_edge(a, edges)
+        sweep_edge(a, edges, "edge")
+        return
+    if len(pres) > 1:
+        sweep_edge(a, pres, "webpre")
         return
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}}
