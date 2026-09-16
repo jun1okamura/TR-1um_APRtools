@@ -182,13 +182,13 @@ def write_phase():
 PROBE = False          # --probe。書込みの経路を段ごとに見る（U2）
 
 
-def wr_nets(netlist):
-    """アレイの中の **WR 線 16 本**（行選択の書込みストローブ）を netlist から拾う。
+def tlat_nets(netlist, pin):
+    """アレイの中の TLAT の `pin` に繋がっているネットを重複なしで拾う。
 
-    ★ 行の番号は分からなくてよい。知りたいのは「**どれか 1 本でも上がるか**」
-      だけで、それで「デコーダが出していない」と「ラッチが取り込まない」を
-      分けられる。名前をこちらに写さない（決定 22）ので、
-      `.SUBCKT TLAT` の並びから `WR` の位置を読んで、インスタンス行から取る。
+    ★ 行や列の番号は分からなくてよい。知りたいのは「**何本が振れるか**」
+      だけで、それで段を切り分けられる（`WR` が立つか / `D` が届くか）。
+      名前をこちらに写さない（決定 22）ので、`.SUBCKT TLAT` の並びから
+      その pin の位置を読んで、インスタンス行から取る。
     """
     lines = []
     for ln in open(netlist, encoding="utf-8"):
@@ -199,9 +199,9 @@ def wr_nets(netlist):
     for ln in lines:
         t = ln.split()
         if len(t) > 2 and t[0].lower() == ".subckt" and t[1] == "TLAT":
-            if "WR" not in t[2:]:
+            if pin not in t[2:]:
                 return []
-            idx = t[2:].index("WR")
+            idx = t[2:].index(pin)
             break
     if idx is None:
         return []
@@ -279,8 +279,12 @@ def build_read(netlist, bit, slew, rise):
     if PROBE:
         # ★ 書込みフェーズのあいだ、行選択の WR 線が 1 本でも上がるか。
         #   上がらなければデコーダ側、上がるならラッチ側（U2）。
-        for i, n in enumerate(wr_nets(netlist)):
+        for i, n in enumerate(tlat_nets(netlist, "WR")):
             L.append(f".meas tran wr{i} MAX v(xu.{n}) FROM=0n TO={t:g}n")
+        # D 線（列ごとに 1 本）。書込みの**データ**がセルまで来ているか。
+        for i, n in enumerate(tlat_nets(netlist, "D")):
+            L.append(f".meas tran dmax{i} MAX v(xu.{n}) FROM=0n TO={t:g}n")
+            L.append(f".meas tran dmin{i} MIN v(xu.{n}) FROM=0n TO={t:g}n")
         L.append(f".meas tran webmin MIN v(WEB) FROM=0n TO={t:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
@@ -483,7 +487,18 @@ def main():
                 if wr:
                     print("    最大値: " + ", ".join(f"{v[k]:.2f}" for k in wr[:8])
                           + (" …" if len(wr) > 8 else ""))
-                print("  -> 0 本ならデコーダ側、1 本以上ならラッチ側の問題")
+                dmx = sorted(k for k in v if k.startswith("dmax"))
+                dmn = sorted(k for k in v if k.startswith("dmin"))
+                if dmx:
+                    sw = [k for k in dmx
+                          if (v[k] or 0) > VDD / 2
+                          and (v.get("dmin" + k[4:]) or VDD) < VDD / 2]
+                    print(f"  セル側の D 線 {len(dmx)} 本のうち "
+                          f"**{len(sw)} 本**が 0V と 5V の両方に振れた")
+                    print("    最大: " + ", ".join(f"{v[k]:.2f}" for k in dmx)
+                          + "\n    最小: " + ", ".join(f"{v[k]:.2f}" for k in dmn))
+                print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
+                      "どちらも正常ならラッチ側")
             print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
             return
         for b in range(4):
