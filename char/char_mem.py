@@ -286,6 +286,14 @@ def build_read(netlist, bit, slew, rise):
             L.append(f".meas tran dmax{i} MAX v(xu.{n}) FROM=0n TO={t:g}n")
             L.append(f".meas tran dmin{i} MIN v(xu.{n}) FROM=0n TO={t:g}n")
         L.append(f".meas tran webmin MIN v(WEB) FROM=0n TO={t:g}n")
+        # ★ **word0 を書いている瞬間**を切って見る。範囲の MAX/MIN では
+        #   「立った」ことしか分からず、**同時に**立っているかが分からない。
+        tw0 = IDLE + TW / 2
+        for i, n in enumerate(tlat_nets(netlist, "WR")):
+            L.append(f".meas tran wrat{i} FIND v(xu.{n}) AT={tw0:g}n")
+        for i, n in enumerate(tlat_nets(netlist, "D")):
+            L.append(f".meas tran dat{i} FIND v(xu.{n}) AT={tw0:g}n")
+        L.append(f".meas tran webat FIND v(WEB) AT={tw0:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
 
@@ -497,6 +505,18 @@ def main():
                           f"**{len(sw)} 本**が 0V と 5V の両方に振れた")
                     print("    最大: " + ", ".join(f"{v[k]:.2f}" for k in dmx)
                           + "\n    最小: " + ", ".join(f"{v[k]:.2f}" for k in dmn))
+                wat = sorted((k for k in v if k.startswith("wrat")),
+                             key=lambda k: int(k[4:]))
+                dat = sorted((k for k in v if k.startswith("dat")),
+                             key=lambda k: int(k[3:]))
+                if wat:
+                    on = [k for k in wat if (v[k] or 0) > VDD / 2]
+                    print(f"\n  ★ word0（= 0x00）を書いている瞬間 t={IDLE + TW/2:g}ns:")
+                    print(f"    WEB = {v.get('webat'):.2f}  "
+                          f"WR が立っている行 = **{len(on)} 本**"
+                          f"（1 本であるべき）")
+                    print("    D = " + " ".join(f"{v[k]:.1f}" for k in dat)
+                          + "  （0x00 なので全部 0 であるべき）")
                 print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
                       "どちらも正常ならラッチ側")
             print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
