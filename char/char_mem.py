@@ -368,6 +368,11 @@ def build_read(netlist, bit, slew, rise):
                          f"AT={IDLE + TW / 2 + k * TW:g}n")
                 L.append(f".meas tran w{k}r{i} FIND v(xu.{wr}) "
                          f"AT={IDLE + TW / 2 + k * TW:g}n")
+                # ★ **WRB も追う**。WR = 0 のとき WRB = 5 でなければ
+                #   帰還のトランスファゲートが**両方とも off** になり、
+                #   記憶ノードが浮く（浮けば接合のリークで VDD 側へ戻る）。
+                L.append(f".meas tran w{k}b{i} FIND v(xu.{wrb}) "
+                         f"AT={IDLE + TW / 2 + k * TW:g}n")
             L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={read_time():g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
@@ -456,28 +461,41 @@ RE_PERIM = re.compile(r"\s+P[SD]=\S+", re.I)
 
 
 def strip_junction(netlist, mode):
-    """接合パラメータを落とした写しを作り、その道を返す（U2 の切り分け用）。
+    """接合パラメータを触った写しを作り、その道を返す（U2 の切り分け用）。
 
-    ★ **落とすと 0 になるのではなく、PDK のサブサーキットの既定式に戻る**:
+    ★ **`area` / `perim` / `both` は「落とす」= PDK の既定式に戻す**:
         AS/AD = w*sdwidth        PS/PD = 2*(sdwidth+w)
-    つまり**設計ネットリストと同じ扱い**になる。抽出の実測値はどれも
-    この既定以下（この設計で確認済み）なので、「落とすと動く」は
-    「容量が減ったから」では説明がつかない。そこが U2 の謎。
+      つまり**設計ネットリストと同じ扱い**になる。抽出の実測値はどれも
+      この既定以下（全素子で比 0.21〜1.00）なので、**接合が増える方向**に
+      しか動かせない。
+
+    ★ **`zero-*` は 0 を明示的に入れる** = 接合を消す。容量そのものが
+      効いているのかを試せるのはこちらだけ。
+      **以前の記録「PS/PD だけ外すと動く」は、こちらのことだった可能性がある**
+      （消すのと 0 を入れるのは別物）。
     """
-    out = netlist.replace(".spi", "") + f"_no-{mode}.spi"
+    zero = mode.startswith("zero-")
+    what = mode.split("-")[-1]
+    out = netlist.replace(".spi", "") + f"_{mode}.spi"
     n = 0
     with open(netlist, encoding="utf-8") as f, open(out, "w", encoding="utf-8") as g:
         for ln in f:
             if ln[:2].upper() == "XM" or ln[:1].upper() == "M":
-                before = ln
-                if mode in ("area", "both"):
-                    ln = RE_AREA.sub("", ln.rstrip("\n")) + "\n"
-                if mode in ("perim", "both"):
-                    ln = RE_PERIM.sub("", ln.rstrip("\n")) + "\n"
+                before, body = ln, ln.rstrip("\n")
+                if what in ("area", "both"):
+                    body = RE_AREA.sub("", body)
+                    if zero:
+                        body += " AS=0 AD=0"
+                if what in ("perim", "both"):
+                    body = RE_PERIM.sub("", body)
+                    if zero:
+                        body += " PS=0 PD=0"
+                ln = body + "\n"
                 n += (ln != before)
             g.write(ln)
-    print(f"  {n} 行から落とした")
+    print(f"  {n} 行を書き換えた（{'0 を入れた' if zero else 'PDK の既定式に戻した'}）")
     return out
+
 
 
 def probe_summary(v):
@@ -532,8 +550,13 @@ def probe_summary(v):
             for k in range(len(WORDS)):
                 st, wr_ = v.get(f"w{k}s{r}"), v.get(f"w{k}r{r}")
                 if st is None: continue
+                wb = v.get(f"w{k}b{r}")
+                hold = "" if wb is None else (
+                    "  帰還 **切れている**" if (wb if wb is not None else 0) < VDD / 2
+                    and (wr_ or 0) < VDD / 2 else "  帰還 ○")
                 tr.append(f"word{WORDS[k][0]}: 記憶 {st:.1f} "
-                          f"/ WR {'**立つ**' if (wr_ or 0) > VDD / 2 else '0'}")
+                          f"/ WR {'**立つ**' if (wr_ or 0) > VDD / 2 else '0'}"
+                          f" / WRB {'-' if wb is None else format(wb, '.1f')}{hold}")
             if tr:
                 print(f"    行 {r}（読む行）の足取り:")
                 for x in tr: print(f"      {x}")
@@ -565,16 +588,18 @@ def main():
     ap.add_argument("--quick", action="store_true",
                     help="代表 1 点（ADD[0] / slew 1.5ns / rise）だけ回す。"
                          "書込みが効いているかを見るだけならこれで足りる")
-    ap.add_argument("--strip", choices=["none", "area", "perim", "both"],
-                    default="none",
-                    help="接合パラメータを落とした写しで回す（U2 の切り分け）。"
+    ap.add_argument("--strip", default="none",
+                    choices=["none", "area", "perim", "both",
+                             "zero-area", "zero-perim", "zero-both"],
+                    help="接合パラメータを触った写しで回す（U2 の切り分け）。"
                          "area=AS/AD / perim=PS/PD / both=両方。"
-                         "落とすと PDK の既定式に戻る（0 になるのではない）")
+                         "**そのままは PDK の既定式に戻す**（＝増える方向）。"
+                         "zero- を付けると 0 を入れる（＝接合を消す）")
     a = ap.parse_args()
     need_ngspice()                              # 先に確かめる（決定 23）
     global PORTS, RUNTAG, PROBE
     PROBE = a.probe
-    RUNTAG = ("ext" if a.ext else "src") + ("" if a.strip == "none" else f"_no-{a.strip}")
+    RUNTAG = ("ext" if a.ext else "src") + ("" if a.strip == "none" else f"_{a.strip}")
     if a.out is None:
         a.out = (f"{HERE}/char/{CELL}.json" if RUNTAG == "src"
                  else f"{HERE}/char/{CELL}_{RUNTAG}.json")
@@ -593,7 +618,7 @@ def main():
             f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
     if a.strip != "none":
         a.netlist = strip_junction(a.netlist, a.strip)
-        print(f"  接合パラメータ {a.strip} を落とした写し: {a.netlist}")
+        print(f"  接合パラメータ {a.strip} の写し: {a.netlist}")
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}}
