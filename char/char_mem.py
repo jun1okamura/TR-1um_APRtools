@@ -43,16 +43,27 @@ P&R の本命 `td4_soc_arr_bb` は `REG8x16` をマクロとして持つので�
   `lef/simulation/REG8x16.spice`（設計ネットリスト）では期待どおり動く
   —— word0 に 0x00、word1/2/4/8 に 0xFF を書いて読み戻せる。
   ところが `lef/extracted/REG8x16.extracted` を同じ刺激で回すと
-  **どのアドレスを読んでも 5V** になる。切り分けた結果:
+  **どのアドレスを読んでも 5V** になる。
 
-    そのまま         動かない
-    AS/AD だけ外す   動かない
-    PS/PD だけ外す   **動く**（22.28ns -> 21.81ns）
+  ★ **2026-09-16: 以前ここに書いていた切り分け結果は再現しなかった。**
+    旧記述は「AS/AD だけ外す → 動かない / **PS/PD だけ外す → 動く**
+    （22.28ns -> 21.81ns）」で、そこから「原因は PS/PD」としていた。
+    `--strip` で 3 通りを回し直したところ（Mac / ngspice）:
 
-  `PS`/`PD`（接合の周長）が原因。`PS < W` のような異常値は 1876 素子中 0 件で、
-  値そのものは PDK の既定式 `2*(sdwidth+w)` と桁も合う。PDK のモデル
-  (`models_IP62_mos_v2.lib` の `.subckt PMOS` -> `M1 ... ps=ps pd=pd`) の
-  解釈を追う必要がある。当面は設計ネットリスト（既定）で測る。
+        そのまま         Q[0] = 5.0   効かない
+        PS/PD を既定へ   Q[0] = 5.0   効かない
+        AS/AD を既定へ   Q[0] = 5.0   効かない
+
+    **どれも効かない。** つまり「PS/PD が原因」という結論の根拠が無い。
+    接合パラメータの話ではないところに原因がある。
+
+  ★ 分かっていること（U2 の進捗、`docs/90_improvement_notes.md`）:
+      2 つのネットリストは**同じ回路**（素子 1,876 個・葉セル 4 つの
+      トポロジ・アレイ 112 ネットの使われ方まで一致）。
+      トップのポート順も `PORTS_EXT` と実物が一致している。
+  ★ 次に確かめること: **設計ネットリストの方はいま本当に動くのか**。
+      `char/REG8x16.json` は設計ネットリストで測れた記録だが、
+      当時と ngspice の版が違う。両方を同じ日に回して比べる。
 
   （抽出が実行ごとに揺れるという以前の推測は**誤り**。3 回流して同一で、
     REG8x16 の抽出もバイト一致。順が違って見えたのは抽出スコープの違い。）
@@ -168,6 +179,46 @@ def write_phase():
     return add, dat, web, t
 
 
+PROBE = False          # --probe。書込みの経路を段ごとに見る（U2）
+
+
+def wr_nets(netlist):
+    """アレイの中の **WR 線 16 本**（行選択の書込みストローブ）を netlist から拾う。
+
+    ★ 行の番号は分からなくてよい。知りたいのは「**どれか 1 本でも上がるか**」
+      だけで、それで「デコーダが出していない」と「ラッチが取り込まない」を
+      分けられる。名前をこちらに写さない（決定 22）ので、
+      `.SUBCKT TLAT` の並びから `WR` の位置を読んで、インスタンス行から取る。
+    """
+    lines = []
+    for ln in open(netlist, encoding="utf-8"):
+        ln = ln.rstrip("\n")
+        if ln.startswith("+") and lines: lines[-1] += " " + ln[1:].strip()
+        else: lines.append(ln)
+    idx = None
+    for ln in lines:
+        t = ln.split()
+        if len(t) > 2 and t[0].lower() == ".subckt" and t[1] == "TLAT":
+            if "WR" not in t[2:]:
+                return []
+            idx = t[2:].index("WR")
+            break
+    if idx is None:
+        return []
+    out, depth = [], 0
+    for ln in lines:
+        t = ln.split()
+        if not t: continue
+        if t[0].lower() == ".subckt": depth += 1; top = (t[1] == CELL); continue
+        if t[0].lower() == ".ends": depth -= 1; continue
+        if depth == 1 and top and t[0].upper().startswith("X") and t[-1] == "TLAT":
+            if len(t) > idx + 1: out.append(t[1 + idx])
+    seen, uniq = set(), []
+    for n in out:
+        if n not in seen: seen.add(n); uniq.append(n)
+    return uniq
+
+
 def header(netlist):
     return [f".include {MODELS}/ip62_models", f".include {netlist}", "",
             f".temp {TEMP}", f"Vvdd vdd 0 {VDD}", "Vvss vss 0 0"]
@@ -225,6 +276,12 @@ def build_read(netlist, bit, slew, rise):
                      f"TARG v(QQ{i}) VAL={lo:g} FALL=1 TD={td:g}n")
     # 書込みが効いているかの確認。読出し直前の Q[0] は word0 = 0x00 -> 0V のはず
     L.append(f".meas tran chk FIND v(QQ0) AT={T0 - 5:g}n")
+    if PROBE:
+        # ★ 書込みフェーズのあいだ、行選択の WR 線が 1 本でも上がるか。
+        #   上がらなければデコーダ側、上がるならラッチ側（U2）。
+        for i, n in enumerate(wr_nets(netlist)):
+            L.append(f".meas tran wr{i} MAX v(xu.{n}) FROM=0n TO={t:g}n")
+        L.append(f".meas tran webmin MIN v(WEB) FROM=0n TO={t:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
 
@@ -353,6 +410,9 @@ def main():
     ap.add_argument("-o", "--out", default=None)
     ap.add_argument("-j", "--jobs", type=int, default=max(1, (os.cpu_count() or 2)))
     ap.add_argument("--only", choices=["read", "cap"])
+    ap.add_argument("--probe", action="store_true",
+                    help="書込みの経路を段ごとに見る（U2）。行選択の WR 線が"
+                         "1 本でも上がるかを測り、デコーダ側かラッチ側かを分ける")
     ap.add_argument("--quick", action="store_true",
                     help="代表 1 点（ADD[0] / slew 1.5ns / rise）だけ回す。"
                          "書込みが効いているかを見るだけならこれで足りる")
@@ -363,7 +423,8 @@ def main():
                          "落とすと PDK の既定式に戻る（0 になるのではない）")
     a = ap.parse_args()
     need_ngspice()                              # 先に確かめる（決定 23）
-    global PORTS, RUNTAG
+    global PORTS, RUNTAG, PROBE
+    PROBE = a.probe
     RUNTAG = ("ext" if a.ext else "src") + ("" if a.strip == "none" else f"_no-{a.strip}")
     if a.out is None:
         a.out = (f"{HERE}/char/{CELL}.json" if RUNTAG == "src"
@@ -412,6 +473,17 @@ def main():
                   f"5V 付近なら効いていない）")
             print(f"  ADD[0] -> Q[0] の遅延 = "
                   f"{(v.get('d0') or 0)*1e9:.2f} ns（0.00 は測れなかったということ）")
+            if a.probe:
+                wr = sorted(k for k in v if k.startswith("wr"))
+                hi = [k for k in wr if (v[k] or 0) > VDD / 2]
+                print(f"  WEB の最低値 = {v.get('webmin')} "
+                      f"（0V 付近まで下がっていれば書込み指示は届いている）")
+                print(f"  行選択の WR 線 {len(wr)} 本のうち "
+                      f"**{len(hi)} 本**が VDD/2 を超えた")
+                if wr:
+                    print("    最大値: " + ", ".join(f"{v[k]:.2f}" for k in wr[:8])
+                          + (" …" if len(wr) > 8 else ""))
+                print("  -> 0 本ならデコーダ側、1 本以上ならラッチ側の問題")
             print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
             return
         for b in range(4):
