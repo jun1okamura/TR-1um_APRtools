@@ -405,17 +405,24 @@ def build_read(netlist, bit, slew, rise):
             t = IDLE + k * TW
             return t + TW - WEB_PRE - WEB_LOW, t + TW - WEB_PRE
         tw0 = sum(_lo(0)) / 2
+        # ★ **点で測らない。窓の最大/最小で測る。**
+        #   内部 `WR` はデコーダの遅れ（実測 11.8ns）ぶん遅れて立つので、
+        #   低の窓の真ん中を `FIND` すると**まだ立っていない**（実際
+        #   「WR が立っている行 = 0 本」と出た）。遅れは幅によって変わるので、
+        #   点を決め打ちできない。窓で取れば遅れに依らない。
+        w_b, w_e = _lo(0)[0], _lo(0)[1] + WEB_PRE
         for i, n in enumerate(tlat_nets(netlist, "WR")):
-            L.append(f".meas tran wrat{i} FIND v(xu.{n}) AT={tw0:g}n")
+            L.append(f".meas tran wrat{i} MAX v(xu.{n}) FROM={w_b:g}n TO={w_e:g}n")
         for i, n in enumerate(tlat_nets(netlist, "D")):
-            L.append(f".meas tran dat{i} FIND v(xu.{n}) AT={tw0:g}n")
-        L.append(f".meas tran webat FIND v(WEB) AT={tw0:g}n")
+            L.append(f".meas tran dat{i} FIND v(xu.{n}) AT={_lo(0)[1] - 1:g}n")
+        L.append(f".meas tran webat MIN v(WEB) FROM={w_b:g}n TO={_lo(0)[1]:g}n")
         # ★ 行ごとに 1 個、TLAT の中を覗く。WR と **WRB が相補か**（帰還の
         #   トランスファゲートが切れているか）と、記憶ノードが動いたか。
         inner = tlat_inner(netlist)
         for i, (inst, wr, wrb, rd, node) in enumerate(tlat_rows(netlist)):
-            L.append(f".meas tran wrbat{i} FIND v(xu.{wrb}) AT={tw0:g}n")
-            L.append(f".meas tran st{i} FIND v(xu.{inst}.{node}) AT={tw0:g}n")
+            L.append(f".meas tran wrbat{i} MIN v(xu.{wrb}) FROM={w_b:g}n TO={w_e:g}n")
+            L.append(f".meas tran st{i} FIND v(xu.{inst}.{node}) "
+                     f"AT={_lo(0)[1] + WEB_PRE / 2:g}n")
             # ★ **読出しの瞬間**（chk と同じ時刻）。書いた行がまだ 0 を
             #   持っているか、そしてそのとき **RD が立っているのはどの行か**。
             L.append(f".meas tran str{i} FIND v(xu.{inst}.{node}) AT={read_time():g}n")
@@ -646,17 +653,18 @@ def probe_summary(v):
         on = [int(k[4:]) for k in wat if val(k, 0) > VDD / 2]
         lo_b = IDLE + TW - WEB_PRE - WEB_LOW
         lo_e = IDLE + TW - WEB_PRE
-        print(f"\n  ★ word0（= 0x00）を書いている瞬間 t={(lo_b + lo_e) / 2:g}ns"
-              f"（WEB 低は {lo_b:g}〜{lo_e:g} ns）:")
-        print(f"    WEB = {v.get('webat'):.2f}  "
-              f"WR が立っている行 = **{len(on)} 本**（1 本であるべき）")
+        print(f"\n  ★ word0（= 0x00）の書込みの窓（WEB 低 {lo_b:g}〜{lo_e:g} ns"
+              f"＋デコーダの遅れぶん）:")
+        print(f"    WEB の最低 = {v.get('webat'):.2f}  "
+              f"窓の中で WR が立った行 = **{len(on)} 本**（1 本であるべき）")
         print("    D = " + " ".join(f"{v[k]:.1f}" for k in dat)
               + "  （0x00 なので全部 0 であるべき）")
         for i in on:
-            print(f"    選ばれた行 {i}: WR = {v.get(f'wrat{i}'):.2f} / "
-                  f"WRB = {v.get(f'wrbat{i}'):.2f}  （相補でなければ帰還が切れていない）")
-            print(f"      記憶ノード = {v.get(f'st{i}'):.2f}  "
-                  f"（D = 0 を書いているので 0 に落ちるべき）")
+            print(f"    選ばれた行 {i}: WR の最大 = {v.get(f'wrat{i}'):.2f} / "
+                  f"WRB の最低 = {v.get(f'wrbat{i}'):.2f}"
+                  f"（WR が満振れしないことがある。幅が狭いとき）")
+            print(f"      書込み直後の記憶ノード = {v.get(f'st{i}'):.2f}  "
+                  f"（D = 0 を書いているので 0 であるべき）")
     if strv:
         zero = [int(k[3:]) for k in strv if val(k, VDD) < VDD / 2]
         rdon = [int(k[4:]) for k in rdv if val(k, 0) > VDD / 2]
