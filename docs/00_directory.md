@@ -114,7 +114,7 @@ TR-1um_APRtools/
 │   ├── 05_migration_log.md        データ移動の記録
 │   ├── 40_gotchas.md          ★ 踏んだ穴集（設計非依存）
 │   ├── 50_char.md
-│   └── 90_improvement_notes.md ★ 改善準備の記録
+│   └── 90_improvement_notes.md ★ 技術的負債の台帳（U1–U75。残りは §7-2）
 │
 └── legacy/                    ── 移植原本（read-only・履歴保存・★改名しない）
     ├── async_i2c/             TR-1um_Async_I2C/script/ の原本

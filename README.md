@@ -129,7 +129,7 @@ python3 $APRTOOLS/apr/route.py
 | [`docs/31_verify_ngspice.md`](docs/31_verify_ngspice.md) | ngspice / IRSIM |
 | [`docs/50_char.md`](docs/50_char.md) | セル特性化 |
 | [`docs/40_gotchas.md`](docs/40_gotchas.md) | **踏んだ穴 — 設計非依存の落とし穴集**（★ は 2 回以上踏んだもの） |
-| [`docs/90_improvement_notes.md`](docs/90_improvement_notes.md) | **改善準備の記録** — 負債・再発した失敗・改善候補・未解決 |
+| [`docs/90_improvement_notes.md`](docs/90_improvement_notes.md) | **技術的負債の台帳** — 番号 `U<n>` で追う。**いま残っているものは §7-2**、教訓は §8 |
 
 ## 出所
 
