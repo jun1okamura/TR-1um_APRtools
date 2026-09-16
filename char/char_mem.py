@@ -119,6 +119,12 @@ WEB_PRE = 20.0          # ★ 5.0 では足りない（実測）。下の「解�
 #   こうすると「アドレスを変える前の余裕」を固定したまま幅だけ振れる。
 #   既定 80 = TW(120) - 20 - WEB_PRE(20) で、従来と同じ波形。
 WEB_LOW = 80.0
+# ★ `WEB↑` のあと**データ（D）を保つ時間** [ns]。`None` なら次のワードの
+#   頭まで（＝ `WEB_PRE` と同じ）。短くすると次のワードのデータが早く来る。
+#   ★ **アドレス側の保持は `WEB_PRE` そのもの**（`WEB↑` から次のワードの
+#     アドレスが変わるまで）なので、つまみが 2 つに分かれている:
+#       `WEB_PRE` = アドレスの保持   `D_HOLD` = データの保持
+D_HOLD = None
 WORDS = [(0, 0x00), (1, 0xFF), (2, 0xFF), (4, 0xFF), (8, 0xFF)]
 
 APIN = [f"A{j}" for j in range(4)]
@@ -182,11 +188,19 @@ def write_phase():
     for i in range(8):
         dat[i].append((0.0, 0))
     t = IDLE
-    for a, d in WORDS:
+    for k, (a, d) in enumerate(WORDS):
         for j in range(4):
             add[j].append((t, VDD if (a >> j) & 1 else 0))
         for i in range(8):
             dat[i].append((t, VDD if (d >> i) & 1 else 0))
+        # ★ `D_HOLD` を指定したら、**次のワードのデータを早めに当てる**。
+        #   `WEB↑` からこの時間だけ保ったら次の値に移る、という形。
+        if D_HOLD is not None and k + 1 < len(WORDS):
+            nd = WORDS[k + 1][1]
+            tflip = t + TW - WEB_PRE + D_HOLD
+            if tflip < t + TW:
+                for i in range(8):
+                    dat[i].append((tflip, VDD if (nd >> i) & 1 else 0))
         # ★ 低の終わりを `WEB_PRE` で決める。以前は `t+TW-20` に低の点を
         #   固定したまま立上りだけ動かしていたので、`WEB_PRE > 20` で
         #   **時刻が逆行して PWL が壊れていた**（40ns の結果は無効だった）。
@@ -595,13 +609,15 @@ def sweep_edge(a, vals, knob="edge"):
     ★ 縁は `WEB` だけでなく `ADD` / `D` にも同じ値がかかる（`step()` が
       全部の刺激を同じ台形にする）。**分けて振りたくなったらここを直す。**
     """
-    global EDGE, WEB_PRE, WEB_LOW
-    label = {"edge": "縁", "webpre": "WEB 余裕", "weblow": "WEB 低の幅"}[knob]
+    global EDGE, WEB_PRE, WEB_LOW, D_HOLD
+    label = {"edge": "縁", "webpre": "アドレス保持", "weblow": "WEB 低の幅",
+             "dhold": "データ保持"}[knob]
     rows = []
     for e in vals:
         if knob == "edge": EDGE = e
         elif knob == "webpre": WEB_PRE = e
-        else: WEB_LOW = e
+        elif knob == "weblow": WEB_LOW = e
+        else: D_HOLD = e
         v = run(build_read(a.netlist, 0, SLEWS[3], True), f"{knob}{e:g}")
         chk = v.get("chk")
         ok = chk is not None and chk < VDD / 2
@@ -737,6 +753,10 @@ def main():
     ap.add_argument("--probe", action="store_true",
                     help="書込みの経路を段ごとに見る（U2）。行選択の WR 線が"
                          "1 本でも上がるかを測り、デコーダ側かラッチ側かを分ける")
+    ap.add_argument("--d-hold", default=None,
+                    help="WEB↑ のあとデータ（D）を保つ時間 [ns]（既定は次の"
+                         "ワードの頭まで）。**カンマ区切りで掃引**するとデータの"
+                         "保持要求の境界が出る（U7）。アドレス側は --web-pre")
     ap.add_argument("--web-low", default=None,
                     help="WEB を低に保つ幅 [ns]（既定 80）。**カンマ区切りで掃引**"
                          "すると書込みに必要な最小幅の境界が出る（U7）")
@@ -777,7 +797,7 @@ def main():
         raise SystemExit(
             f"** ネットリストが無い: {a.netlist}\n"
             f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
-    global EDGE, WEB_PRE, WEB_LOW
+    global EDGE, WEB_PRE, WEB_LOW, D_HOLD
     edges = ([float(x) for x in a.edge.split(",")] if a.edge else [])
     if len(edges) == 1:
         EDGE = edges[0]
@@ -787,6 +807,9 @@ def main():
     lows = ([float(x) for x in a.web_low.split(",")] if a.web_low else [])
     if len(lows) == 1:
         WEB_LOW = lows[0]
+    holds = ([float(x) for x in a.d_hold.split(",")] if a.d_hold else [])
+    if len(holds) == 1:
+        D_HOLD = holds[0]
     if a.strip != "none":
         a.netlist = strip_junction(a.netlist, a.strip)
         print(f"  接合パラメータ {a.strip} の写し: {a.netlist}")
@@ -799,6 +822,9 @@ def main():
         return
     if len(lows) > 1:
         sweep_edge(a, lows, "weblow")
+        return
+    if len(holds) > 1:
+        sweep_edge(a, holds, "dhold")
         return
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}}
