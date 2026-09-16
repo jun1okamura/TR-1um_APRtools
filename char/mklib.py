@@ -433,6 +433,12 @@ def emit_macro(cell, d, o):
     lim = d.get("limits", {})
     o.append(f'{IND*2}pin (WEB) {{')
     o.append(f'{IND*3}direction : input;')
+    # ★ **書込みストローブなのでクロックピンとして宣言する。**
+    #   これが無いと OpenSTA は `min_pulse_width` を見ない（実測:
+    #   要求 11ns に対して低 5ns のクロックを当てても違反が出なかった）。
+    #   `hold_rising` の方は設計側が WEB に create_clock を当てれば
+    #   `clock : true` 無しでも効いた。
+    o.append(f'{IND*3}clock : true;   /* 書込みストローブ。min_pulse_width の対象 */')
     o.append(f'{IND*3}capacitance : {caps["WEB"]:.3f};')
     o.append(f'{IND*3}max_transition : {d["slews"][-1]:g};')
     if "weblow" in lim:

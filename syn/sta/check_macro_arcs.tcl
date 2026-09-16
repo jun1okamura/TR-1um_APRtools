@@ -68,6 +68,3 @@ try "低の幅 5ns のクロックに差し替える（要求は 11ns）" {
 try "最小パルス幅（違反が出るはず）" {
     report_check_types -min_pulse_width -digits 3
 }
-try "違反だけでなく全部出す" {
-    report_check_types -min_pulse_width -all_violators -digits 3
-}

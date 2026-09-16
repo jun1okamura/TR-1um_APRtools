@@ -3269,6 +3269,7 @@ library (tr1um_typ_5v0_25c) {
     }
     pin (WEB) {
       direction : input;
+      clock : true;   /* 書込みストローブ。min_pulse_width の対象 */
       capacitance : 82.797;
       max_transition : 16;
       /* 書込みに要る低パルスの最小幅。10.5ns では書けず 11ns で書ける（ns 刻み 0.5）。配線容量なし */
