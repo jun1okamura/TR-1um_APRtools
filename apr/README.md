@@ -154,13 +154,12 @@ yosys の出力を P&R に渡せる形にする。
 
 ### H. シミュレーション（ngspice / IRSIM）
 
-刺激は設計固有。**設計側の `scripts/` に置くのが本則**（U25）。
+**刺激と期待値は設計側の `scripts/` に置く**（U25 で TD4 の 2 本を戻した）。ここに残るのは設計に依らないものだけ。
 
 | ファイル | 流 | 行 | 読 | 何をするか |
 |---|:--:|--:|--:|---|
 | `gen_chip_sim_ready.py` | ○ | 206 |  | 抽出ネットリストを ngspice で読める形にする |
-| `gen_chip_tb.py` | ○ | 204 |  | 抽出したチップの TB。**TD4 の期待値が埋まっている**ので設計側へ戻す予定（U25） |
-| `check_chip_sim.py` |  | 121 |  | チップの ngspice 結果を判定して波形も描く |
+| `chip_tb_lib.py` |  | 84 | 1 | **TB の設計に依らない部分だけ**。ポート順の読み取り（U42）/ PWL / `models.spice` の生成（U24）/ 置き場の決め方。**刺激と期待値は設計側の `scripts/gen_chip_tb.py`**（U25） |
 | `check_ngspice.py` |  | 109 |  | `.meas` の結果をまとめて表にする |
 | `frame2sim.py` |  | 92 |  | フレームの `.extracted` を ngspice で回せる形に直す |
 | `spi2ngspice.py` |  | 65 |  | LVS ソースネットリスト → ngspice で読める形 |
