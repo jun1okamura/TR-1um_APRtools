@@ -162,9 +162,9 @@
 ## 回し方
 
 ```sh
-cd ~/HogeHoge/LSI_Design/TR-1um_SCLK_SPI
-export TR1UM_PDK=~/HogeHoge/OpenPDK/TR-1um
-export APRTOOLS=~/HogeHoge/OpenPDK/TR-1um_APRtools
+cd <設計を置いた場所>/TR-1um_SCLK_SPI
+export TR1UM_PDK=<PDK と道具を置いた場所>/TR-1um
+export APRTOOLS=<PDK と道具を置いた場所>/TR-1um_APRtools
 export PYTHONPATH=$APRTOOLS/apr
 export PYTHONHASHSEED=0
 

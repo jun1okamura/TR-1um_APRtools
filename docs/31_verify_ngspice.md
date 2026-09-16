@@ -12,11 +12,11 @@
 `sys.path` の**末尾**に足すので、設計の `config.py` がそこから読まれる。
 
 ```sh
-export TR1UM_PDK=$HOME/HogeHoge/OpenPDK/TR-1um
-export APRTOOLS=$HOME/HogeHoge/OpenPDK/TR-1um_APRtools
+export TR1UM_PDK=<PDK と道具を置いた場所>/TR-1um
+export APRTOOLS=<PDK と道具を置いた場所>/TR-1um_APRtools
 export PYTHONPATH=$APRTOOLS/apr
 export PYTHONHASHSEED=0                 # ルータが非決定的（docs/40_gotchas.md）
-cd $HOME/HogeHoge/LSI_Design/TR-1um_I2C_2026
+cd <設計を置いた場所>/TR-1um_I2C_2026
 ```
 
 ### 1) レイアウトから抽出して ngspice 用に直す（APRtools 側）

@@ -146,7 +146,7 @@ Python API だけで CLI を持たない。**設計機（KLayout 0.28.16）か C
 python3 <APRtools>/apr/drc_pdk.py \
         $TR1UM_PDK/libs.tech/klayout/libraries/TR-1um_frame_25x25_GIO.gds OSS_FRAME_GIO
 python3 <APRtools>/apr/drc_pdk.py \
-        ~/HogeHoge/LSI_Design/TR-1um_I2C_2026/lef/TR-1um_frame_25x25.gds OSS_FRAME_GIO
+        <TR-1um_I2C_2026>/lef/TR-1um_frame_25x25.gds OSS_FRAME_GIO
 ```
 
 コンタクトが 12 個少ないので、**どちらかが `CO` 関連のルール

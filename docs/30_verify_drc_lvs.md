@@ -9,11 +9,11 @@
 ### 下ごしらえ
 
 ```sh
-export TR1UM_PDK=$HOME/HogeHoge/OpenPDK/TR-1um
-export APRTOOLS=$HOME/HogeHoge/OpenPDK/TR-1um_APRtools
+export TR1UM_PDK=<PDK と道具を置いた場所>/TR-1um
+export APRTOOLS=<PDK と道具を置いた場所>/TR-1um_APRtools
 export PYTHONPATH=$APRTOOLS/apr
 export KLAYOUT=/Applications/klayout.app/Contents/MacOS/klayout   # ★
-cd $HOME/HogeHoge/LSI_Design/<design>
+cd <設計を置いた場所>/<design>
 python3 $APRTOOLS/apr/selfcheck.py      # klayout モジュール / klayout コマンド / 版
 ```
 

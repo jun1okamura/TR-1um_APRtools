@@ -10,7 +10,7 @@
 | file | `libs.tech/klayout/libraries/TR-1um_frame_25x25_GIO.gds` |
 
 ```sh
-cd ~/HogeHoge/OpenPDK/TR-1um
+cd <PDK と道具を置いた場所>/TR-1um
 git push -u origin fix/oss-drv-gio-frame
 open "https://github.com/OpenSUSI/TR-1um/compare/dev...fix/oss-drv-gio-frame?expand=1"
 ```
