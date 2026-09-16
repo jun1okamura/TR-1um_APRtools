@@ -58,9 +58,18 @@ P&R の本命 `td4_soc_arr_bb` は `REG8x16` をマクロとして持つので�
 
     つまり保持できるかどうかは**記憶ノードの容量**で決まっていた。
     トランスファゲートが閉じるときの電荷注入を、容量が足りないと
-    吸収できず、ラッチが逆側へ再生してしまう（帰還は繋がっている。
-    浮いてはいない）。**`TLAT` にキーパーが無い**ので、injection に
-    対する余裕は記憶ノードの容量そのもの。
+    吸収できず、ラッチが逆側へ**再生**してしまう。
+
+    ★ **キーパーはある**（2026-09-16 訂正。一度「無い」と書いたのは誤り）:
+
+        n3（記憶）--INV1--> n1 --INV2--> n2 --TG(MP3 g=WR / MN3 g=WRB)--> n3
+
+      `WR=0 / WRB=5` で TG が両方 on になり帰還が閉じる。INV2 は
+      `PMOS 7.2u / NMOS 3.4u` で**弱くもない**（通常サイズ）。
+      それでも飛ぶのは、**注入が起きる瞬間が「TG が閉じ始める瞬間」**
+      だから。TG がまだ高抵抗のうちに n3 が INV1 のしきいを跨ぐと、
+      ループは 2 段反転の**正帰還**なので、そのまま逆側へ自己増幅する。
+      キーパーの強さではなく、**跨がせないだけの容量**が要る。
 
   ★ **PDK の既定式は「孤立した拡散」を仮定している**
       `AS/AD = w*sdwidth`、`PS/PD = 2*(sdwidth+w)`
@@ -542,6 +551,40 @@ def strip_junction(netlist, mode):
 
 
 
+def sweep_edge(a, edges):
+    """刺激の縁を振って、**書込みが保持できる境界**を出す（U7 / U2）。
+
+    `TLAT` にキーパーが無いので、トランスファゲートが閉じるときの電荷注入に
+    対する余裕は記憶ノードの容量そのもの。**縁が鋭いほど注入が大きい**ので、
+    「どこまで鋭い縁なら保持できるか」が書込みパスの実際の要求になる。
+
+    ★ 縁は `WEB` だけでなく `ADD` / `D` にも同じ値がかかる（`step()` が
+      全部の刺激を同じ台形にする）。**分けて振りたくなったらここを直す。**
+    """
+    global EDGE
+    rows = []
+    for e in edges:
+        EDGE = e
+        v = run(build_read(a.netlist, 0, SLEWS[3], True), f"edge{e:g}")
+        chk = v.get("chk")
+        ok = chk is not None and chk < VDD / 2
+        rows.append((e, chk, ok))
+        print(f"  縁 {e:>6.2f} ns  読出し直前の Q[0] = "
+              f"{'—' if chk is None else format(chk, '.3f')}  "
+              f"{'保持する' if ok else '保持しない'}")
+    good = [e for e, _, ok in rows if ok]
+    bad = [e for e, _, ok in rows if not ok]
+    print()
+    if good and bad:
+        print(f"  ★ 境界: {max(bad):g} ns では保持せず、{min(good):g} ns では保持する")
+        print(f"     -> `WEB` の縁は **{min(good):g} ns 以上**が要る（この条件で）")
+    elif good:
+        print(f"  ★ 振った範囲（{min(edges):g}〜{max(edges):g} ns）では**全部保持した**")
+    else:
+        print(f"  ★ 振った範囲（{min(edges):g}〜{max(edges):g} ns）では**どれも保持しない**")
+    print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
+
+
 def probe_summary(v):
     """`--probe` の測定値を段ごとに読み下す。
 
@@ -637,6 +680,9 @@ def main():
     ap.add_argument("--probe", action="store_true",
                     help="書込みの経路を段ごとに見る（U2）。行選択の WR 線が"
                          "1 本でも上がるかを測り、デコーダ側かラッチ側かを分ける")
+    ap.add_argument("--edge", default=None,
+                    help="刺激の縁の時間 [ns]（既定 0.1）。**カンマ区切りで複数**"
+                         "書くと掃引して、書込みが保持できる境界を出す（U7 / U2）")
     ap.add_argument("--quick", action="store_true",
                     help="代表 1 点（ADD[0] / slew 1.5ns / rise）だけ回す。"
                          "書込みが効いているかを見るだけならこれで足りる")
@@ -668,10 +714,17 @@ def main():
         raise SystemExit(
             f"** ネットリストが無い: {a.netlist}\n"
             f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
+    global EDGE
+    edges = ([float(x) for x in a.edge.split(",")] if a.edge else [])
+    if len(edges) == 1:
+        EDGE = edges[0]
     if a.strip != "none":
         a.netlist = strip_junction(a.netlist, a.strip)
         print(f"  接合パラメータ {a.strip} の写し: {a.netlist}")
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
+    if len(edges) > 1:                      # ★ 掃引なら普通の測定はしない
+        sweep_edge(a, edges)
+        return
     res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}}
 
