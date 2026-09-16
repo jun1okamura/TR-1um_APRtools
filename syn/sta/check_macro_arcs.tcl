@@ -36,14 +36,14 @@ try "REG8x16 が読めているか" {
 }
 try "ADD -> Q のアーク" {
     set_input_delay 1.0 -clock CK [get_ports WEBP]
-    report_checks -through [get_pins u_mem/ADD*] -path_delay max -digits 3 -endpoint_count 1
+    report_checks -through [get_pins u_mem/ADD*] -path_delay max -digits 3 -endpoint_path_count 1
 }
 try "WEB -> Q のアーク" {
-    report_checks -through [get_pins u_mem/WEB] -path_delay max -digits 3 -endpoint_count 1
+    report_checks -through [get_pins u_mem/WEB] -path_delay max -digits 3 -endpoint_path_count 1
 }
 try "最小パルス幅" { report_check_types -min_pulse_width -digits 3 }
 try "マクロに向かう hold" {
-    report_checks -to [get_pins u_mem/*] -path_delay min -digits 3 -endpoint_count 4
+    report_checks -to [get_pins u_mem/*] -path_delay min -digits 3 -endpoint_path_count 4
 }
 
 puts "\n===== B. WEB を「クロック」として宣言する ====="
@@ -52,6 +52,22 @@ try "WEB にクロックを当てる" {
 }
 try "最小パルス幅" { report_check_types -min_pulse_width -digits 3 }
 try "マクロに向かう hold" {
-    report_checks -to [get_pins u_mem/*] -path_delay min -digits 3 -endpoint_count 4
+    report_checks -to [get_pins u_mem/*] -path_delay min -digits 3 -endpoint_path_count 4
 }
 try "全部の検査の内訳" { report_check_types -max_delay -min_delay -digits 3 }
+
+puts "\n===== C. 最小パルス幅を**わざと破る** ====="
+# ★ B で最小パルス幅が空だったのは「検査されていない」のか
+#   「違反が無いから出ない」のか区別がつかない。**否定対照**として、
+#   低の幅が要求（11ns）より狭いクロックを当てて、違反が出るかを見る。
+#   出れば検査は効いている。出なければ本当に見ていない。
+try "低の幅 5ns のクロックに差し替える（要求は 11ns）" {
+    create_clock -name WEBCK -period 100 -waveform {0 95} [get_ports WEBP]
+    puts "   waveform: 0 で立上り / 95 で立下り -> 低は 5ns"
+}
+try "最小パルス幅（違反が出るはず）" {
+    report_check_types -min_pulse_width -digits 3
+}
+try "違反だけでなく全部出す" {
+    report_check_types -min_pulse_width -all_violators -digits 3
+}
