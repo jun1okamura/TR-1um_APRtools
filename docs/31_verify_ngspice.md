@@ -43,27 +43,38 @@ python3 $APRTOOLS/apr/gen_chip_sim_ready.py --no-ringosc    # 長い回帰用   
 
 ### 2) テストベンチを作る（**設計側**のスクリプト）
 
-刺激とパッド割り当ては設計ごとに違うので、TB 生成は設計リポジトリに残す。
+刺激・期待値・パッド割り当ては設計ごとに違うので、TB 生成は設計リポジトリに
+置く（U25）。設計に依らない部分は `apr/chip_tb_lib.py`。
 
 ```sh
-python3 scripts/pnr/gen_chip_tb_batch14.py                     # 14 項目回帰（544 µs）
-python3 scripts/pnr/gen_chip_tb_ringosc.py --until 12u --tmax 500p
+python3 $APRTOOLS/apr/gen_chip_sim_ready.py     # 抽出 -> ngspice で読める形
+python3 scripts/gen_chip_tb.py                 # 刺激は設計固有
 ```
 
-> **★ TB に埋まる `.include` は絶対パスである。**
-> `$TR1UM_PDK` をその場で展開して書き込むので、**別の機械で作った
-> `tb_*.spice` はそのままでは読めない**（`/home/claude/...` のような
-> 他所のパスが残る）。回す機械で TB を作り直すこと。
+> **★ TB に機械のパスは入らない**（U24。2026-09-16 に TD4 にも適用）。
+> PDK のモデルは**隣に書く 1 行の `models.spice`** に閉じ込め、抽出物と
+> 出力は**名前だけ**にしてある。`models.spice` は生成物なので
+> `.gitignore` に入れ、**回す機械で TB を作り直す**（`TR1UM_PDK` を見て
+> 書き直される）。
+>
+> ★ ただし **ngspice が相対パスを解くのは TB の場所ではなく実行時の
+> カレント**。次の節のように simulation ディレクトリで回すこと。
 
 ### 3) 回して判定する
 
 ```sh
-cd layout/chip/simulation
-ngspice -b tb_batch14.spice > batch14.log 2>&1
-python3 ../../../scripts/pnr/check_batch14.py batch14.log
-
-ngspice -b tb_ringosc.spice > ringosc.log 2>&1
+( cd layout/chip/simulation && ngspice -b tb_*.spi > chip_tb.log 2>&1 )
+python3 scripts/check_chip_sim.py layout/chip/simulation/chip_tb.log
 ```
+
+> **★ `cd -` を使わない。** 括弧で囲めば `cd` はサブシェルの中だけで
+> 終わるので、呼んだ側のカレントは動かない。`cd -` は「直前の
+> ディレクトリとの**往復**」なので、2 回続けて打つと戻ってしまう
+> （2026-09-16 に実際に踏んだ）。
+>
+> **★ 判定は作図より先に出る。** `matplotlib` が無くても合否は出て
+> 終了コードも正しい（同日に直した。任意の依存を必須の判定より前に
+> 置かない）。
 
 `ngspice` は PDK にもモデルにも依存しない普通のバイナリ（Debian/Ubuntu は
 `apt install ngspice`、macOS は `brew install ngspice`）。**KLayout の CLI が
