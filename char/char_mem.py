@@ -219,6 +219,16 @@ def tlat_nets(netlist, pin):
     return uniq
 
 
+def read_time():
+    """読出し直前の時刻（`chk` と同じ）。**式はここ 1 か所だけに置く。**
+
+    ★ `main` の要約で `T0 - 5` と書いて `NameError` を出した（`T0` は
+      `build_read` のローカル）。**同じ時刻を 2 か所で別々に書いていた**のが
+      原因なので、式を 1 つにまとめた（決定 21 の小さい版）。
+    """
+    return write_phase()[3] + SETTLE - 5
+
+
 def tlat_rows(netlist):
     """行ごとに 1 個ずつ TLAT を選び、`(インスタンス名, WR, WRB, RD, 記憶ノード)` を返す。
 
@@ -323,7 +333,7 @@ def build_read(netlist, bit, slew, rise):
             L.append(f".meas tran t{i} TRIG v(QQ{i}) VAL={hi:g} FALL=1 TD={td:g}n "
                      f"TARG v(QQ{i}) VAL={lo:g} FALL=1 TD={td:g}n")
     # 書込みが効いているかの確認。読出し直前の Q[0] は word0 = 0x00 -> 0V のはず
-    L.append(f".meas tran chk FIND v(QQ0) AT={T0 - 5:g}n")
+    L.append(f".meas tran chk FIND v(QQ0) AT={read_time():g}n")
     if PROBE:
         # ★ 書込みフェーズのあいだ、行選択の WR 線が 1 本でも上がるか。
         #   上がらなければデコーダ側、上がるならラッチ側（U2）。
@@ -349,8 +359,8 @@ def build_read(netlist, bit, slew, rise):
             L.append(f".meas tran st{i} FIND v(xu.{inst}.{node}) AT={tw0:g}n")
             # ★ **読出しの瞬間**（chk と同じ時刻）。書いた行がまだ 0 を
             #   持っているか、そしてそのとき **RD が立っているのはどの行か**。
-            L.append(f".meas tran str{i} FIND v(xu.{inst}.{node}) AT={T0 - 5:g}n")
-            L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={T0 - 5:g}n")
+            L.append(f".meas tran str{i} FIND v(xu.{inst}.{node}) AT={read_time():g}n")
+            L.append(f".meas tran rdat{i} FIND v(xu.{rd}) AT={read_time():g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
 
@@ -462,6 +472,56 @@ def strip_junction(netlist, mode):
     return out
 
 
+def probe_summary(v):
+    """`--probe` の測定値を段ごとに読み下す。
+
+    ★ **表示だけの関数にしておく**（`main` の中に書いていたら `T0` の
+      `NameError` を出した）。ここだけ切り出してあれば作り物の値で試せる。
+    """
+    num = lambda p: sorted((k for k in v if k.startswith(p) and k[len(p):].isdigit()),
+                           key=lambda k: int(k[len(p):]))
+    # ★ **`or` で既定値を入れない**。測定値 0.0 は falsy なので
+    #   `v[k] or VDD` が 0V を VDD に化けさせる（実際に「0 を保持している行 = []」
+    #   と出た）。欠測は None なので、None かどうかで判断する。
+    val = lambda k, d: d if v.get(k) is None else v[k]
+    wr, dmx, dmn = num("wr"), num("dmax"), num("dmin")
+    wat, dat, strv, rdv = num("wrat"), num("dat"), num("str"), num("rdat")
+    hi = [k for k in wr if val(k, 0) > VDD / 2]
+    print(f"  WEB の最低値 = {v.get('webmin')} "
+          f"（0V 付近まで下がっていれば書込み指示は届いている）")
+    print(f"  行選択の WR 線 {len(wr)} 本のうち **{len(hi)} 本**が VDD/2 を超えた")
+    if wr:
+        print("    最大値: " + ", ".join(f"{v[k]:.2f}" for k in wr[:8])
+              + (" …" if len(wr) > 8 else ""))
+    if dmx:
+        sw = [k for k in dmx if val(k, 0) > VDD / 2
+              and val("dmin" + k[4:], VDD) < VDD / 2]
+        print(f"  セル側の D 線 {len(dmx)} 本のうち **{len(sw)} 本**が 0V と 5V の両方に振れた")
+        print("    最大: " + ", ".join(f"{v[k]:.2f}" for k in dmx)
+              + "\n    最小: " + ", ".join(f"{v[k]:.2f}" for k in dmn))
+    if wat:
+        on = [int(k[4:]) for k in wat if val(k, 0) > VDD / 2]
+        print(f"\n  ★ word0（= 0x00）を書いている瞬間 t={IDLE + TW / 2:g}ns:")
+        print(f"    WEB = {v.get('webat'):.2f}  "
+              f"WR が立っている行 = **{len(on)} 本**（1 本であるべき）")
+        print("    D = " + " ".join(f"{v[k]:.1f}" for k in dat)
+              + "  （0x00 なので全部 0 であるべき）")
+        for i in on:
+            print(f"    選ばれた行 {i}: WR = {v.get(f'wrat{i}'):.2f} / "
+                  f"WRB = {v.get(f'wrbat{i}'):.2f}  （相補でなければ帰還が切れていない）")
+            print(f"      記憶ノード = {v.get(f'st{i}'):.2f}  "
+                  f"（D = 0 を書いているので 0 に落ちるべき）")
+    if strv:
+        zero = [int(k[3:]) for k in strv if val(k, VDD) < VDD / 2]
+        rdon = [int(k[4:]) for k in rdv if val(k, 0) > VDD / 2]
+        print(f"\n  ★ 読出しの瞬間 t={read_time():g}ns:")
+        print(f"    0 を保持している行 = {zero}")
+        print(f"    RD が立っている行   = {rdon}")
+        print("    -> 重なっていなければ「書く行」と「読む行」が食い違っている")
+    print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
+          "どちらも正常ならラッチ側")
+
+
 def main():
     ap = argparse.ArgumentParser()
     # ★ 既定は **None**。実際の道は --ext を見てから決める。
@@ -536,69 +596,19 @@ def main():
         if a.quick:
             # ★ 代表 1 点だけなので表は作らない。**書込みが効いたかだけ**出す。
             v = out[(0, 3, True)]
-            chk = v.get("chk")
-            print(f"\n  読出し直前の Q[0] = {chk}  "
+            print(f"\n  読出し直前の Q[0] = {v.get('chk')}  "
                   f"（word0 = 0x00 なので **0V 付近なら書込みが効いている**。"
                   f"5V 付近なら効いていない）")
             print(f"  ADD[0] -> Q[0] の遅延 = "
                   f"{(v.get('d0') or 0)*1e9:.2f} ns（0.00 は測れなかったということ）")
             if a.probe:
-                # ★ `wrat*` も "wr" で始まるので、数字だけの添字に限る
-                wr = sorted((k for k in v if k.startswith("wr") and k[2:].isdigit()),
-                            key=lambda k: int(k[2:]))
-                hi = [k for k in wr if (v[k] or 0) > VDD / 2]
-                print(f"  WEB の最低値 = {v.get('webmin')} "
-                      f"（0V 付近まで下がっていれば書込み指示は届いている）")
-                print(f"  行選択の WR 線 {len(wr)} 本のうち "
-                      f"**{len(hi)} 本**が VDD/2 を超えた")
-                if wr:
-                    print("    最大値: " + ", ".join(f"{v[k]:.2f}" for k in wr[:8])
-                          + (" …" if len(wr) > 8 else ""))
-                dmx = sorted(k for k in v if k.startswith("dmax"))
-                dmn = sorted(k for k in v if k.startswith("dmin"))
-                if dmx:
-                    sw = [k for k in dmx
-                          if (v[k] or 0) > VDD / 2
-                          and (v.get("dmin" + k[4:]) or VDD) < VDD / 2]
-                    print(f"  セル側の D 線 {len(dmx)} 本のうち "
-                          f"**{len(sw)} 本**が 0V と 5V の両方に振れた")
-                    print("    最大: " + ", ".join(f"{v[k]:.2f}" for k in dmx)
-                          + "\n    最小: " + ", ".join(f"{v[k]:.2f}" for k in dmn))
-                wat = sorted((k for k in v if k.startswith("wrat")),
-                             key=lambda k: int(k[4:]))
-                dat = sorted((k for k in v if k.startswith("dat")),
-                             key=lambda k: int(k[3:]))
-                if wat:
-                    on = [k for k in wat if (v[k] or 0) > VDD / 2]
-                    print(f"\n  ★ word0（= 0x00）を書いている瞬間 t={IDLE + TW/2:g}ns:")
-                    print(f"    WEB = {v.get('webat'):.2f}  "
-                          f"WR が立っている行 = **{len(on)} 本**"
-                          f"（1 本であるべき）")
-                    print("    D = " + " ".join(f"{v[k]:.1f}" for k in dat)
-                          + "  （0x00 なので全部 0 であるべき）")
-                    sel = [int(k[4:]) for k in wat if (v[k] or 0) > VDD / 2]
-                    for i in sel:
-                        wrv, wrbv = v.get(f"wrat{i}"), v.get(f"wrbat{i}")
-                        st = v.get(f"st{i}")
-                        print(f"    選ばれた行 {i}: WR = {wrv:.2f} / "
-                              f"WRB = {wrbv:.2f}  "
-                              f"（相補でなければ帰還が切れていない）")
-                        print(f"      記憶ノード = {st:.2f}  "
-                              f"（D = 0 を書いているので 0 に落ちるべき）")
-                    strv = sorted((k for k in v if k.startswith("str")),
-                                  key=lambda k: int(k[3:]))
-                    rdv = sorted((k for k in v if k.startswith("rdat")),
-                                 key=lambda k: int(k[4:]))
-                    if strv:
-                        zero = [int(k[3:]) for k in strv if (v[k] or 5) < VDD / 2]
-                        rdon = [int(k[4:]) for k in rdv if (v[k] or 0) > VDD / 2]
-                        print(f"\n  ★ 読出しの瞬間 t={T0 - 5:g}ns:")
-                        print(f"    0 を保持している行 = {zero}")
-                        print(f"    RD が立っている行   = {rdon}")
-                        print("    -> 重なっていなければ「書く行」と「読む行」が"
-                              "食い違っている")
-                print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
-                      "どちらも正常ならラッチ側")
+                try:
+                    probe_summary(v)
+                except Exception as e:
+                    # ★ **要約の表示で測定結果を捨てない**（決定 23）。
+                    #   25 秒回したあとに表示の不具合で全部消えるのは割に合わない。
+                    print(f"  ★ probe の要約でこけた: {type(e).__name__}: {e}")
+                    print("     測定そのものはログに残っている")
             print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
             return
         for b in range(4):
