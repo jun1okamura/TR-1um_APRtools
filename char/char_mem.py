@@ -219,6 +219,54 @@ def tlat_nets(netlist, pin):
     return uniq
 
 
+def tlat_rows(netlist):
+    """行ごとに 1 個ずつ TLAT を選び、`(インスタンス名, WR, WRB, 記憶ノード)` を返す。
+
+    ★ **記憶ノードの名前は写さない**（抽出は `n4`、設計は `n3`。決定 22）。
+    `.SUBCKT TLAT` の中で「ゲートが `WR`/`WRB` で、片方の端子が `D`」の
+    2 素子＝書込みトランスファゲートを見つけ、その**反対側の端子**を取る。
+    """
+    lines = []
+    for ln in open(netlist, encoding="utf-8"):
+        ln = ln.rstrip("\n")
+        if ln.startswith("+") and lines: lines[-1] += " " + ln[1:].strip()
+        else: lines.append(ln)
+    order, body = None, []
+    cur = None
+    for ln in lines:
+        t = ln.split()
+        if not t: continue
+        if t[0].lower() == ".subckt":
+            cur = t[1]
+            if cur == "TLAT": order = t[2:]
+            continue
+        if t[0].lower() == ".ends": cur = None; continue
+        if cur == "TLAT" and t[0].upper().startswith(("M", "XM")):
+            body.append(t)
+    if not order:
+        return []
+    store = None
+    for t in body:                                  # d g s b …
+        d, g, sn = t[1], t[2], t[3]
+        if g in ("WR", "WRB") and "D" in (d, sn):
+            store = sn if d == "D" else d
+            break
+    if store is None:
+        return []
+    rows, seen, top = [], set(), False
+    for ln in lines:
+        t = ln.split()
+        if not t: continue
+        if t[0].lower() == ".subckt": top = (t[1] == CELL); continue
+        if t[0].lower() == ".ends": top = False; continue
+        if top and t[0].upper().startswith("X") and t[-1] == "TLAT":
+            m = dict(zip(order, t[1:1 + len(order)]))
+            if m["WR"] in seen: continue
+            seen.add(m["WR"])
+            rows.append((t[0], m["WR"], m["WRB"], store))
+    return rows
+
+
 def header(netlist):
     return [f".include {MODELS}/ip62_models", f".include {netlist}", "",
             f".temp {TEMP}", f"Vvdd vdd 0 {VDD}", "Vvss vss 0 0"]
@@ -294,6 +342,11 @@ def build_read(netlist, bit, slew, rise):
         for i, n in enumerate(tlat_nets(netlist, "D")):
             L.append(f".meas tran dat{i} FIND v(xu.{n}) AT={tw0:g}n")
         L.append(f".meas tran webat FIND v(WEB) AT={tw0:g}n")
+        # ★ 行ごとに 1 個、TLAT の中を覗く。WR と **WRB が相補か**（帰還の
+        #   トランスファゲートが切れているか）と、記憶ノードが動いたか。
+        for i, (inst, wr, wrb, node) in enumerate(tlat_rows(netlist)):
+            L.append(f".meas tran wrbat{i} FIND v(xu.{wrb}) AT={tw0:g}n")
+            L.append(f".meas tran st{i} FIND v(xu.{inst}.{node}) AT={tw0:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
 
@@ -486,7 +539,9 @@ def main():
             print(f"  ADD[0] -> Q[0] の遅延 = "
                   f"{(v.get('d0') or 0)*1e9:.2f} ns（0.00 は測れなかったということ）")
             if a.probe:
-                wr = sorted(k for k in v if k.startswith("wr"))
+                # ★ `wrat*` も "wr" で始まるので、数字だけの添字に限る
+                wr = sorted((k for k in v if k.startswith("wr") and k[2:].isdigit()),
+                            key=lambda k: int(k[2:]))
                 hi = [k for k in wr if (v[k] or 0) > VDD / 2]
                 print(f"  WEB の最低値 = {v.get('webmin')} "
                       f"（0V 付近まで下がっていれば書込み指示は届いている）")
@@ -517,6 +572,15 @@ def main():
                           f"（1 本であるべき）")
                     print("    D = " + " ".join(f"{v[k]:.1f}" for k in dat)
                           + "  （0x00 なので全部 0 であるべき）")
+                    sel = [int(k[4:]) for k in wat if (v[k] or 0) > VDD / 2]
+                    for i in sel:
+                        wrv, wrbv = v.get(f"wrat{i}"), v.get(f"wrbat{i}")
+                        st = v.get(f"st{i}")
+                        print(f"    選ばれた行 {i}: WR = {wrv:.2f} / "
+                              f"WRB = {wrbv:.2f}  "
+                              f"（相補でなければ帰還が切れていない）")
+                        print(f"      記憶ノード = {st:.2f}  "
+                              f"（D = 0 を書いているので 0 に落ちるべき）")
                 print("  -> WR が立たないならデコーダ側、D が振れないなら入力バッファ側、"
                       "どちらも正常ならラッチ側")
             print(f"  デッキとログ: {HERE}/decks/{RUNTAG} / {HERE}/logs/{RUNTAG}")
