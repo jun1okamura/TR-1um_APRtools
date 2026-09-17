@@ -29,6 +29,29 @@ def sanitize(n: str) -> str:
     return n.replace("[", "").replace("]", "")
 
 
+def squash(devs):
+    """**全ノード**の角括弧を潰す。
+
+    ★ 2026-09-17（U14）まで、潰していたのは**トップのピンだけ**だった。
+    冒頭の説明は「角括弧は潰してある」と書いてあるのに、内部ノードは
+    `u_core_reg_a[0]` のまま出ていた。REG4x16 では角括弧の付くノードが
+    トップピンしか無かったので誰も踏まなかったが、TD4 のコアでは
+    レジスタも `ld_addr` も内部ノードなので、`.cmd` の `vector` に書けない。
+
+    潰すと**別の網が同じ名前になり得る**（`a[1]` と `a1`）。黙って短絡する
+    ので、衝突したらここで止める。
+    """
+    seen = {}
+    for _, g, s, d, _l, _w in devs:
+        for x in (g, s, d):
+            y = sanitize(x)
+            if seen.setdefault(y, x) != x:
+                sys.exit(f"角括弧を潰すと名前が衝突する: {x!r} と {seen[y]!r} が"
+                         f"どちらも {y!r} になる。元の網を改名してください。")
+    return [(k, sanitize(g), sanitize(s), sanitize(d), l, w)
+            for k, g, s, d, l, w in devs]
+
+
 def parse(path):
     """{サブサーキット名: (ピン列, [M...], [X...])} を返す。継続行 '+' に対応。"""
     lines = []
@@ -117,7 +140,7 @@ def main():
     subs = parse(src)
     if top not in subs:
         sys.exit(f"{top} が {src} に見つかりません。候補: {', '.join(subs)}")
-    devs = flatten(subs, top)
+    devs = squash(flatten(subs, top))
 
     w = sys.stdout.write
     w("| units: 100 tech: scmos\n")
