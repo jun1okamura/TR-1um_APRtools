@@ -49,7 +49,8 @@ TR-1um_Async_I2C        script/ が全ての原本（v9 / v10 世代）
 **「コピーをやめる」ことが目的**。
 
 **2026-09-16 現在** — 3 設計とも APRtools 1 本で通っている（`docs/06_verify_migration.md`）。
-提出 GDS の正規化 md5 は **I2C `bc73b16d` / TD4 `848eb337` / SPI `4dc966be`**（`apr/cmp_gds.py` で照合）。
+提出 GDS の正規化 md5 は **I2C `b86d4c89` / TD4 `848eb337` / SPI `4dc966be`**（`apr/cmp_gds.py` で照合）。
+★ **I2C は 2026-09-17 に `bc73b16d` から変わった** — `MUXDFFRB` のレイアウト修正（U78）。配置も配線も 1 ビットも動いておらず、差はセルの中身（AP / GC / CO / M1 の 4 層）だけ。DRC 0 件（MDP 含む）/ LVS Match。SPI も同じ理由で変わる予定。
 `apr/lint.py` は NG 0 / warn 0（114 ファイル）。**SCLK_SPI だけは「再現」ではなく作り直し**（U32）。
 
 ---
