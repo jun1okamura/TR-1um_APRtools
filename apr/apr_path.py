@@ -69,6 +69,46 @@ if not HAS_CONFIG:
     sys.meta_path.append(_ConfigHint())
 
 
+class _GdstkHint:
+    """`gdstk` が**入っていないとき**に、読めるエラーへ差し替える（U59）。
+
+    `apr/` の **15 本**（`place` / `route` / `mklef` / `mkleffrm` / `cellinfo` /
+    `mkcellinfo` / `gds_extract` / `verify_placement` / `pin_grid_check` /
+    `normalize_prboundary` / `plot_corridors` / `plot_layout` /
+    `check_cell_spice` + `macro/` 2 本）は `gdstk` で GDS を読み書きする。
+    **`klayout.db` へ寄せる案は見送った**（`place` / `route` は GDS を**書く**側で、
+    書き換えると提出 GDS が変わりかねない。2026-09-17 の判断、U59）。
+
+    ★ **依存は隠さず、無いときに何をすればよいかを言う。** いまは関数の中で
+      `ImportError: No module named 'gdstk'` が出るだけだった。
+
+    ★ GDS を**読んで比べるだけ**なら `apr/gdsread.py`（依存なし）で足りる。
+    """
+
+    @staticmethod
+    def find_spec(name, path=None, target=None):
+        if name != "gdstk" or path is not None:
+            return None
+        raise ModuleNotFoundError(
+            "gdstk が入っていない。\n"
+            "  apr/ の 15 本（place / route / mklef / cellinfo / gds_extract …）は\n"
+            "  GDS の読み書きに gdstk を使う。\n"
+            "\n"
+            "      pip install gdstk\n"
+            "\n"
+            "  ★ 手元の Linux でビルドできないことがある。その場合は\n"
+            "    **Mac（フローを回す機械）で流す**こと。\n"
+            "  ★ GDS を**読んで比べるだけ**なら apr/gdsread.py（依存なし）で足りる:\n"
+            "      python3 apr/gdsread.py <古い.gds> <新しい.gds>",
+            name="gdstk")
+
+
+try:
+    import gdstk as _gdstk           # noqa: F401
+except ImportError:
+    sys.meta_path.append(_GdstkHint())
+
+
 class _NoConfig:
     """設計の `config.py` が無いときの代役（`soft_config()` が返す）。
 

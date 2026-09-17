@@ -4,11 +4,12 @@
 `add_top_pins.py` / `place_logo.py` / `frame_pins.py` / `verify_chip.py` /
 `macro/ringosc/place_ring_osc.py`
 
-> ★ **`check_chip.py` / `check_top_channels.py` / `pin_list.py` は APRtools に
-> 移していない**（U80、2026-09-17 に発覚）。実体は `TR-1um_SCLK_SPI/scripts/` に
-> あり、U29 で `apr/from_sclk_spi/` を統合したときに置いていかれた。
-> **3 本とも読むだけの道具**（容量の見積り・自作 DRC・ピン表）なので、
-> 無くても GDS は出る。回すなら SCLK_SPI のルートから直接呼ぶこと。
+> ★ **`check_chip.py` / `pin_list.py` は APRtools に移していない**（U80、
+> 2026-09-17）。実体は `TR-1um_SCLK_SPI/scripts/` にあり、U29 で
+> `apr/from_sclk_spi/` を統合したときに置いていかれた。**どちらも読むだけの
+> 道具**（自作 DRC・ピン表）なので、無くても GDS は出る。回すなら SCLK_SPI の
+> ルートから直接呼ぶこと。`check_top_channels.py` は **2026-09-17 に
+> `apr/` へ移した**（同じ U80）。
 
 幾何の根拠は `docs/11_frame_io.md`、コア幅の扱いは `docs/03_core_geometry.md`。
 
@@ -20,7 +21,7 @@
 | 1b | `macro/ringosc/place_ring_osc.py` | `step1b_ringosc.gds`（RING_OSC TEG を載せる設計のみ） |
 | 1c/4 | `place_logo.py` | ロゴ + 未使用セル刈り |
 | 2a | `gen_top_routing_plan.py` | `gio_connections.json`（論理接続表）/ `signal_routing_plan.json`（物理端点） |
-| 2b | `check_top_channels.py` | **配線前**のチャネル容量確認。★ **APRtools には無い**（U80）|
+| 2b | `check_top_channels.py` | **配線前**のチャネル容量確認（`signal_routing_plan.json` を読む。回さなくても GDS は出る） |
 | 2c | `route_chip.py` | `step2_routed.gds`（PTECT 削除済み） |
 | 3 | `add_top_pins.py` | `step3_top_pins.gds`（ボンドパッドに LVS ピン） |
 | — | `verify_chip.py` / `check_chip.py` | 検査 |
@@ -167,7 +168,7 @@ MPW の `pre_check.py` が「トップセルはちょうど 1 つ」を要求す
 
 | スクリプト | 見るもの |
 |---|---|
-| `check_top_channels.py` | **配線前**のチャネル容量。★ **APRtools には無い**（U80）|
+| `check_top_channels.py` | **配線前**のチャネル容量。1 本 1 トラック・最短の弧で数えた**下限** |
 | `verify_chip.py` | 接続の島判定、フレーム電源ピン、RING_OSC のレール |
 | `check_chip.py` | DRC 差分 / PTECT 3 分割 / 接続性・短絡 / 電源 / 参照との突き合わせ |
 | `drc_pdk.py` | **PDK 公式 DRC。最終判断はこれ** |
