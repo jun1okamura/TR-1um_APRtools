@@ -151,20 +151,57 @@ def main():
         else:
             line(NG, f"{name:12s} が無い: {p}")
 
-    print("\n--- 3. stdcell が設計リポジトリの lef/ とバイト一致か ---")
+    print("\n--- 3. 設計リポジトリ側に正本の写しが残っていないか ---")
+    # ★ **フローが読むのは正本だけ**（`cfg.LIB_GDS` / `cfg.CELL_GDS` …）。
+    #   設計側の `lef/` に同名の写しがあると、**そちらを直して満足してしまう**。
+    #   2026-09-17 に実際に起きた: `MUXDFFRB` の修正が `TR-1um_TD4/lef/` の
+    #   写しに入り、正本は古いままだった（U77）。
+    # ★ ただし **I2C の `scripts/pnr/`（提出時のフロー）は写しを入力に読む**ので、
+    #   そこは `LEF_COPY_FROZEN = True` で「凍結コピー。正本とは揃えない」と宣言する。
     pairs = [("TR-1um_cells.lef", cfg.LIB_LEF), ("TR-1um_STDCELL.gds", cfg.LIB_GDS),
              ("TR-1um_PNR.lef", cfg.LEF_PATH), ("TR-1um_PNR.gds", cfg.CELL_GDS),
              ("tr1um_typ_5v0_25c.lib", cfg.LIBERTY)]
+    frozen = getattr(cfg, "LEF_COPY_FROZEN", False)
+    nfound = 0
     for base, newp in pairs:
         oldp = os.path.join(cfg.ROOT, "lef", base)   # lint: ok 設計の写しと STDCELL 正本を突き合わせる検査そのもの
         if not os.path.exists(oldp):
-            line(WARN, f"{base:24s} 設計側に無い（比較省略）")
-        elif not os.path.exists(newp):
-            line(NG, f"{base:24s} APRtools 側に無い")
-        elif md5(oldp) == md5(newp):
-            line(OK, f"{base:24s} 一致")
+            continue
+        nfound += 1
+        same = os.path.exists(newp) and md5(oldp) == md5(newp)
+        if frozen:
+            line(OK, f"{base:24s} 凍結コピー（{'正本と同じ' if same else '正本とは違う'}）")
+        elif same:
+            line(WARN, f"{base:24s} 正本と同じ写しが残っている（消してよい）")
         else:
-            line(NG, f"{base:24s} **不一致** old={md5(oldp)[:8]} new={md5(newp)[:8]}")
+            line(NG, f"{base:24s} **正本と違う写しがある** "
+                     f"old={md5(oldp)[:8]} 正本={md5(newp)[:8] if os.path.exists(newp) else '無し'}")
+    if nfound == 0:
+        line(OK, "写しは無い（正本だけを読む）")
+    elif frozen:
+        line(OK, f"LEF_COPY_FROZEN: {nfound} 本は提出時のフロー（scripts/pnr/）の入力")
+
+    print("\n--- 3b. 正本どうしが揃っているか（TR-1um_STDCELL.gds -> TR-1um_PNR.gds）---")
+    # ★ **セルを直しても `PNR.gds` を作り直さないと、フローは古いセルで回る。**
+    #   落ちも警告も出ないまま、古いセルのチップが出る。`gdsread` は依存なしで
+    #   読めるので、ここで毎回突き合わせる（U77）。
+    try:
+        import gdsread
+        A, B = gdsread.read(cfg.LIB_GDS), gdsread.read(cfg.CELL_GDS)
+        common = sorted(set(A) & set(B))
+        key = lambda c: (c["shapes"], c["labels"], c["refs"], c["bbox"])
+        bad = [n for n in common if key(A[n]) != key(B[n])]
+        extra = sorted(set(B) - set(A))
+        if bad:
+            line(NG, f"**{len(bad)} セルが食い違う**: {' '.join(bad[:6])}"
+                     f"{' …' if len(bad) > 6 else ''}")
+            line(NG, "  -> `python3 macro/regfile/mkmemport.py` で PNR を作り直す "
+                     "（差分は `python3 apr/gdsread.py <STDCELL> <PNR>`）")
+        else:
+            line(OK, f"共通 {len(common)} セルが一致"
+                     + (f"（PNR 側の追加: {' '.join(extra)}）" if extra else ""))
+    except Exception as e:
+        line(WARN, f"突き合わせできず: {e}")
 
     print("\n--- 4. PDK ---")
     try:
