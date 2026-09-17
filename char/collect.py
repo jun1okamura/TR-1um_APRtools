@@ -138,10 +138,22 @@ def build_seq(cell, res, dt_sweep, warn):
 # --- 入力容量の較正 ---------------------------------------------------------
 def apply_calib(cells, res, out):
     import calib_cap
+    # ★ **基準ドライバの遅延表はライブラリの性質**で、この pack で測ったかどうかと
+    #   は別。1 セルだけの pack では `out` に INV_X1 が無いが、**較正の材料
+    #   （cal_<cell>_<pin>_<n>）は pack の中にある**ので、保存済みの
+    #   `char/INV_X1.json` を基準に使えば較正できる（2026-09-17、U82）。
+    #   ここで諦めると `cap_cal` が空のまま書かれ、`mklib` が既定値 80 fF に
+    #   落ちる。**.lib は無言で出る**ので、誰も気づかない。
     inv = out.get("INV_X1")
     if not inv:
-        print("** INV_X1 の結果が無いので入力容量の較正はしない")
-        return
+        ip = f"{HERE}/char/INV_X1.json"
+        if os.path.exists(ip):
+            inv = json.load(open(ip))
+            print("  （INV_X1 はこの pack に無いので、保存済みの "
+                  "char/INV_X1.json を基準ドライバに使う）")
+        else:
+            print("** INV_X1 の結果も char/INV_X1.json も無いので入力容量の較正はしない")
+            return
     row = inv["arcs"][0]["cell_fall"][SLEWS.index(calib_cap.SLEW_IN)]
     print(f"\n--- 入力容量の較正（基準ドライバ INV_X1 / 入力遷移 "
           f"{calib_cap.SLEW_IN}ns の cell_fall 行を逆引き）---")
@@ -175,6 +187,15 @@ def apply_calib(cells, res, out):
             print(f"  {cell:<10}{pin:<8}{(raw or 0):9.1f}{v:9.1f}{ratio}   {spread:.1%}"
                   f"{'  ** ばらつきが大きい' if spread > 0.15 else ''}")
         d["cap_charge"] = d.get("cap", {})
+        # ★ 測れなかったピンは**保存済みの cap_cal を引き継ぐ**（U70）。
+        #   空のまま書くと `mklib` が既定値に落ちて、.lib が無言で悪くなる。
+        op = f"{HERE}/char/{cell}.json"
+        if os.path.exists(op):
+            prev = (json.load(open(op)).get("cap_cal") or {})
+            for pin, v in prev.items():
+                if cal.get(pin) is None and v:
+                    cal[pin] = v
+                    print(f"  {cell:<10}{pin:<8}{'':>9}{v:9.1f}{'':>7}   （前回の値を引き継いだ）")
         d["cap_cal"] = cal
 
 

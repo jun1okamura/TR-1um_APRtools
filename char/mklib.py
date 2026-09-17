@@ -149,8 +149,19 @@ def emit_comb(cell, data, o):
 
 
 def seqcap(data, pin, default=80.0):
+    """順序セルの入力容量。`cap_cal`（較正済み）が無ければ既定値に落ちる。
+
+    ★ **落ちたときは必ず言う。** 2026-09-17 に、1 セルだけの pack で
+      `collect.py` を回したら `cap_cal` が空になり、`MUXDFFRB` の 5 ピンが
+      **全部 80 fF**（実測は 36〜63）で .lib に出た。**無言だったので
+      気づくのに時間がかかった**（U82）。
+    """
     c = (data.get("cap_cal") or data.get("cap") or {}).get(pin)
-    return c if c else default
+    if not c:
+        print(f"  ** {data['cell']} の {pin}: 較正済みの入力容量が無いので "
+              f"既定値 {default} fF を書く（char/{data['cell']}.json の cap_cal を確認）")
+        return default
+    return c
 
 
 def emit_seq(cell, data, o):
