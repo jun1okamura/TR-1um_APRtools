@@ -552,7 +552,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U67 | マクロ内部セルの抽出ネットリストの境界ラベルが欠けている | 判断待ち | セル GDS のラベルを直す（`DEC2` の出力・`vdd`、`VSS` の小文字化） |
 | U73 | Liberty に書いた制約のうち STA が見るのは一部だった | 一部残 | `min_pulse_width` 11 ns を ngspice の回帰として自動化する |
 | U84 | 製造グリッド 0.050 µm を自作チェッカが見ていない | 一部残 | `drc_check_cells.py` に `ERR01` を足す。ただし**デッキの層の導出（`MASK + SCRB`）まで写さないと誤報が出る** |
-| U85 | 提出世代のコアの中間ファイルがリポジトリに無い | 一部残 | `place.py` → `route.py` を通して作り直し、**日付を見てから** `cmp_gds` を当てる |
+| U85 | **`apr/place.py` が TD4 の提出配置を再現しない** | 一部残 | 行の割り当てと行ごとのセル数は一致、**行内の順序が違う**。提出物を作ったのは `scripts/pnr/place.py`（719 行）で、`apr/place.py`（844 行）は移植版。**移植が再現することを一度も確かめていない** |
 
 ### 7-3. 記録（U 番号順）
 
@@ -1950,10 +1950,41 @@ TD4 の追跡済み 23 本（`layout/step6/` 6 + `layout/portrait/` 17）が
 分かる実験）/ `cell_info.json`・`row_assignment.json`（流れが作り直す）/
 `seed_sweep.json`（記録）。
 
-**残り** — **提出世代のコアを作り直して置く**。`place.py` → `route.py` を
-通し、**日付を見てから** `cmp_gds` を当てる。いまは `SQUEEZED_GDS` /
-`CHIP_CORE_GDS` が**無い**ので、チップの段は「無い」と言って止まる
-（別物を黙って組み立てるよりよい）。
+**作り直そうとして、再現しないことが分かった（同日）** —
+`mkcellinfo.py` → `place.py` → `route.py` を通したが、
+`route.py` は step6 で止まる（`claim_track_near: no free track near idx=-6
+in channel 2`）。**4 行世代の `cell_info.json` を消したあとでも同じ**なので、
+原因はそこではない。
+
+**配置を提出物と突き合わせた**:
+
+| 見たもの | 結果 |
+|---|---|
+| 行の数 | **5 行で一致** |
+| 行ごとのセル数 | **44 / 49 / 51 / 45 / 52 で完全一致** |
+| 行内の x | **全行で違う** |
+| 使った値（`layout/place_params.json`） | `seed 1` / `restarts 800` / `order_passes 40` / `balance_tol 0.02` / `fill_mode alternate` / `pad_weight 0.0` — **config の意図どおり** |
+| `PYTHONHASHSEED` | `place.py` が `os.execv` で 0 に固定している |
+
+★★ **提出物を作ったのは `apr/place.py` ではない。**
+TD4 には**設計自身の P&R 一式** `scripts/pnr/` がまだ在り、
+そちらの `place.py` は **719 行**、`apr/place.py` は **844 行**、
+差は **219 行**。`apr/` 側は移植版で、`PAD_WEIGHT` の項は**移植で足された**
+（`scripts/pnr/place.py` には `PAD_WEIGHT` が 1 つも無い。TD4 の config が
+`PAD_WEIGHT = 0.0` にして「当時と同じ評価関数になる」と書いているのは
+そのため）。**移植版が提出配置を再現することは、一度も確かめられていない。**
+
+★ I2C と SCLK_SPI は `apr/` で再現している（U78 で作り直し、正規化 md5 が
+一致）。**TD4 だけが確かめられていない。**
+
+**次の一手（切り分け）** — Mac で**設計自身の** `scripts/pnr/place.py` を
+回し、提出配置が出るかを見る。
+- 出る → **移植（`apr/place.py`）が原因**。219 行の差を詰める。
+- 出ない → 配置器の外（ライブラリ / ネットリスト / 環境）が動いている。
+
+★ **移植は「動いた」ではなく「同じものが出た」で確かめる。**
+`apr/` へ移したときに I2C と SPI では突き合わせたが、TD4 は
+**移植したまま一度も回していなかった**。
 
 #### U86 — `connect_macro_power.py` が TD4 で何もしていない
 
