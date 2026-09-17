@@ -2,9 +2,17 @@
 """mkmemport.py -- `REG8x16` を 90° 回し、垂直なピン列を**水平なパッド列**に
 変換したハードマクロ `MEMPORT` を作る。
 
-  usage: python3 scripts/pnr/mkmemport.py
-         python3 scripts/pnr/mkmemport.py --plot layout/memport.png
-         python3 scripts/pnr/mkmemport.py --order-from layout/placement.json
+  usage: **設計ルートから**回す（`config.py` のある所。`MEMPORT` を使うのは TD4）
+
+    cd <設計>
+    python3 $APRTOOLS/macro/regfile/mkmemport.py --force
+    python3 $APRTOOLS/macro/regfile/mkmemport.py --plot layout/memport.png
+    python3 $APRTOOLS/macro/regfile/mkmemport.py --order-from layout/placement.json
+
+  ★ 書き先は**設計ではなく STDCELL 正本**（`stdcell/<版>/TR-1um_PNR.{gds,lef}`。
+    U28）。設計ルートから回すのは、帯の幅を `config.CORE_WIDTH_UM` から取るため。
+  ★ usage が `scripts/pnr/…` のままで、**設計ルートから回すことも書いていなかった**
+    （U29 で `apr/` へ移す前の道。2026-09-17 に直した）。
 
 ## なぜ要るか
 
