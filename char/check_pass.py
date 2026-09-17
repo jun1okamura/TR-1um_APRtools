@@ -13,26 +13,32 @@
 """
 from __future__ import annotations
 import re, subprocess, sys, os
-import gdstk
-import cellspec
 
 VDD = 5.0
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
+# ★ `gdstk` が無いときに読める案内を出す仕掛けは `apr/apr_path.py` にある
+#   （U59）。`char/` は apr/ を import しないので、**ここだけ素の
+#   `ModuleNotFoundError` が出ていた**（U37 の洗い出しで気づいた）。
+sys.path.insert(0, os.path.join(HERE, "..", "apr"))
+import apr_path  # noqa: F401,E402  gdstk が無いときの案内（U59）
+import gdstk  # noqa: E402
+import cellspec  # noqa: E402
 from check_comb import (to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT,
                         models_dir, models_include)                        # noqa: E402
+from charlib import stdcell_file                                           # noqa: E402
 
 COX = 1.77          # fF/µm²
 def _gds():
-    """セルライブラリの GDS。実体は lef/ にある。
-    `{HERE}/TR-1um_STDCELL.gds` を直に開いていたため、新規チェックアウトでは
-    OSError で動かなかった（mklib.py の cell_area.json と同じ穴）。"""
-    for p in (os.environ.get("TR1UM_GDS"),
-              f"{HERE}/TR-1um_STDCELL.gds",
-              f"{HERE}/../../lef/TR-1um_STDCELL.gds"):
-        if p and os.path.exists(p):
-            return p
-    raise SystemExit("TR-1um_STDCELL.gds が見つからない（TR1UM_GDS で指定可）")
+    """セルライブラリの GDS。正本は `stdcell/<版>/TR-1um_STDCELL.gds`。
+
+    ★ 2026-09-17（U37）まで `{HERE}/TR-1um_STDCELL.gds` と
+      `{HERE}/../../lef/TR-1um_STDCELL.gds` を見ていた。**前者は存在せず、
+      後者は APRtools の外**（`char/../../lef` は APRtools の親）なので、
+      `TR1UM_GDS` を渡さない限り必ず止まっていた。`lef/` は設計側にあり、
+      セルライブラリは APRtools のものである（決定 21）。
+    """
+    return stdcell_file("TR-1um_STDCELL.gds", env="TR1UM_GDS")
 
 
 GDS = _gds()

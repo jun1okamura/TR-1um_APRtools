@@ -134,7 +134,33 @@ class _NoConfig:
         raise SystemExit(
             "PDK の場所が分からない。TR1UM_PDK を渡すか、設計ルートから実行する。")
 
+    # ★ **設計に依らないライブラリ側の事実だけ**を通す許可制（U37、2026-09-17）。
+    #   STDCELL は APRtools のもので、設計ディレクトリの外でも決まる
+    #   （`area_estimate.py` が `cell_area.json` を読むのに必要）。
+    #   ★ `config_base` を丸ごと素通しにはしない。設計固有の値にも既定値が
+    #   あるので、黙って配ると**別設計の値で動いたように見える**
+    #   （決定 22 / U25 / U26 / U36）。
+    _PASS = ("STDCELL", "ROW_HEIGHT_UM", "SITE_UM")
+
+    @staticmethod
+    def stdcell_dir():
+        """設計が `STDCELL` を上書きしていないときの正本の置き場。
+
+        ★ `config_base.stdcell_dir()` は呼べない。あれは `_g()` 経由で
+          **設計の名前空間**を読むので、`finalize(globals())` を通っていない
+          ここでは止まる。モジュール既定（`APR_STDCELL` は反映済み）から組む。
+        """
+        import config_base
+        return os.path.join(config_base.APR_ROOT, "stdcell", config_base.STDCELL)
+
+    @classmethod
+    def stdcell_file(cls, name):
+        return os.path.join(cls.stdcell_dir(), name)
+
     def __getattr__(self, name):
+        if name in self._PASS:
+            import config_base
+            return getattr(config_base, name)
         raise SystemExit(
             f"`{name}` は**設計の config.py にしかない値**。\n"
             f"  いまは設計ルートの外で動いている（{DESIGN_ROOT}）。\n"

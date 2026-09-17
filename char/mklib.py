@@ -12,7 +12,8 @@
 from __future__ import annotations
 import argparse, json, os, sys
 import cellspec
-from charlib import HERE, VDD, TEMP, SLEWS, LOADS, SLEWS_C, TH_DELAY, TH_SLEW_LO, TH_SLEW_HI
+from charlib import (HERE, VDD, TEMP, SLEWS, LOADS, SLEWS_C, TH_DELAY,
+                     TH_SLEW_LO, TH_SLEW_HI, stdcell_file)
 
 # セル面積表。正本は `stdcell/<版>/cell_area.json`（`apr/mkcellinfo.py` が
 # GDS から作る）。`TR1UM_CELL_AREA` で明示もできる。
@@ -20,21 +21,13 @@ from charlib import HERE, VDD, TEMP, SLEWS, LOADS, SLEWS_C, TH_DELAY, TH_SLEW_LO
 #   APRtools にはどちらも無いので **import した瞬間に SystemExit** していた。
 #   設計リポジトリの複製（`scripts/char/`）では隣にあって通っていたので、
 #   複製を消すまで気づかなかった（U65 / 決定 21）。
-CELL_AREA_VER = os.environ.get("TR1UM_STDCELL", "v59_4")
+# ★ 2026-09-17（U37）に `charlib.stdcell_file()` へ寄せた。**当たったことの
+#   無い `{HERE}/cell_area.json` と `{HERE}/../cell_area.json` は落とした。**
 
 
 def _areas():
-    cands = [os.environ.get("TR1UM_CELL_AREA"),
-             f"{HERE}/../stdcell/{CELL_AREA_VER}/cell_area.json",
-             f"{HERE}/cell_area.json",
-             f"{HERE}/../cell_area.json"]
-    for p in cands:
-        if p and os.path.exists(p):
-            return json.load(open(p))["cells"]
-    raise SystemExit(
-        "cell_area.json が見つからない。正本は stdcell/<版>/cell_area.json。\n"
-        "  作り直すなら: python3 <APRtools>/apr/mkcellinfo.py\n"
-        f"  試した場所: {[c for c in cands if c]}")
+    p = stdcell_file("cell_area.json", env="TR1UM_CELL_AREA")
+    return json.load(open(p))["cells"]
 
 
 class _Areas:

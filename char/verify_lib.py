@@ -33,7 +33,7 @@ from __future__ import annotations
 import json, os, re, subprocess, sys
 import cellspec
 from charlib import (HERE, VDD, SLEWS, LOADS, run_ngspice, header, ports_of,
-                     all_ports_of, full_ramp)
+                     all_ports_of, full_ramp, stdcell_file)
 
 SLEW_V = 0.6        # 検算に使う入力遷移（20-80%）
 import char_comb
@@ -253,12 +253,9 @@ def lib_default():
 
     見つからなければ `None` を返し、**呼び手は NG として数える**。
     """
-    ver = os.environ.get("TR1UM_STDCELL", "v59_4")
-    for p in (f"{HERE}/tr1um_typ_5v0_25c.lib",
-              f"{HERE}/../stdcell/{ver}/tr1um_typ_5v0_25c.lib"):
-        if os.path.exists(p):
-            return os.path.normpath(p)
-    return None
+    return stdcell_file("tr1um_typ_5v0_25c.lib",
+                        first=(f"{HERE}/tr1um_typ_5v0_25c.lib",),
+                        missing_ok=True)
 
 
 def _block(txt, start):

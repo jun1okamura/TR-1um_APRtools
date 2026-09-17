@@ -8,6 +8,41 @@ sys.path.insert(0, HERE)
 from check_comb import (to_xm, ports_of, all_ports_of, CELLDIR, CELLEXT,
                         models_dir, models_include, need_ngspice)           # noqa: E402
 
+# ---- STDCELL 正本の場所（**ここ 1 箇所**）-------------------------------
+# ★ 同じ「stdcell/<版>/ の中を探す」を `mklib` / `verify_lib` / `check_pass` が
+#   **3 通りに書いていた**（U37、2026-09-17）。`check_pass` のものは
+#   `{HERE}/TR-1um_STDCELL.gds` と `{HERE}/../../lef/…` を見ていて、
+#   **前者は存在せず、後者は APRtools の外**を指していた（どちらも当たらない）。
+STDCELL_VER = os.environ.get("TR1UM_STDCELL", "v59_4")
+
+
+def stdcell_dir():
+    """STDCELL 正本の置き場 `<APRtools>/stdcell/<版>`。版は `TR1UM_STDCELL`。"""
+    return os.path.normpath(os.path.join(HERE, "..", "stdcell", STDCELL_VER))
+
+
+def stdcell_file(name, env=None, first=(), missing_ok=False):
+    """正本の中の 1 ファイルを探す。
+
+    `env`      … これで明示できる環境変数名（あれば最優先）
+    `first`    … 正本より**先に**見る場所（`mklib` の出力先など）
+    `missing_ok` … 見つからないとき `None` を返す（既定は読める形で止まる）
+    """
+    cands = [os.environ.get(env) if env else None]
+    cands += list(first)
+    cands.append(os.path.join(stdcell_dir(), name))
+    for p in cands:
+        if p and os.path.exists(p):
+            return os.path.normpath(p)
+    if missing_ok:
+        return None
+    raise SystemExit(
+        f"{name} が見つからない。正本は stdcell/<版>/{name}。\n"
+        f"  版は TR1UM_STDCELL（いま {STDCELL_VER}）"
+        + (f"、場所は {env} で明示できる" if env else "") + "。\n"
+        f"  試した場所: {[c for c in cands if c]}")
+
+
 VDD = 5.0
 TEMP = 25
 
