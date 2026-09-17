@@ -144,7 +144,7 @@ def load_pad_order_from_lef(lef_path):
 
 
 def build(plot=None, order_from=None, pads_from_lef=None,
-          out_dir=None, force=False):
+          out_dir=None, force=False, reassign=False):
     import gdstk
     lib = gdstk.read_gds(cfg.LIB_GDS)
     cells = {c.name: c for c in lib.cells}
@@ -291,6 +291,20 @@ def build(plot=None, order_from=None, pads_from_lef=None,
 
     # パッドの割り当て。既定はピンの並び順だが、配置結果があれば
     # **負荷の重心 x の順**に並べ替える（中継の M1 段はどこへでも引ける）。
+    #
+    # ★ **作り直すときは、既にある LEF の割り当てを引き継ぐのが既定**（U79）。
+    #   2026-09-17 に踏んだ: 標準セル 1 個（`MUXDFFRB`）を直したので
+    #   `--force` で作り直したら、**`MEMPORT` の 23 ピン中 20 ピンの x が動いた**
+    #   （`ADD[0]` と `ADD[1]` が入れ替わる、など）。配置器が見るピン座標が
+    #   動くので、**`MEMPORT` を使う TD4 は配置も配線もやり直しになり、
+    #   提出 GDS が再現しなくなる**。しかも `MUXDFFRB` とは何の関係もない。
+    #   割り当てを変えたいときだけ `--reassign-pads` か `--order-from` を明示する。
+    if not pads_from_lef and not order_from and not reassign:
+        _lef = os.path.join(out_dir or os.path.dirname(cfg.CELL_GDS), "TR-1um_PNR.lef")
+        if os.path.exists(_lef):
+            pads_from_lef = _lef
+            print(f"  既存の {cfg.show(_lef)} からパッドの割り当てを引き継ぐ"
+                  "（変えたいなら --reassign-pads）")
     if pads_from_lef:
         want = load_pad_order_from_lef(pads_from_lef)
         if sorted(want) != sorted(r[0] for r in allpins):
@@ -442,5 +456,8 @@ if __name__ == "__main__":
                     help="書き先。既定は **STDCELL 正本**（cfg.CELL_GDS の隣）")
     ap.add_argument("--force", action="store_true",
                     help="既にあるライブラリを上書きする（正本を書き換える）")
+    ap.add_argument("--reassign-pads", action="store_true",
+                    help="**パッドの割り当てを作り直す**（既定は既存 LEF から引き継ぐ）。"
+                         "ピン座標が動くので、MEMPORT を使う設計は配置からやり直しになる")
     a = ap.parse_args()
-    build(a.plot, a.order_from, a.pads_from_lef, a.out_dir, a.force)
+    build(a.plot, a.order_from, a.pads_from_lef, a.out_dir, a.force, a.reassign_pads)
