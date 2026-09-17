@@ -47,10 +47,15 @@ M1 は水平・M2 は垂直で、`lef/TR-1um_tech.lef` の方向規則どおり�
 
 ## 出力
 
-  `lef/TR-1um_PNR.gds`   標準セル + `MEMPORT`（1598.4 × 399.6）を 1 ファイルに
-  `lef/TR-1um_PNR.lef`   同じく MACRO を 1 ファイルに
+  `stdcell/<版>/TR-1um_PNR.gds`   標準セル + `MEMPORT`（1598.4 × 399.6）
+  `stdcell/<版>/TR-1um_PNR.lef`   同じく MACRO を 1 ファイルに
 
-**配置配線はこの 2 つだけを読む**（`config.CELL_GDS` / `LEF_PATH`）。
+★ **U89（2026-09-17）以降、配置配線はこの 2 つを読まない。** 横置きは
+採用しなかったので、`config.CELL_GDS` / `LEF_PATH` は**ライブラリ本体**
+（`TR-1um_STDCELL.gds` / `TR-1um_cells.lef`）を指している。差は `MEMPORT`
+1 個だけで、置いてもいないセル定義とラベル 1940 本が全部のコア GDS に
+乗っていた。この道具と `MEMPORT` は**横置きをやり直すとき用に残してある**
+だけで、フローの一部ではない。**回しても流れには効かない。**
 ライブラリ本体（`TR-1um_STDCELL.gds` / `TR-1um_cells.lef`）は汚さない。
 
 以降のフローから見ると「上辺 1 列にピンがあるハードマクロ 1 個」になるので、

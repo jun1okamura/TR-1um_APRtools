@@ -81,7 +81,7 @@ APR_2026 では `scripts/pnr/` ではなく `scripts/` 直下にあるため「S
 | `TR-1um_cells.lef` | 92,076 B | 同一 | — | `stdcell/v59_4/` |
 | `TR-1um_STDCELL.lef` | — | — | 75,075 B | `stdcell/v64_8/` |
 | `TR-1um_tech.lef` | 643 B | 同一 | — | `stdcell/v59_4/` |
-| `TR-1um_PNR.{gds,lef}` | 415,252 / 95,829 B | 同一 | — | `stdcell/v59_4/`（MEMPORT 込み） |
+| `TR-1um_PNR.{gds,lef}` | 415,252 / 95,829 B | 同一 | — | `stdcell/v59_4/`（MEMPORT 込み）。**U89 以降フローは読まない**（本体 + `MEMPORT` で、差は `MEMPORT` 1 個だけ） |
 | `tr1um_typ_5v0_25c.lib` | 193,112 B | 186,133 B | — | `stdcell/v59_4/`（**I2C 版が新しい＝RSLATCH 入り**） |
 | `TR1um_5_stdcell{,_area}.lib` | — | — | 27,718 / 21,438 B | `stdcell/v64_8/` |
 | `cell_info.json` | `layout/` 生成 | 同 | `lef/` 5,404 B | `stdcell/vXX/` |

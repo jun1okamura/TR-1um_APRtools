@@ -26,7 +26,7 @@
 TR-1um_STDCELL.gds        51 セル（論理 31 + メモリ階層 + via_1）
 TR-1um_cells.lef          48 MACRO
 TR-1um_tech.lef           SITE / LAYER / VIA 定義
-TR-1um_PNR.gds/.lef       ↑ + MEMPORT（配置配線が読むのはこの 2 つ）
+TR-1um_PNR.gds/.lef       ↑ + MEMPORT（横置きの実験。**U89 以降フローは読まない**）
 tr1um_typ_5v0_25c.lib     実特性化 Liberty（RSLATCH 入り、193 KB）
 cell_info.json            セル寸法表（mkcellinfo.py 生成、LEF と GDS を突き合わせ済み）
 cell_area.json            面積見積り用

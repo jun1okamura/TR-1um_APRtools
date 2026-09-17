@@ -57,7 +57,7 @@ BUF_X4, BUF_X16   ← LEF に MACRO はあるが GDS にセルが無い
 | デコーダ | `DEC0` `DEC2` `DEC16` |
 | バッファ | `REGBUF` `REGBUF4` `REGBUF8` `ADDBUF` |
 | マクロ | **`REG4x16`**（248.4×933.0 / 1,076 Tr）、**`REG8x16`**（399.6×933.0 / 1,876 Tr） |
-| P&R 専用 | `MEMPORT`（`TR-1um_PNR.{gds,lef}` 側。`REG8x16` を R90 して水平パッド列に変換） |
+| 横置きの実験 | `MEMPORT`（`TR-1um_PNR.{gds,lef}` 側。`REG8x16` を R90 して水平パッド列に変換）。**採用せず。U89 でフローの入力から外した** |
 
 ## 3. 移行で必要になる作業（SCLK_SPI を 59.4 版で作り直す場合）
 

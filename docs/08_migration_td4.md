@@ -124,8 +124,10 @@ OUT = 3, 6, 12, 8, 8, 3, 6, 12, 8, 8, 3, 6   （CF は終始 0）
 ## 分かったこと
 
 - **STDCELL は TD4 と APRtools で 4 ファイルともバイト一致**。
-  `TR-1um_PNR.lef` / `.gds` には `REG8x16` と `MEMPORT` が既に入っている
-  ので、マクロを持つ設計でも APRtools の STDCELL をそのまま使える。
+  `TR-1um_cells.lef` / `TR-1um_STDCELL.gds` に `REG8x16` が入っている
+  ので、マクロを持つ設計でも APRtools の STDCELL をそのまま使える
+  （`MEMPORT` だけが別の `TR-1um_PNR.*` 側にあったが、U89 でフローの
+  入力から外した）。
   差があるのは Liberty（`tr1um_typ_5v0_25c.lib`）だけで、これは合成用。
   **TD4 の `out/*.v` は古い Liberty で合成されている**ので、再合成すると
   ネットリストが変わる（再現には触らない）。

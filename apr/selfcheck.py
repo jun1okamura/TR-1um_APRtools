@@ -159,7 +159,7 @@ def main():
     # ★ ただし **I2C の `scripts/pnr/`（提出時のフロー）は写しを入力に読む**ので、
     #   そこは `LEF_COPY_FROZEN = True` で「凍結コピー。正本とは揃えない」と宣言する。
     pairs = [("TR-1um_cells.lef", cfg.LIB_LEF), ("TR-1um_STDCELL.gds", cfg.LIB_GDS),
-             ("TR-1um_PNR.lef", cfg.LEF_PATH), ("TR-1um_PNR.gds", cfg.CELL_GDS),
+             ("LEF_PATH", cfg.LEF_PATH), ("CELL_GDS", cfg.CELL_GDS),
              ("tr1um_typ_5v0_25c.lib", cfg.LIBERTY)]
     frozen = getattr(cfg, "LEF_COPY_FROZEN", False)
     nfound = 0
@@ -181,11 +181,20 @@ def main():
     elif frozen:
         line(OK, f"LEF_COPY_FROZEN: {nfound} 本は提出時のフロー（scripts/pnr/）の入力")
 
-    print("\n--- 3b. 正本どうしが揃っているか（TR-1um_STDCELL.gds -> TR-1um_PNR.gds）---")
+    print("\n--- 3b. 正本どうしが揃っているか（ライブラリ本体 -> 配置配線が読む方）---")
     # ★ **セルを直しても `PNR.gds` を作り直さないと、フローは古いセルで回る。**
     #   落ちも警告も出ないまま、古いセルのチップが出る。`gdsread` は依存なしで
     #   読めるので、ここで毎回突き合わせる（U77）。
+    if os.path.realpath(cfg.LIB_GDS) == os.path.realpath(cfg.CELL_GDS):
+        # U89: 正本を 1 本にしたので、ここは「同じファイルか」を見れば足りる。
+        # 設計が `CELL_GDS` を上書きしたときだけ下の突き合わせに落ちる。
+        line(OK, f"正本は 1 本（{cfg.disp(cfg.LIB_GDS)}）— 配置配線もこれを読む")
+        A = None
+    else:
+        A = 1
     try:
+        if A is None:
+            raise StopIteration
         import gdsread
         A, B = gdsread.read(cfg.LIB_GDS), gdsread.read(cfg.CELL_GDS)
         common = sorted(set(A) & set(B))
@@ -200,6 +209,8 @@ def main():
         else:
             line(OK, f"共通 {len(common)} セルが一致"
                      + (f"（PNR 側の追加: {' '.join(extra)}）" if extra else ""))
+    except StopIteration:
+        pass
     except Exception as e:
         line(WARN, f"突き合わせできず: {e}")
 

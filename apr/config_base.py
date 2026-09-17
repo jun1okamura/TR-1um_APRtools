@@ -642,8 +642,17 @@ def finalize(ns):
     sc = os.path.join(APR_ROOT, "stdcell", ns.setdefault("STDCELL", STDCELL))
     ns.setdefault("LIB_LEF", os.path.join(sc, "TR-1um_cells.lef"))
     ns.setdefault("LIB_GDS", os.path.join(sc, "TR-1um_STDCELL.gds"))
-    ns.setdefault("LEF_PATH", os.path.join(sc, "TR-1um_PNR.lef"))
-    ns.setdefault("CELL_GDS", os.path.join(sc, "TR-1um_PNR.gds"))
+    # ★ U89（2026-09-17）: 配置配線が読むのも**ライブラリ本体**にした。
+    #   以前は `TR-1um_PNR.{gds,lef}`（= 本体 + `MEMPORT`）を読んでいたが、
+    #   測ると差は **`MEMPORT` 1 個だけ**で、共通 48 MACRO / 51 セルは
+    #   バイト一致。`MEMPORT` は横置きの実験（採用しなかった）のもので、
+    #   どの設計も置いていない。**置いていないのに全部のコア GDS が
+    #   セル定義とラベル 1940 本を運んでいた。**
+    #   正本が 2 本あること自体が U77（セルを直したのに PNR を作り直さず
+    #   古いセルで回る）と U79（`mkmemport` がピン割当てを作り直す）の
+    #   元なので、1 本にした。`MEMPORT` と `mkmemport.py` は残してある。
+    ns.setdefault("LEF_PATH", os.path.join(sc, "TR-1um_cells.lef"))
+    ns.setdefault("CELL_GDS", os.path.join(sc, "TR-1um_STDCELL.gds"))
     ns.setdefault("LIBERTY", os.path.join(sc, "tr1um_typ_5v0_25c.lib"))
     ns.setdefault("LOGO_BITMAP", os.path.join(APR_ROOT, "art", "opensusi_logo.txt"))
     # ★ フレームは PDK から参照する（コピーしない）。生成物は設計の作業ディレクトリへ。
