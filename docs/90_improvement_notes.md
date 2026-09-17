@@ -1255,8 +1255,8 @@ PMOS 側 y 36〜53 µm で、`AP` 活性P が 2 枚（各 10.4 µm 高）から
 | 配置・配線 | **1 ビットも動かず**（`layout/` の JSON 変更 0）| 同左 |
 | セル単位の照合 | 違うのは `MUXDFFRB` 1 セルだけ | 同左 |
 | DRC / MDP DRC | **0 件 / 0 件** | **0 件 / 0 件** |
-| LVS | **Match**（strict port mode）| — |
-| `.cir` | 変化なし（回路は同じ）| — |
+| LVS | **Match**（strict port mode）| **Match**（同左）|
+| `.cir` | 変化なし（回路は同じ）| 変化なし |
 
 ★ **LVS が Match したので、golden（`simulation/MUXDFFRB.spice`）は直さなくてよかった。**
 PDK の LVS は折り返した 2 フィンガーを **1 素子（W=10.4）** として見る。
