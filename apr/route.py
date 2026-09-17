@@ -306,14 +306,9 @@ def stage10(ch_heights):
     re-routing (the I2C flow's STEP7)."""
     import squeeze_channels as sq
     os.makedirs(os.path.dirname(cfg.SQUEEZED_GDS), exist_ok=True)
-    # ハードマクロの y 範囲は identity 写像で残す（マクロは参照なので中身が
-    # 縮まらない。中で潰すとマクロだけ下がって配線がピンから外れる）。
-    _mx0, _my0, _mx1, _my1 = cfg.macro_box()
-    # I2C はマクロ無しで macro_box() が縮退した (0,0,0,0) を返す。そのまま渡すと
-    # y=0 に幅ゼロの保護区間ができ、PROTECT_PAD で ±1 トラック膨らんで
-    # **ch[0] の底が理由もなく圧縮から外れる**。マクロが無いときは渡さない。
-    _extra = [] if getattr(cfg, "MACRO_MODE", "landscape") == "none" \
-        else [(_my0, _my1)]
+    # ★ 保護区間の決め方は squeeze_channels 側に置いた（U45）。
+    #   あちらを直に回したときと**同じものが出る**ようにするため。
+    _extra = sq.extra_protect_from_config(cfg)
     sq.main(in_gds=cfg.POWERPINS_GDS,
             compaction_info_path=cfg.COMPACTION_INFO_JSON,
             out_gds=cfg.SQUEEZED_GDS,

@@ -60,6 +60,7 @@ _HERE = _os.path.dirname(_os.path.abspath(__file__))
 _sys.path.insert(0, _HERE)
 import apr_path  # noqa: F401  設計ルートを sys.path へ
 import config as _cfg  # noqa: E402
+import rules  # noqa: E402  プロセス定数の単一ソース
 # ---------------------------------------------------------------------------
 import json
 import sys
@@ -389,10 +390,14 @@ def main(in_gds, compaction_info_path, out_gds, pin_map_in=None, pin_map_out=Non
                                      track_pitch, track0_offset, kept_by_channel,
                                      protect_y=protect_y)
     old_core_h = ch_y0[-1] + ch_heights[-1]
-    print(f"core height: {old_core_h:.1f} um -> {new_core_h:.1f} um "
+    # ★ **この 2 つは「予算」と「計算値」で、GDS を測った数字ではない**（U45）。
+    #   圧縮前は step6 が書いた `compaction_info.json` の予算、圧縮後は
+    #   y 写像から出した計算値。**成果物の寸法は下で GDS を測って出す。**
+    print(f"コア高 予算 {old_core_h:.1f} um -> 計算 {new_core_h:.1f} um "
           f"(-{old_core_h - new_core_h:.1f} um, -{100*(old_core_h-new_core_h)/old_core_h:.1f}%)")
 
-    MFG_GRID_UM = 0.05  # v8 fix (this session): y_map()'s breakpoint
+    # ★ 値は `rules.MFG_GRID`（U84 で単一ソースにした。直書き 0.05 をやめた）
+    MFG_GRID_UM = rules.MFG_GRID  # y_map()'s breakpoint
                          # accumulation (repeated float += over ~170+
                          # breakpoints for a design this size) drifts off
                          # the true manufacturing grid by a few
@@ -458,6 +463,16 @@ def main(in_gds, compaction_info_path, out_gds, pin_map_in=None, pin_map_out=Non
     layout.write(out_gds)
     print(f"wrote {out_gds}")
 
+    # ★ **寸法は GDS を測る**（U45）。上の「計算」は y 写像から出した値で、
+    #   成果物そのものではない。書いた直後に測って、食い違ったら必ず出す。
+    _bb = top.dbbox()
+    print(f"コア高 実測 {_bb.height():.3f} um  "
+          f"（bbox {_bb.left:.3f},{_bb.bottom:.3f} - {_bb.right:.3f},{_bb.top:.3f}）")
+    if abs(_bb.height() - new_core_h) > rules.MFG_GRID:
+        print(f"  ** 計算 {new_core_h:.3f} と実測 {_bb.height():.3f} が "
+              f"{abs(_bb.height() - new_core_h):.3f} um 違う。"
+              f"下流に渡すのは**実測**の方。")
+
     if pin_map_in and pin_map_out:
         # verify_connectivity.py's locate_m1() needs each pin's
         # exact post-squeeze (x, y) to find it on the moved M1 -- remap Y
@@ -498,15 +513,41 @@ def main(in_gds, compaction_info_path, out_gds, pin_map_in=None, pin_map_out=Non
     return new_core_h
 
 
+def extra_protect_from_config(cfg=_cfg):
+    """圧縮から外す y 区間（ハードマクロ）を設計の設定から決める。
+
+    ★ **`route.py` の step10 とここで同じものを使う**（U45、2026-09-17）。
+      以前はこの判断が `route.py` にしか無く、このファイルを直に回すと
+      **マクロを潰した別物**が出るところだった。
+
+    マクロは参照なので中身が縮まらない。中で潰すとマクロだけ下がって配線が
+    ピンから外れる。★ I2C はマクロ無しで `macro_box()` が縮退した (0,0,0,0)
+    を返す。そのまま渡すと y=0 に幅ゼロの保護区間ができ、`PROTECT_PAD` で
+    ±1 トラック膨らんで **ch[0] の底が理由もなく圧縮から外れる**。
+    マクロが無いときは渡さない。
+    """
+    if getattr(cfg, "MACRO_MODE", "landscape") == "none":
+        return []
+    _mx0, _my0, _mx1, _my1 = cfg.macro_box()
+    return [(_my0, _my1)]
+
+
 if __name__ == "__main__":
-    IN_GDS = _cfg.artifact("i2c_slave_async_v6_minheight_routed.gds")
-    COMPACTION_INFO = "/tmp/v6_compaction_info.json"
-    OUT_GDS = _cfg.artifact("i2c_slave_async_v6_squeezed_routed.gds")
-    PIN_MAP_IN = _cfg.artifact("i2c_slave_async_v6_minheight_pin_map.json")
-    PIN_MAP_OUT = _cfg.artifact("i2c_slave_async_v6_squeezed_pin_map.json")
-    NET_SHAPES_IN = _cfg.artifact("i2c_slave_async_v6_minheight_net_shapes.json")
-    NET_SHAPES_OUT = _cfg.artifact("i2c_slave_async_v6_squeezed_net_shapes.json")
-    FJ_IN = _cfg.artifact("i2c_slave_async_v6_minheight_force_jog_events.json")
-    FJ_OUT = _cfg.artifact("i2c_slave_async_v6_squeezed_force_jog_events.json")
-    main(IN_GDS, COMPACTION_INFO, OUT_GDS, PIN_MAP_IN, PIN_MAP_OUT,
-         NET_SHAPES_IN, NET_SHAPES_OUT, FJ_IN, FJ_OUT)
+    import argparse
+    ap = argparse.ArgumentParser(
+        description="配線済み GDS から未使用トラック分の Y を詰める（配線 step10）",
+        epilog="既定はすべて設計の config.py。流れの中では route.py が呼ぶ。")
+    ap.add_argument("--in-gds", default=_cfg.POWERPINS_GDS)
+    ap.add_argument("--info", default=_cfg.COMPACTION_INFO_JSON,
+                    help="step6 が書いた compaction_info.json")
+    ap.add_argument("-o", "--out", default=_cfg.SQUEEZED_GDS)
+    ap.add_argument("--pin-map-in", default=_cfg.PIN_MAP_RR_JSON)
+    ap.add_argument("--pin-map-out", default=_cfg.PIN_MAP_SQ_JSON)
+    ap.add_argument("--net-shapes-in", default=_cfg.NET_SHAPES_RR_JSON)
+    ap.add_argument("--net-shapes-out", default=_cfg.NET_SHAPES_SQ_JSON)
+    _a = ap.parse_args()
+    _os.makedirs(_os.path.dirname(_os.path.abspath(_a.out)), exist_ok=True)
+    main(in_gds=_a.in_gds, compaction_info_path=_a.info, out_gds=_a.out,
+         pin_map_in=_a.pin_map_in, pin_map_out=_a.pin_map_out,
+         net_shapes_in=_a.net_shapes_in, net_shapes_out=_a.net_shapes_out,
+         extra_protect=extra_protect_from_config())

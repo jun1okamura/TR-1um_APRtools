@@ -2656,6 +2656,11 @@ def main(placement_json=PLACEMENT_JSON, in_gds=IN_GDS, out_gds=OUT_GDS,
         # skipped, so without this a squeeze pass could not tell a
         # necessary guard from a genuinely spare index).
         compaction_info = {
+            # ★ **ch_heights は圧縮「前」の予算**（トラック数 x ピッチ）で、
+            #   成果物の寸法ではない（U45）。step10 の squeeze_channels.py が
+            #   ここから未使用トラックを外す。**実寸は GDS を測ること。**
+            "_what": "step6（チャネル配線）時点の記録。ch_heights / budget は"
+                     "圧縮前の予算で、最終寸法ではない。実寸は GDS を測る（U45）",
             "ch_y0": ch_y0, "ch_heights": list(CH_HEIGHTS), "row_y0": row_y0,
             "row_h": row_h, "n_rows": n_rows, "n_ch": n_ch,
             "track_pitch": TRACK_PITCH, "track0_offset": TRACK0_OFFSET,

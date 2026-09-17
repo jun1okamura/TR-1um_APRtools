@@ -81,6 +81,10 @@ def main():
     for u in (0.5, 0.6, 0.7, 0.8):
         need = tot / u
         print(f"  util {u:.0%}: {need/1e6:6.3f} mm2  {'OK' if need <= core else 'NG'}")
+    # ★ どれが測った値で、どれが見積りかを必ず言う（U45、2026-09-17）。
+    print("\n★ セル面積は **実測**（GDS の (235,0) abutment box）。"
+          "\n  行数・util・所要面積は **見積り**（配置も配線も済んでいない）。"
+          "\n  成果物の寸法は配置配線のあと GDS を測ること。")
 
 
 if __name__ == "__main__":

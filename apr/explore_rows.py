@@ -192,10 +192,15 @@ def main(net_path=NET, info_path=INFO, rows=(2, 3, 4, 5, 6), restarts=300,
     print(f"cells   : {len(insts)}   total cell width {total_w:.1f} um")
     print(f"nets    : {len(net_cells)}  (ports {sum(1 for x in net_cells if is_port_net(x, ports))})")
     print(f"limits  : row width <= {MAX_ROW_W} um, row height {ROW_H} um, "
-          f"track pitch {PITCH} um\n")
+          f"track pitch {PITCH} um")
+    # ★ **ここの寸法は全部「予算」**（トラック数 x ピッチ）で、成果物ではない
+    #   （U45、2026-09-17）。step10 の圧縮が未使用トラックを外すので実寸は縮む。
+    #   N の**比較**に使う数字であって、絶対値の予想ではない。
+    print("★ 以下のコア寸法・面積は **圧縮前の予算**（上限）。"
+          "実寸は step10 のあと GDS を測ること\n")
 
     hdr = (f"{'rows':>4} {'row w(um)':>10} {'fit?':>5} {'local':>6} {'span':>5} "
-           f"{'max ch tracks':>14} {'core WxH (um)':>20} {'area(mm2)':>10}")
+           f"{'max ch tracks':>14} {'予算 core WxH (um)':>22} {'予算 area(mm2)':>14}")
     print(hdr)
     print("-" * len(hdr))
     res = []
@@ -206,7 +211,7 @@ def main(net_path=NET, info_path=INFO, rows=(2, 3, 4, 5, 6), restarts=300,
         area = r["core_w"] * r["core_h"] / 1e6
         print(f"{n:4d} {r['max_row_w']:10.1f} {fit:>5} {r['local']:6d} "
               f"{r['spanning']:5d} {max(r['cross']):14d} "
-              f"{r['core_w']:8.0f} x {r['core_h']:7.0f} {area:10.3f}")
+              f"{r['core_w']:10.0f} x {r['core_h']:7.0f} {area:14.3f}")
         res.append(r)
 
     for r in res:
@@ -215,7 +220,7 @@ def main(net_path=NET, info_path=INFO, rows=(2, 3, 4, 5, 6), restarts=300,
               + ", ".join(f"{w:.1f}" for w in r["row_w"]))
         print(f"  channel tracks  : {r['cross']}")
         print(f"  channel heights : "
-              + ", ".join(f"{h:.0f}" for h in r["heights"]) + " um")
+              + ", ".join(f"{h:.0f}" for h in r["heights"]) + " um  （予算）")
         print(f"  nets local/span/port : {r['local']}/{r['spanning']}/{r['port']}")
         print(f"  row occupancy   : "
               + ", ".join(f"{w/r['core_w']*100:.0f}%" for w in r["row_w"])
