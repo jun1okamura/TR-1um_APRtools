@@ -1125,6 +1125,20 @@ def main():
     cl, cb, cr, ct = plan["core_chip_bbox"]
     dx, dy = plan["core_offset"]
 
+    # ★ 縦の詰まりを引く前に見る（U88）。`CHIP_VDD_BUS_Y` / `CHIP_GND_BUS_Y` は
+    # 設計の config に**リテラルで**書いてあり、そのときのコア高に合わせて
+    # 決めた値なので、コアが高くなるとバーがコアの中に入る。M1 どうしなので
+    # 重なっても DRC には出ず、コアのチャネル 0 を走る信号がそのまま電源に
+    # 落ちる。`config_base.chip_stack()` は前からこれを見ていたが、
+    # `selfcheck.py` からしか呼ばれておらず、チップの流れは素通りしていた。
+    bad = [r for r in cfg.chip_stack((cl, cb, cr, ct)) if r[2] is not None and not r[3]]
+    if bad:
+        for label, got, need, _ in bad:
+            print(f"  NG  {label}  {got} µm （要 {need}）")
+        raise SystemExit("チップの縦の詰まりが足りない（上の行）。"
+                         "コア高が変わったら config の CHIP_VDD_BUS_Y / "
+                         "CHIP_GND_BUS_Y を直すこと")
+
     layout = db.Layout()
     layout.read(a.in_gds)
     top = layout.cell(cfg.CHIP_TOP_CELL)
