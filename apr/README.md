@@ -178,7 +178,7 @@ yosys の出力を P&R に渡せる形にする。
 | ファイル | 流 | 行 | 読 | 何をするか |
 |---|:--:|--:|--:|---|
 | `cellinfo.py` |  | 240 |  | STDCELL GDS を読んでセルの実寸法 / Tr 数 / ピンを表にする |
-| `gdsread.py` |  | 90 |  | **依存なしで GDS を読む**（`gdstk` も `klayout` も要らない）。セルごとの図形数 / ラベル / 参照 / bbox を数えて 2 ファイルを突き合わせる。`selfcheck` §3b が使う |
+| `gdsread.py` |  | 100 |  | **依存なしで GDS を読む**（`gdstk` も `klayout` も要らない）。セルごとの図形数 / ラベル / 参照 / bbox を数えて 2 ファイルを突き合わせる。`selfcheck` §3b が使う |
 | `sync_cell_info.py` |  | 325 |  | セルを測り直して `cell_info.json` / `cell_char.json` を更新する。`.extracted` が無いセルは **GDS から直接**数える（U33） |
 | `gen_liberty.py` |  | 150 |  | 実測値から Liberty を組む。`FUNCS` に無いセルは論理関数なし（U34） |
 | `mklef.py` |  | 375 |  | STDCELL GDS から LEF（tech + セル + マクロ）を生成する |

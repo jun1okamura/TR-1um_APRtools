@@ -524,8 +524,9 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U78 | `MUXDFFRB` 修正後の I2C / SCLK_SPI の作り直し | **進行中** | 正本は差し替え済み。派生物の再生成と P&R は Mac 側（`gdstk` / KLayout / ngspice が要る）|
 | U79 | `mkmemport.py --force` が `MEMPORT` のピン割当てを黙って作り直す | 決着 2026-09-17 | 23 ピン中 **20 ピンの x が動いた**。既存 LEF から引き継ぐのを既定にした |
 | U80 | `docs/23_flow_chip.md` が **APRtools に無い道具 3 本**を流れに書いている | **未解決** | `check_chip.py` / `check_top_channels.py` / `pin_list.py`。実体は `TR-1um_SCLK_SPI/scripts/` |
+| U81 | `drc_pdk` / `lvs_pdk` のトップセルを**パスで見分けていた** | 決着 2026-09-17 | `src/` の提出物を渡すと**コアだけを見て「違反 0 件」**と出た。GDS 自身から決める形にした |
 
-**80 件中、残っているのは 23 件**（未解決 / 判断待ち / 一部残 / 上流待ち）。
+**81 件中、残っているのは 23 件**（未解決 / 判断待ち / 一部残 / 上流待ち）。
 
 ### 7-2. 残っているもの（次の一手）
 
@@ -1290,6 +1291,32 @@ APRtools に無く**、実体は `TR-1um_SCLK_SPI/scripts/` にあった。
 (b) 「移していない」と手順書に書いて流れから外す。
 **手順書の冒頭には (b) の形で書いた**（U10 と同じ「参照先が無い .md / .py は
 移行の残骸」）。移すかどうかは判断待ち。
+
+#### U81 — `drc_pdk` / `lvs_pdk` がトップセルをパスで見分けていた
+
+**状態**: 決着 2026-09-17 ／ **出典**: 2026-09-17（U78 の作業中に踏んだ）
+
+    top = a.top_cell or (cfg.CHIP_TOP_CELL if "/chip/" in a.gds else cfg.TOP_CELL_NAME)
+
+`src/tr_1um_jun1okamura_i2c.gds`（提出物）に DRC を当てたら、パスに `/chip/` が
+無いので **`top=i2c_slave_async_nrow_fm`（コアセル）**になり、
+**コアだけを見て「違反 0 件」**と出た。チップの枠・リング・ロゴ・電源は
+**1 つも検査されていない**。
+
+★ **§2-7 の事例 B とまったく同じ形**（`drc_check.py` の `TOP_CELL` が渡された
+GDS に関係なくコアセル名で固定されていて、「0 violations」が全部無意味だった）。
+**同じ穴を、別のスクリプトで、もう一度踏んだ。**
+
+→ **渡された GDS 自身から決める**: どこからも参照されていないセルが
+ちょうど 1 個ならそれがトップ（`apr/gdsread.py` の `top_cells()`。依存なし）。
+2 個以上（中間の GDS には未参照セルが山ほど残る）のときだけ config の
+見分けに落ち、**どの候補から何を選んだかを出す**。実測:
+
+    src/<top>.gds                        -> tr_1um_jun1okamura_i2c   （直った）
+    layout/chip/step3_top_pins.gds       -> tr_1um_jun1okamura_i2c
+    layout/step10/route_..._squeezed.gds -> 候補 12 個 -> config から i2c_slave_async_nrow_fm
+
+★ **「0 件」は、何を見たかとセットでないと意味が無い。**
 
 ### 7-4. 番号を付けていない記録（付随して直したもの）
 

@@ -62,6 +62,20 @@ def read(path):
         else: c["bbox"]=None
     return cells
 
+def top_cells(path):
+    """**そのファイル自身の**トップセル（どこからも参照されていないセル）。
+
+    KLayout の内部セル（`$$$…`）は除く。0 個や 2 個以上のこともある
+    （中間の GDS には未参照のセルが山ほど残っている）ので、**呼び手は
+    「ちょうど 1 個のときだけ信じる」**こと。
+    """
+    cells = read(path)
+    ref = set()
+    for c in cells.values():
+        ref |= set(c["refs"])
+    return sorted(n for n in cells if n not in ref and not n.startswith("$$$"))
+
+
 if __name__ == "__main__":
     a, b = read(sys.argv[1]), read(sys.argv[2])
     only = sorted(set(a) ^ set(b))

@@ -147,7 +147,26 @@ def main():
                     help="起こしたマスクの置き場（既定: <gds>_mdp.gds）")
     a = ap.parse_args()
 
-    top = a.top_cell or (cfg.CHIP_TOP_CELL if "/chip/" in a.gds else cfg.TOP_CELL_NAME)
+    # ★ **トップは渡された GDS 自身から決める。** パスで見分ける形
+    #   （`"/chip/" in gds` ならチップ、でなければコア）は **`src/` に書き出した
+    #   提出物を渡すと外れる**。2026-09-17 に踏んだ: `src/<top>.gds` に
+    #   DRC を当てたら `top=<コアセル名>` になり、**コアだけを見て「違反 0 件」**と
+    #   出た（§2-7 の事例 B と同じ形。自作チェッカが 0 を返しても根拠にならない）。
+    #   どこからも参照されていないセルがちょうど 1 個ならそれがトップ。
+    top = a.top_cell
+    if not top:
+        try:
+            import gdsread
+            cand = gdsread.top_cells(a.gds)
+        except Exception:
+            cand = []
+        if len(cand) == 1:
+            top = cand[0]
+        else:
+            top = cfg.CHIP_TOP_CELL if "/chip/" in a.gds else cfg.TOP_CELL_NAME
+            if cand:
+                print(f"  （トップ候補が {len(cand)} 個あるので config から {top} を採った: "
+                      f"{' '.join(cand[:6])}{' …' if len(cand) > 6 else ''}）")
     # ★ **その名前のセルが入力に無ければ、KLayout を起こす前に止める。**
     #   既定は設計のトップ名なので、**ライブラリの GDS を渡すと必ず外れる**
     #   （2026-09-17 に実際に踏んだ。`run.drc` の中から
