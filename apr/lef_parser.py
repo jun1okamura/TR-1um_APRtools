@@ -1,4 +1,4 @@
-"""
+r"""
 lef_parser.py -- LEF を読んで MACRO の SIZE / FOREIGN / ピン矩形を返すライブラリ。
 
 読むだけで何も書かない。`place.py` / `gen_placement_json.py` /

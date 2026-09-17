@@ -38,3 +38,6 @@ char/models/
 char/char/*_ext.json
 char/char/*_ext_*.json
 char/char/*_src_*.json
+
+# KLayout の DRC レポート（生成物）
+*_drc.lyrdb
