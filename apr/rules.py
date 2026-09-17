@@ -65,7 +65,13 @@ V1_GA_SPACE_MIN = 1.2      # V1.GA（GA = GC + GR。重なりは即違反）
 
 # ★ 自作チェッカが実装していないが PDK デッキにはあるルール。
 #   `docs/10_pdk_facts.md` §3-2 / `docs/40_gotchas.md` §2-4
-M1_WIDE_MIN = 10.0         # M1.W2  これ以上を M1(W) とみなす
+# ★ **ちょうど 10.0 は M1(W) ではない**（U18、2026-09-17 に実測）。
+#   デッキの M1W = M1.sized(-5.0).merged.sized(5.0).merged は
+#   幅 10.000 を幅 0 に潰して落とす。**10.000 を超えたら**（1 dbu = 0.001 でも）
+#   M1(W) になり、接する M1 に 2.0 を要求する。
+#   電源バー（CHIP_BUS_W / POWER_BAR_W / RO_VSS_BAR_W）は 10.0 ちょうどで、
+#   **境界の内側 1 dbu** にいる。探針は mk_drc_probe.py の T_SW_10 / T_SW_10p。
+M1_WIDE_MIN = 10.0         # M1.W2  これを**超える**と M1(W)
 M1_WIDE_SPACE_MIN = 2.0    # M1.SW  M1(W) に接する M1 は 2.0 必要（1.4 ではない）
 METAL_WIDTH_MAX = 45.0     # M1.W3 / M2.W3（パッド部と AC は除外）
 SCRIBE_SPACE_MIN = 5.0     # M1.SCR / M2.SCR
