@@ -60,19 +60,24 @@ M1 は水平・M2 は垂直で、`lef/TR-1um_tech.lef` の方向規則どおり�
 
 マクロの `vdd`/`vss` は元の上辺と下辺に 2 本ずつ出ている。R90 すると
 **左辺と右辺に 4 枚ずつ**（y 1.0 / 76.6 / 389.8 / 395.2）に移る。
+**右辺の 4 枚だけ**を、マクロの右の空き地を通って上辺へ引き出す。
+上辺に出るのは `vdd` 2 枚 / `vss` 2 枚で、**x 1413〜1595**（幅 1598.4 の
+右端 12 %）に固まる。
 
-- **右辺の 4 枚**は、マクロの右の空き地を通って上辺へ引き出す。
-- **左辺の上 2 枚**（y 389.8 / 395.2）も引き出す。マクロ上端 399.6 まで
+★ **左辺の上 2 枚も出せる**（2026-09-17 に実測。U12）。マクロ上端 399.6 まで
   **6.4 / 1.0 µm** しかなく、帯（y 399.6..502.2）の左端 x 0..25.2 は
-  **M1 / M2 / V1 とも 1 図形も無い**ので、真っ直ぐ立てるだけで出せる
-  （2026-09-17 に実測。U12）。
-- **左辺の深い 2 枚**（y 1.0 / 76.6）は出さない。本当にマクロを縦断する
-  ことになる（OBS 全面）。
-
-結果、上辺に出るのは `vdd` 3 枚 / `vss` 3 枚で、**左右の両端から入る**。
-★ 2026-09-17 まで右辺の 4 枚だけだったので、上辺のパッドは
-`x 1413〜1595`（幅 1598.4 の右端 12 %）に固まっていた。引き出しが半分で、
-しかも片寄っていた（U12）。
+  M1 / M2 / V1 とも 1 図形も無い。実際に `fanout_left()` を書いて
+  `vdd` 3 枚 / `vss` 3 枚まで作り、DRC 相当も XOR も通した。
+  **それでも取り消した**（同日）。理由は電気ではなく順番:
+  **上辺の電源パッドは、いまどの段も繋いでいない。**
+  コアの配線も（重なり 0 µm²）、チップの配線も触れておらず、
+  接続性を抽出すると名前の付かない島（`$1` / `$6`）になる。
+  その仕事をするはずの `connect_macro_power.py` は、`find_macro()` が
+  `cfg.MACRO_CELL`（= `REG8x16`）をトップの実体から探すのに TD4 が置いて
+  いるのは `MEMPORT` なので、**「何もしない」と出して終了コード 0 で
+  素通り**している。**誰も繋いでいないパッドを増やしても電気は良くならない。**
+  まず `connect_macro_power.py` を動くようにし、**その道具が要る枚数と
+  位置を決めてから**足すこと。経緯と座標は `docs/90_improvement_notes.md` の U12。
 
 ★ **金属のシート抵抗は PDK に無い**（`libs.tech/spice/models/` は MOS /
 抵抗器 / 容量 / ダイオードだけ）ので、IR 降下の数字は出せない。
@@ -110,30 +115,6 @@ TRACK_DY = rules.SITE_W             # マクロの上の M1 段のピッチ
 TRACK_Y0 = 405.0           # 最初の M1 段（マクロ上端 399.6 + 5.4）
 PAD_H = rules.VIA_PAD
 
-# --- U12: 左辺の電源も上へ出す --------------------------------------------
-# 回転後、電源パッドは**左右の辺に 4 枚ずつ**に分かれる（y 1.0 / 76.6 /
-# 389.8 / 395.2）。長らく右辺の 4 枚だけを引き出していたので、上辺に出る
-# のは vdd 2 枚・vss 2 枚で、しかも**全部 x 1413〜1595（右端 12 %）**に
-# 固まっていた。引き出しが半分で、しかも片寄っている（U12）。
-#
-# ★ 左辺の**上 2 枚**はマクロ上端 399.6 まで **6.4 / 1.0 µm** しかなく、
-#   帯（y 399.6..502.2）の左端 x 0..25.2 は **M1 / M2 / V1 とも 1 図形も無い**
-#   （2026-09-17 に実測。いちばん左のライザは `Q[3]` の x 25.3..28.7）。
-#   なので**真っ直ぐ立てるだけ**で出せる。深い 2 枚（y 1.0 / 76.6）は
-#   本当にマクロを縦断するので触らない。
-# ★ x はパッド中心が 5.4 の倍数（既存は 27.0 / 86.4 / 145.8 …）。選べるのは
-#   **5.4 と 10.8 の 2 つだけ**で、16.2 / 21.6 は使えない:
-#   - 下側（M1 で潜る方）を 5.4 に置くと、V1 がマクロ自身の V1 (3.9..5.3) と
-#     融合して 2.2 × 1.4 になり `V1.W1`（1.4 ちょうど）を破る。
-#   - 16.2 / 21.6 は、**TD4 のコア側の配線**（トップセルが描いた M2
-#     `x 17.2..20.6`、マクロのパッド列から上へ 211 µm）と重なる。
-#     ★ セル単体で見ていると気づけない。**置く設計のレイアウトに当てて確かめた**
-#       （2026-09-17、U12）。
-#   → 潜る方（下のレール）を 10.8、直行する方（上のレール）を 5.4。
-#     直行する方は V1 を 1 つも使わないので 5.4 でも融合しない。
-PWR_LEFT_CX = (10.8, 5.4)    # (下のレール = M1 で潜る方, 上のレール = 直行)
-PWR_LEFT_DUCK_Y = 402.3      # 潜ったあと M2 に戻る via の y（マクロ上端 + 2.7）
-PWR_LEFT_MAX_DROP = 10.0     # マクロ上端からこれ以上下のパッドは扱わない
 
 
 def r90(x, y, w_src, h_src):
@@ -181,22 +162,12 @@ def load_pad_order_from_lef(lef_path):
     `--order-from`（負荷の重心順）は逆に**並べ替える**ので、配置がやり直しに
     なり配線もサイコロを振り直すことになる。
 
-    ★ **左辺の電源パッドは数に入れない。** あれは `allpins` の分配に乗らず
-      固定 x に置くものなので、ここで拾うと 2 回目以降に「既存 LEF のピン
-      構成が違う」で落ちる（U12 を入れた直後に実際に踏んだ。2026-09-17）。
-      ★ 見分けは `PWR_LEFT_CX` との一致ではなく **`PAD_BANDS` の外かどうか**。
-        定数を動かした直後の LEF も読めるようにするため（実際、10.8 / 16.2 で
-        作った LEF を 10.8 / 5.4 に変えたあと読んで落ちた）。
     """
     pins = lef_parser.parse_lef(lef_path)[CELL]["pins"]
-    lo = min(a for a, _b in PAD_BANDS)
     out = []
     for name, info in pins.items():
         for r in info["rects"]:
-            cx = round((r[1] + r[3]) / 2.0, 3)
-            if cx < lo - 1e-6:          # 分配の帯より左 = 左辺の電源
-                continue
-            out.append((name, cx))
+            out.append((name, round((r[1] + r[3]) / 2.0, 3)))
     out.sort(key=lambda t: t[1])
     return [n for n, _x in out]
 
@@ -289,36 +260,6 @@ def build(plot=None, order_from=None, pads_from_lef=None,
         return dict(name=name, use=use, x0=round(rx - HALF, 3), y0=pad_y0,
                     x1=round(rx + HALF, 3), y1=pad_y1)
 
-    def fanout_left(name, use, py0, py1, rx, pad_y0, pad_y1, duck):
-        """左辺の電源を、帯の左端に立てて上辺パッドへ（U12）。
-
-        右辺と違って**マクロの右の空き地が使えない**（左には空き地が無い）
-        ので、マクロ上端のすぐ上へ真っ直ぐ立てる。
-
-        `duck=True` は**下側のレール**。真上にもう 1 本レールがあるので M2 の
-        まま上げると短絡する。V1 で M1 に落とし、M1 で上のレールの**下を潜り**、
-        マクロ上端を越えてから M2 に戻す（M1 と M2 は V1 が無ければ繋がらない）。
-        """
-        if w_src - py1 > PWR_LEFT_MAX_DROP:
-            raise SystemExit(
-                f"{name} の左辺パッド上端 {py1} はマクロ上端 {w_src} から "
-                f"{w_src - py1:.1f} µm 下（許すのは {PWR_LEFT_MAX_DROP}）。\n"
-                f"  ここを越えるとマクロの上を縦断することになる。"
-                f"{SRC_CELL} の電源パッドが動いたはず（U12）。")
-        cy = round((py0 + py1) / 2.0, 3)
-        if duck:
-            via(rx, cy)                                    # レール(M2) → M1
-            box(M1, rx - HALF, py0, rx + HALF, PWR_LEFT_DUCK_Y + HALF)
-            via(rx, PWR_LEFT_DUCK_Y)                       # M1 → M2
-            box(M2, rx - HALF, PWR_LEFT_DUCK_Y - HALF, rx + HALF, pad_y1)
-        else:
-            box(M2, rx - HALF, py0, rx + HALF, pad_y1)     # レールから直行
-        box(M2PIN, rx - HALF, pad_y0, rx + HALF, pad_y1)
-        top.add(gdstk.Label(name, (rx, (pad_y0 + pad_y1) / 2.0),
-                            layer=M2LBL[0], texttype=M2LBL[1], magnification=2.0))
-        return dict(name=name, use=use, x0=round(rx - HALF, 3), y0=pad_y0,
-                    x1=round(rx + HALF, 3), y1=pad_y1)
-
     def fanout(name, use, px0, py0, px1, py1, k, rx, ty):
         """1 本ぶんの中継。
 
@@ -346,11 +287,6 @@ def build(plot=None, order_from=None, pads_from_lef=None,
                             layer=M2LBL[0], texttype=M2LBL[1], magnification=2.0))
         return dict(name=name, use=use, x0=round(rx - HALF, 3), y0=pad_y0,
                     x1=round(rx + HALF, 3), y1=pad_y1)
-
-    # ★ **左辺の電源は `allpins` に入れない。** 入れるとパッド x の分配
-    #   （`pad_xs`）が全部ずれ、既存 LEF からの引き継ぎ（U79）も
-    #   「ピン構成が違う」で落ちる。21 本の信号と右辺 4 枚は**1 本も動かさない**。
-    pwr_l = sorted([p for p in pwr if p[2] < h_src / 2], key=lambda r: r[3])[-2:]
 
     allpins = sig + pwr_r
     n = len(allpins)
@@ -428,11 +364,6 @@ def build(plot=None, order_from=None, pads_from_lef=None,
         k_track += 1
         pins.append(fanout(name, use, x0, y0, x1, y1, k, rx, ty))
 
-    # --- U12: 左辺の上 2 枚。下（duck）が先、上が後 ------------------------
-    for i, ((name, use, _x0, y0, _x1, y1), rx) in enumerate(zip(pwr_l, PWR_LEFT_CX)):
-        pins.append(fanout_left(name, use, y0, y1, rx, pad_y0, pad_y1,
-                                duck=(i == 0)))
-
     top.add(gdstk.rectangle((0, 0), (W, H), layer=BOUND[0], datatype=BOUND[1]))
 
     # 干渉チェック: 同一レイヤの M2 ライザ同士が 2.0 µm 以上離れているか
@@ -500,8 +431,8 @@ def build(plot=None, order_from=None, pads_from_lef=None,
           f" x {min(pad_xs)}…{max(pad_xs)}（コア幅いっぱいに分散）")
     print(f"  マクロの上に M1 の段 {n_track} 本（y {TRACK_Y0}…{ty_last}）"
           f"／右側 {n - n_track} 本はピンの y のまま直行（段を使わない）")
-    print(f"  電源は右辺 4 枚 + 左辺の上 2 枚 = vdd 3 / vss 3 を上辺へ"
-          f"（左辺の深い 2 枚 y 1.0 / 76.6 はマクロを縦断するので出さない。U12）")
+    print(f"  ** 電源はマクロ右辺の 2 本ずつだけを引き出している。"
+          f"上辺のパッドはいまどの段も繋いでいない（U12）")
     if plot:
         draw(plot, W, H, h_src, allpins, pins)
     return gds, leff
