@@ -158,6 +158,11 @@ def build(plot=None, order_from=None, pads_from_lef=None,
         raise SystemExit(f"{SRC_CELL} の prBoundary 原点が (0,0) でない。"
                          f"先に scripts/normalize_prboundary.py")
 
+    # ★ **設計固有の値を読むのはここ 1 つだけ。** この道具はライブラリ
+    #   （3 設計が共有する `TR-1um_PNR.{gds,lef}`）を作るのに、帯の幅だけは
+    #   回した設計の `config.py` から来る。3 設計とも 296 トラック = 1598.4 なので
+    #   どこから回しても同じ物が出るが、**どの設計の値で作ったかは出力に書く**
+    #   （2026-09-17 に「どの設計ルートで回すのか」を聞かれた）。
     W = cfg.CORE_WIDTH_UM                    # 帯の幅 = コア幅
     if h_src > W:
         raise SystemExit(f"回転後の幅 {h_src} がコア幅 {W} を超える")
@@ -375,6 +380,8 @@ def build(plot=None, order_from=None, pads_from_lef=None,
 
     print(f"wrote {cfg.show(gds)}")
     print(f"wrote {cfg.show(leff)}")
+    print(f"  帯の幅は {os.path.basename(cfg.ROOT)} の CORE_WIDTH_UM = {W}"
+          f"（3 設計とも 296 トラック = 1598.4。違っていたら回す設計を間違えている）")
     print(f"  {CELL} {W} x {H} um   （{SRC_CELL} を R90 して {h_src} x {w_src}、"
           f"右の空き地 {W - h_src:.1f} um に中継）")
     print(f"  上辺パッド {n} 本（信号 {len(sig)} + 電源 {len(pwr_r)}）"
