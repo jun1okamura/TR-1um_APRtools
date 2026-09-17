@@ -72,12 +72,18 @@ if not HAS_CONFIG:
 class _GdstkHint:
     """`gdstk` が**入っていないとき**に、読めるエラーへ差し替える（U59）。
 
-    `apr/` の **15 本**（`place` / `route` / `mklef` / `mkleffrm` / `cellinfo` /
-    `mkcellinfo` / `gds_extract` / `verify_placement` / `pin_grid_check` /
+    `apr/` の **11 本**（`mklef` / `mkleffrm` / `cellinfo` / `mkcellinfo` /
+    `gds_extract` / `verify_placement` / `pin_grid_check` /
     `normalize_prboundary` / `plot_corridors` / `plot_layout` /
     `check_cell_spice` + `macro/` 2 本）は `gdstk` で GDS を読み書きする。
-    **`klayout.db` へ寄せる案は見送った**（`place` / `route` は GDS を**書く**側で、
-    書き換えると提出 GDS が変わりかねない。2026-09-17 の判断、U59）。
+    **道具ごと `klayout.db` へ移す案は見送った**（U59）。
+
+    ★ ただし **`place` と `route` は 2026-09-17 に外れた**（U90）。
+      `route.checks()` は bbox を 1 つ取るためだけ、`place.write_gds()` は
+      配置 GDS を書くためだけに `gdstk` を import していて、**流れの本体は
+      どちらも `klayout.db` だけで動いていた**。この 2 箇所を置き換えたので、
+      **配置からチップ・`src/` まで `gdstk` 無しで回る**。
+      残り 11 本はセル情報 / LEF / 抽出 / 作図で、流れの本体ではない。
 
     ★ **依存は隠さず、無いときに何をすればよいかを言う。** いまは関数の中で
       `ImportError: No module named 'gdstk'` が出るだけだった。
@@ -91,8 +97,9 @@ class _GdstkHint:
             return None
         raise ModuleNotFoundError(
             "gdstk が入っていない。\n"
-            "  apr/ の 15 本（place / route / mklef / cellinfo / gds_extract …）は\n"
+            "  apr/ の 11 本（mklef / cellinfo / gds_extract / plot_* …）は\n"
             "  GDS の読み書きに gdstk を使う。\n"
+            "  ★ place / route は gdstk 無しで回る（U90）。\n"
             "\n"
             "      pip install gdstk\n"
             "\n"

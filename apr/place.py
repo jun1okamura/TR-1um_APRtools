@@ -44,7 +44,6 @@ import config as cfg                                    # noqa: E402
 import netlist_util as nu                                   # noqa: E402
 import lef_parser                                           # noqa: E402
 
-EPOCH = __import__("datetime").datetime(2026, 1, 1)   # GDS ヘッダの固定日付
 SUPPLY = {"VDD", "VSS", "GND", "vdd", "vss", "gnd",
           "1'b0", "1'b1", "1'h0", "1'h1"}
 MACRO = cfg.MACRO_NET_CELL     # ネットリスト上の名前
@@ -632,47 +631,73 @@ def pack_row(seq, width, cellof, row_w, with_tap, with_fill, mode="alternate"):
 
 # ------------------------------------------------------------------ GDS 出力
 def write_gds(path, rows, rows_y, macro_inst, info, top=None):
-    import gdstk
+    """配置を GDS に書く。
+
+    ★ **`klayout.db` で書く（U90、2026-09-17）。** 以前は `gdstk` だったが、
+    `place.py` が `gdstk` を要るのは**ここ 1 箇所だけ**で、そのために
+    「配置はクラウドで回せない」状態になっていた（`route.py` の `checks()`
+    も同じ形で、最後の 2 つの検査が飛んでいた）。読み込みも計算も
+    `gdstk` を使っていない。
+
+    やることは 3 つだけ:
+      1. `CELL_GDS` を**そのまま読む**（セル定義は 1 バイトも作り直さない）
+      2. トップセルを作って配置ぶんの実体を並べ、`PRBOUNDARY` を 1 枚描く
+      3. **使っていないセルを落とす**（`cleanup`）
+
+    **タイムスタンプは書かない**（`gds2_write_timestamps = False`）。既定では
+    書き出し時刻が GDS ヘッダに入るので、同じ配置でもファイルの md5 が毎回
+    変わって「配置が変わったのか書き直しただけか」が区別できない。
+    `gdstk` 版は固定日付（2026-01-01）を入れていた。**どちらも「毎回同じ」で、
+    入る値が違うだけ。**
+    """
+    import klayout.db as db
     top = top or cfg.TOP_CELL_NAME
-    lib = gdstk.read_gds(cfg.CELL_GDS)
-    src = {c.name: c for c in lib.cells}
-    out = gdstk.Library(name=top, unit=1e-6, precision=1e-9)
+    out = db.Layout()
+    out.read(cfg.CELL_GDS)
+    dbu = out.dbu
 
-    keep = set() if NO_MACRO else {MACRO_PHYS}
-    for row in rows:
-        for cname, _, _, _ in row:
-            keep.add(cfg.PRI_CELL if cname == "__PRI__" else cname)
+    def um(v):
+        return int(round(v / dbu))
 
-    def add_deep(c, seen):
-        if c.name in seen:
-            return
-        seen.add(c.name)
-        out.add(c)
-        for r in c.references:
-            add_deep(r.cell, seen)
+    core = out.create_cell(top)
 
-    seen = set()
-    for n in sorted(keep):
-        add_deep(src[n], seen)
+    def place(cname, x, y):
+        c = out.cell(cname)
+        if c is None:
+            raise SystemExit(f"{cfg.show(cfg.CELL_GDS)} に セル {cname} が無い")
+        core.insert(db.CellInstArray(c.cell_index(),
+                                     db.Trans(db.Vector(um(x), um(y)))))
 
-    core = out.new_cell(top)
     for r, row in enumerate(rows):
         for cname, _, x, _ in row:
-            core.add(gdstk.Reference(
-                src[cfg.PRI_CELL if cname == "__PRI__" else cname], (x, rows_y[r])))
+            place(cfg.PRI_CELL if cname == "__PRI__" else cname, x, rows_y[r])
     # マクロ。GDS のセル原点は prBoundary 左下ではないので実測オフセットを足す。
     if not NO_MACRO:
         mx0, my0, _, _ = cfg.macro_box()
         ox, oy = info[MACRO_PHYS]["origin"]
-        core.add(gdstk.Reference(src[MACRO_PHYS], (mx0 - ox, my0 - oy)))
+        place(MACRO_PHYS, mx0 - ox, my0 - oy)
 
     cw, ch = cfg.core_size()
-    core.add(gdstk.rectangle((0, 0), (cw, ch), layer=235, datatype=0))
+    core.shapes(out.layer(235, 0)).insert(
+        db.Box(0, 0, um(cw), um(ch)))
+    # 置いていないセルは落とす。`gdstk` 版は `keep` から深さ優先で**足して**
+    # いた。こちらは全部読んでから**要らないものを消す**。
+    # ★ `Layout.cleanup()` ではない。あれは PCell の代理を掃除するもので、
+    #   使っていないセルは 1 つも消えない（`gdstk` 版 31 セルに対して
+    #   52 セル残った）。`called_cells()` で届く範囲を残す。
+    keep = {core.cell_index()} | set(core.called_cells())
+    drop = [c.cell_index() for c in out.each_cell()
+            if c.cell_index() not in keep]
+    if drop:
+        out.delete_cells(drop)
     os.makedirs(os.path.dirname(path), exist_ok=True)
-    # **タイムスタンプを固定する。** 既定では書き出し時刻が GDS のヘッダに
-    # 入るので、同じ配置でもファイルの md5 が毎回変わって「配置が変わったのか
-    # 書き直しただけか」が区別できない。日付を捨てて再現性を取る。
-    out.write_gds(path, timestamp=EPOCH)
+    opt = db.SaveLayoutOptions()
+    opt.gds2_write_timestamps = False
+    # ★ KLayout の `$$$CONTEXT_INFO$$$`（PCell の文脈をセルとして書き出す
+    #   仕掛け）は要らない。書くと「誰も呼んでいないセル」が 1 個増えて、
+    #   `gdstk` 版の出力と顔ぶれが合わなくなる。
+    opt.write_context_info = False
+    out.write(path, opt)
     return path
 
 
