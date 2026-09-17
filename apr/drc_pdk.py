@@ -148,6 +148,25 @@ def main():
     a = ap.parse_args()
 
     top = a.top_cell or (cfg.CHIP_TOP_CELL if "/chip/" in a.gds else cfg.TOP_CELL_NAME)
+    # ★ **その名前のセルが入力に無ければ、KLayout を起こす前に止める。**
+    #   既定は設計のトップ名なので、**ライブラリの GDS を渡すと必ず外れる**
+    #   （2026-09-17 に実際に踏んだ。`run.drc` の中から
+    #   `Cell name ... not found in input layout` が出て、原因が分かりにくい）。
+    try:
+        import gdsread
+        have = gdsread.read(a.gds)
+        if top not in have:
+            cand = sorted(n for n in have if not n.startswith("$$$"))   # KLayout の内部セルは出さない
+            raise SystemExit(
+                f"  ** トップセル `{top}` が {cfg.show(a.gds)} に無い。\n"
+                f"     入っているのは {len(cand)} セル: {' '.join(cand[:8])}"
+                f"{' …' if len(cand) > 8 else ''}\n"
+                f"     ライブラリの GDS なら、セル名を第 2 引数で渡すこと:\n"
+                f"       python3 apr/drc_pdk.py {a.gds} <セル名>")
+    except SystemExit:
+        raise
+    except Exception as e:
+        print(f"  (入力のセル一覧を読めなかった: {e})")
     # **絶対パスにする。** klayout はレポートを自分のカレントから解決するので、
     # 相対パスだと「流れたのにレポートが無い」になる。
     rep = os.path.abspath(a.report or os.path.splitext(a.gds)[0] + "_drc.lyrdb")
