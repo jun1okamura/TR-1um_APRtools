@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""順序セルの特性化: CK->Q の遅延/遷移（7x7）と setup/hold（3x3）。
+"""順序セルの特性化: CK->Q の遅延/遷移（7x7）、setup/hold、recovery/removal（3x3）。
 
   usage: python3 char_seq.py [セル名 ...]     結果は char/<cell>.json
 
@@ -7,7 +7,17 @@ setup / hold は 1 点ごとに**二分探索**が要る。データ端とクロ
 詰めていき、「Q が正しい値を取り込める限界」を探す。判定は取り込み後の
 Q の電圧（VDD/2 を跨いだか）で行う。格子は SLEWS_C（3 点）に落としてある。
 
-非同期リセット（RSTB）の recovery/removal は**まだ測っていない**。
+**非同期ピンを持つセルは recovery / removal も測る**（U8、2026-09-17）。
+動かすのは**解除する時刻**だけで、D は余裕をもって先に新値にしておく。
+
+  recovery  解除がクロック端の **dt だけ前**。取り込めれば OK。
+  removal   解除がクロック端の **dt だけ後**。効いたままなら OK。
+
+どちらも「dt が大きいほど安全」なので、探索の向きは setup と同じ。
+★ **取り込ませる値は「非同期ピンが作る値の逆」でなければ測れない**
+  （`RSTB` は Q=0 を作るので 1 を、`SET` は Q=1 を作るので 0 を取り込ませる。
+  同じ値だと「取り込めたのか、効いたままなのか」が区別できない）。
+  効いたときの Q は `ASYNC_Q` に名前で持たせてあり、**知らない名前は止まる**。
 
 ★ **理由は設計ごとに違う。2026-09-16 に 3 設計を実際に見て確かめた**（U8）:
 
@@ -26,7 +36,8 @@ Q の電圧（VDD/2 を跨いだか）で行う。格子は SLEWS_C（3 点）�
 
   -> `DFFRB` の recovery/removal を測れば「CS 立下りから最初の SCLK までに
      必要な時間」を数字で言える（データシートに書ける類の値）。
-     setup/hold と同じ二分探索が使えるので、追加は素直。
+     **2026-09-17 に実装した。** 残りは測った数字を Liberty
+     （`mklib.py` の `recovery_rising` / `removal_rising`）に載せる作業。
 """
 from __future__ import annotations
 import json, os, sys
@@ -136,16 +147,32 @@ def build_constraint(cell, spec, ck_slew, d_slew, d_rise, dt, mode="setup"):
     L = [f"* {cell} {mode} 探索 dt={dt}ns"]
     L += header(cell)
     v_old, v_new = (0, VDD) if d_rise else (VDD, 0)
+    apin = async_pin(cell) if mode in ("recovery", "removal") else None
     if mode == "setup":
         t_d = T_CK - dt
         L.append(f"Vd {spec['d']} 0 {ramp_at(t_d, d_slew, d_rise)}")
-    else:
+    elif mode == "hold":
         t_in = T_CK - HOLD_SETUP_MARGIN          # 余裕をもって新値にする
         t_out = T_CK + dt                        # ここで旧値へ戻す
         L.append(f"Vd {spec['d']} 0 PWL(0 {v_old:g} "
                  f"{t_in-d_slew/2:g}n {v_old:g} {t_in+d_slew/2:g}n {v_new:g} "
                  f"{t_out-d_slew/2:g}n {v_new:g} {t_out+d_slew/2:g}n {v_old:g})")
+    else:
+        # recovery / removal（U8）。**D 側は余裕を持って新値にしておき**、
+        # 動かすのは**非同期リセットを解除する時刻**だけにする。
+        #   recovery: 解除がクロック端より dt だけ**前**。dt が小さいほど厳しい。
+        #   removal : 解除がクロック端より dt だけ**後**。dt が小さいほど厳しい。
+        # どちらも「dt が大きいほど安全」なので、探索は setup と同じ向き。
+        t_in = T_CK - HOLD_SETUP_MARGIN
+        L.append(f"Vd {spec['d']} 0 {ramp_at(t_in, d_slew, d_rise)}")
+        idle = spec["idle"][apin]                # 解除しているときの値
+        on, off = (1 - idle) * VDD, idle * VDD   # 効かせる / 解除する
+        t_r = (T_CK - dt) if mode == "recovery" else (T_CK + dt)
+        L.append(f"V_{apin} {apin} 0 PWL(0 {on:g} "
+                 f"{t_r-d_slew/2:g}n {on:g} {t_r+d_slew/2:g}n {off:g})")
     for p, v in spec["idle"].items():
+        if p == apin:
+            continue                             # 上で PWL で駆動している
         L.append(f"V_{p} {p} 0 {v*VDD:g}")
     # **KLayout の抽出は内部ネットもピンに昇格させる**（DFF の CKB/CKP/QM/QS）。
     # 0V で駆動するとフリップフロップが壊れるので、本当の入力ピンだけ固定する。
@@ -166,8 +193,13 @@ def build_constraint(cell, spec, ck_slew, d_slew, d_rise, dt, mode="setup"):
     L.append("XU " + " ".join(all_ports_of(cell)) + f" {cell}")
     L.append(f"C0 {q} 0 {LOADS[2]}f")
     L.append(f"C1 {qb} 0 {LOADS[2]}f")
-    L.append(f".tran 0.05n {T_CK+120:g}n")
-    L.append(f".meas tran vq FIND v({q}) AT={T_CK+100:g}n")
+    t_meas = T_CK + 100.0
+    if mode in ("recovery", "removal"):
+        # ★ 解除が遅いほど落ち着くのも遅い。**測る時刻は解除から十分後**に取る
+        #   （既定の T_CK+100 のままだと dt=80 のとき 20 ns しか空かない）。
+        t_meas = max(t_meas, t_r + 60.0)
+    L.append(f".tran 0.05n {t_meas+20:g}n")
+    L.append(f".meas tran vq FIND v({q}) AT={t_meas:g}n")
     L += ["", ".end", ""]
     return "\n".join(L)
 
@@ -217,6 +249,68 @@ def bisect_hold(cell, spec, ck_slew, d_slew, d_rise, lo=-20.0, hi=40.0, n=8):
     return hi
 
 
+# 非同期ピンが**効いているとき Q がどちらになるか**。recovery/removal は
+# 「その逆の値を取り込ませて」はじめて「取り込めたのか、効いたままなのか」が
+# 分かれる。★ 知らない名前は**黙って決めつけない**で止める。
+ASYNC_Q = {"RSTB": 0, "SET": 1}
+
+
+def async_pin(cell):
+    """そのセルの非同期ピン（`RSTB` / `SET`）。無ければ `None`。"""
+    a = cellspec.SEQ_PINS[cell]["async"]
+    return a[0] if a else None
+
+
+def async_dir(cell):
+    """recovery/removal で使うデータの向き（`True` = 1 を取り込ませる）。
+
+    リセットが Q=0 を作るセルなら 1 を、セットが Q=1 を作るセルなら 0 を
+    取り込ませる。**同じ値だと区別がつかない。**
+    """
+    a = async_pin(cell)
+    if a not in ASYNC_Q:
+        raise SystemExit(f"{cell}: 非同期ピン {a!r} が効いたときの Q を知らない。"
+                         f"`char_seq.ASYNC_Q` に足すこと")
+    return ASYNC_Q[a] == 0
+
+
+def holds_reset(cell, spec, ck_slew, d_slew, d_rise, dt, tag, mode):
+    """`captures` の裏返し。**非同期ピンが効いたまま**なら True。"""
+    c = captures(cell, spec, ck_slew, d_slew, d_rise, dt, tag, mode)
+    return None if c is None else (not c)
+
+
+def bisect_async(cell, spec, ck_slew, d_slew, mode, lo=-20.0, hi=80.0, n=8):
+    """recovery / removal（U8）。**dt が大きいほど安全**なので向きは setup と同じ。
+
+      recovery: 解除がクロック端の dt だけ前。**取り込めれば OK**
+                （リセット値 0 のままなら失敗）。
+      removal : 解除がクロック端の dt だけ後。**リセットが効いたままなら OK**
+                （取り込んでしまったら失敗）。
+
+    ★ **取り込ませる値は「非同期ピンが作る値の逆」でなければ測れない。**
+      リセット値が Q=0 のセルに 0 を取り込ませても「取り込めたのか、
+      リセットされたのか」が区別できない（`async_dir`）。
+    """
+    d_rise = async_dir(cell)
+    ok = ((lambda dt_, tag: captures(cell, spec, ck_slew, d_slew, d_rise, dt_, tag, mode))
+          if mode == "recovery"
+          else (lambda dt_, tag: holds_reset(cell, spec, ck_slew, d_slew, d_rise,
+                                             dt_, tag, mode)))
+    tag = f"{cell}_{mode[:2]}_{ck_slew}_{d_slew}"
+    if not ok(hi, tag + "_hi"):
+        return None                      # 一番緩い条件でも駄目
+    if ok(lo, tag + "_lo"):
+        return lo                        # 一番厳しい条件でも通る
+    for i in range(n):
+        mid = (lo + hi) / 2
+        if ok(mid, f"{tag}_{i}"):
+            hi = mid
+        else:
+            lo = mid
+    return hi
+
+
 def characterize(cell):
     spec = SEQ[cell]
     res = {"cell": cell, "seq": True, "q": spec["q"], "d": spec["d"],
@@ -243,6 +337,19 @@ def characterize(cell):
                 rh.append(bisect_hold(cell, spec, cs, ds, d_rise))
             res["setup"][k].append(rs)
             res["hold"][k].append(rh)
+    # --- recovery / removal（U8）。非同期ピンを持つセルだけ ---------------
+    if async_pin(cell):
+        k = "rise" if async_dir(cell) else "fall"
+        res["async_pin"] = async_pin(cell)
+        res["recovery"] = {k: []}
+        res["removal"] = {k: []}
+        for ds in SLEWS_C:
+            rr, rm = [], []
+            for cs in SLEWS_C:
+                rr.append(bisect_async(cell, spec, cs, ds, "recovery"))
+                rm.append(bisect_async(cell, spec, cs, ds, "removal"))
+            res["recovery"][k].append(rr)
+            res["removal"][k].append(rm)
     return res
 
 
@@ -266,6 +373,12 @@ def main():
         s = lambda v, k=1e9: f"{v*k:.2f}" if v is not None else "-"
         print(f"{cell:<10}  rise {s(dr)} / fall {s(df)}      "
               f"r {s(su_r,1)} / f {s(su_f,1)}    r {s(ho_r,1)} / f {s(ho_f,1)}", flush=True)
+        if "recovery" in r:
+            dk = next(iter(r["recovery"]))
+            rec = r["recovery"][dk][ci][ci]
+            rem = r["removal"][dk][ci][ci]
+            print(f"{'':<10}  {r['async_pin']}: recovery {s(rec,1)} ns / "
+                  f"removal {s(rem,1)} ns  （slew 1.5、U8）", flush=True)
 
 
 if __name__ == "__main__":
