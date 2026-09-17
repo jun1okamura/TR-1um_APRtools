@@ -44,6 +44,7 @@
 | `env-knob` | warn | `os.environ` で `APR_*` を直読み → `config_base.getenv()` へ |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない |
 | `file-table` | NG | `apr/*.py` と `apr/README.md` の分類表が食い違っている |
+| `design-knob` | NG | **設計が上書きできる値**（`ENV_KNOBS` ∩ `rules`）を `rules.` から直読み → `cfg.` から取る |
 | `drc-const` | NG | プロセス定数の写し。(a) `M1_*` / `M2_*` / `V1_*` … への**数値リテラル代入** (b) **argparse の既定**に書かれた同じもの |
 | `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている（`/home/…` `/Users/…` `/sessions/…` `/var/folders/…` `/opt/homebrew/…`）|
 
@@ -105,6 +106,28 @@ def _rules_distinct():
 
 
 RULES_DISTINCT = _rules_distinct()
+
+
+def _design_knobs():
+    """`config_base.ENV_KNOBS` と `rules` の両方にある名前。
+
+    = **設計が上書きできて、しかも rules にも同名がある**もの。
+    `rules.X` と書くと設計の値を素通りするので、読むなら `cfg.X`。
+    """
+    # ★ **例外を握り潰さない。** 最初 `except Exception: return set()` と書いたら
+    #   `rules` が未 import（この lint は関数の中で import している）で
+    #   `NameError` になり、**検査が 1 件も出ないまま「指摘なし」**になった。
+    #   検査が空振りしていることは、結果が 0 件なのと見分けが付かない（U74）。
+    import config_base as _cb
+    import rules as _r
+    ks = {n for n in _cb.ENV_KNOBS if n.isupper() and hasattr(_r, n)}
+    if not ks:
+        raise SystemExit("lint: design-knob の対象が 0 個。"
+                         "config_base.ENV_KNOBS と rules の突き合わせが壊れている")
+    return ks
+
+
+DESIGN_KNOBS = _design_knobs()
 
 # ★ **自分のホーム以外の機械のパス**。仮名化の作業（U35）は `/Users/<自分>` と
 #   同期フォルダ名だけを探したので、**回した機械が別だった時期のパス**が残った:
@@ -258,6 +281,22 @@ def check_file(path):
                         and not isinstance(_v.value, bool):
                     add("NG", "drc-const", nd, f"{_nm} = {_v.value}",
                         "プロセス定数を写している。`rules.py` を引く（決定 11）")
+
+        # --- design-knob: 設計が上書きできる値を rules から直読み ---
+        # ★ `config_base` は `getenv("X", rules.X)` で**設計が上書きできる値**を
+        #   作る（`finalize` の `setdefault` で `config.py` から直に指定もできる）。
+        #   それを `rules.X` で読むと、**設計が決めた値ではなくプロセスの既定**を
+        #   使うことになり、同じ設計の中で 2 つの値が並び立つ（U5、2026-09-17。
+        #   `route_channels` が 5.4、`CORE_WIDTH_UM` が設計の値、という状態に
+        #   なりうるところだった）。
+        #   ライブラリ側（設計が無い世界）の道具は `# lint: ok` で外す。
+        if isinstance(nd, ast.Attribute) and isinstance(nd.value, ast.Name) \
+                and nd.value.id == "rules" and nd.attr in DESIGN_KNOBS \
+                and os.path.basename(path) not in ("rules.py", "config_base.py"):
+            add("NG", "design-knob", nd, f"rules.{nd.attr}",
+                f"`{nd.attr}` は設計が config.py で上書きできる値。"
+                f"`cfg.{nd.attr}` から取る（U5 / 決定 22）。"
+                f"設計に依らない道具なら `# lint: ok 理由` を書く")
 
         # --- drc-const (b): argparse の既定に書かれた写し ---
         # ★ (a) は**モジュール直下の代入しか見ない**ので、

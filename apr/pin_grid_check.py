@@ -53,6 +53,7 @@ def boundary(cell, name):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("gds")
+    # lint: ok セルの M2 ピン格子を見る道具。設計ではなくプロセスの値（U5）
     ap.add_argument("--pitch", type=float, default=rules.TRACK_PITCH)
     ap.add_argument("--offset", type=float, default=rules.M2_TRACK_OFFSET,
                     help="prBoundary 左端からの最初のトラック")

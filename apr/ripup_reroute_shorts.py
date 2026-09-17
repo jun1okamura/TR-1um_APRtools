@@ -110,12 +110,13 @@ V1_LAYER = (19, 0)
 M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
 M1_PAD_SIZE = rules.VIA_PAD
 PAD_HALF = M1_PAD_SIZE / 2.0
-TRACK_PITCH = rules.TRACK_PITCH  # v17 (design_notes 47/48): must match
-                    # route_channels.py's TRACK_PITCH exactly --
-                    # this script's track-index math (find_own_trunk,
-                    # try_fix_vertical's track relocation) only makes
-                    # sense against the SAME pitch the input GDS was
-                    # actually routed with.
+# ★ **設計の値を読む**（U5、2026-09-17）。`rules.TRACK_PITCH` は
+#   プロセスの既定で、設計が `config.py` で上書きできる値ではない。
+#   ここの計算は「入力 GDS が実際に配線されたときのピッチ」と**同じ**でなければ
+#   意味がないので、配線器と同じ `config` から取る。
+#   （v17 / design_notes 47/48: find_own_trunk と try_fix_vertical の
+#     トラック番号の計算がこれに乗っている）
+TRACK_PITCH = _cfg.TRACK_PITCH
 TRACK0_OFFSET = rules.TRACK0_OFFSET
 M2_MIN_GAP = rules.M2_SPACE_MIN
 M1_MIN_GAP = rules.M1_SPACE_MIN  # v18 (design_notes 47/48): M1 min-space DRC rule

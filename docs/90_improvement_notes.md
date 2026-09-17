@@ -449,7 +449,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U2 | 抽出ネットリストで `REG8x16` の書込みが効かない | 決着 2026-09-16 | 原因は特性化の刺激（`WEB_PRE` が 5 ns）。**セルは全段正常** |
 | U3 | `BUF_X4` / `BUF_X16` を実装するか LEF から外すか | 決着 2026-09-16 | 実装しない。正本 v59_4 に実体が無く、外す対象も凍結世代にしか無い |
 | U4 | `drc_check_cells.py` の緩い DRC 値 | 決着 2026-09-15 | 事故。6 値のうち 3 つが正しい値より緩かった（潜在バグ、実害なし） |
-| U5 | `APR_TRACK_PITCH` の二重定義 | **未解決** | `config_base.py` と `route_channels.py` が別々に読む。どちらも `rules.TRACK_PITCH` 由来なので値はずれない |
+| U5 | `TRACK_PITCH` の二重定義 | **決着 2026-09-17** | 4 本が別々に読んでいた。**設計が上書きするとずれる**（「ずれない」は誤り）。`cfg` 1 本に寄せ、lint `design-knob` で再発を止めた |
 | U6 | `info.yaml` の `pdk.ref: dev` を固定タグに戻す | **上流待ち** | `64e40f5` を含むタグが切られたら固定に戻す（F13） |
 | U7 | `REG8x16` の書込みパスが `.lib` に無い | 決着 2026-09-16 | 4 項目を特性化して Liberty に載せた。読出しは元から入っていた（当初の記述が誤り） |
 | U8 | `RSTB` の recovery/removal と `min_pulse_width` が未特性化 | **一部残** | TD4 / I2C は false path で正しいと検証。**SCLK_SPI は前提が崩れるのに未測定** |
@@ -537,7 +537,6 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | # | 内容 | 状態 | 次の一手 |
 |---|---|---|---|
 | U1 | ルータが非決定的（根本原因未特定） | 未解決 | 集合の反復箇所を特定して `sorted()` を入れる（F1） |
-| U5 | `APR_TRACK_PITCH` の二重定義 | 未解決 | どちらか 1 箇所に寄せる。`route_channels` は `cfg.TRACK_PITCH` を読む形にできる |
 | U6 | `info.yaml` の `pdk.ref: dev` を固定タグに戻す | 上流待ち | 上流で `64e40f5` を含むタグが切られたら固定タグに戻す |
 | U8 | `RSTB` の recovery/removal と `min_pulse_width` が未特性化 | 一部残 | SCLK_SPI の `DFFRB` の recovery/removal を測る（`char_seq.py` の二分探索がそのまま使える） |
 | U9 | SCLK_SPI `step10` の `.extracted` が option C 以前 | 未解決 | U32 と同時。59.4 で合成からやり直す |
@@ -587,11 +586,68 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 
 **決着** — **決着: 事故。ただし実害は無かった（潜在バグ）。** `drc_check_cells.py` の 6 値のうち **3 つが正しい値より緩かった** — M1 幅 **1.4**（正 1.8）/ M2 幅 **1.8**（正 3.0）/ V1 間隔 **1.4**（正 1.5）。★ 意図でないと分かる根拠が 2 つ: (1) docstring に**「Rules match drc_check.py」と書いてあるのに一致していない** (2) **緩い値の出どころが全部「隣の値」**だった — M1 幅の欄に M1 の*間隔* 1.4、M2 幅の欄に M1 の*幅* 1.8、V1 間隔の欄に V1 の*カット寸法* 1.4。**表を 1 列ずらして写した形**で、緩めた理由が無い。実害の確認: 正しい値に直して 3 つの GDS（v59_4 の PNR 52 セル / STDCELL 50 セル、v64_8 の STDCELL 29 セル）で回し直し、**全部 DRC クリーンのまま**。緩い値の陰に隠れていたセルは 1 つも無かった
 
-#### U5 — `APR_TRACK_PITCH` の二重定義
+#### U5 — `TRACK_PITCH` の二重定義
 
-**状態**: 未解決 ／ **出典**: 本調査
+**状態**: 決着 2026-09-17 ／ **出典**: 本調査
 
-`APR_TRACK_PITCH` と `APR_TRACK_PITCH` の二重定義
+**当初の記述** — 「`APR_TRACK_PITCH` と `APR_TRACK_PITCH` の二重定義」
+（索引には「どちらも `rules.TRACK_PITCH` 由来なので**値はずれない**」）。
+★ 台帳の本文は**書き写しに失敗していて何も言っていなかった**し、
+索引の「値はずれない」は**誤り**だった。
+
+**測った結果** — 読んでいたのは 2 本ではなく **4 本**で、しかも 3 通りだった:
+
+| どこ | 何を読んでいたか | 設計が `config.py` で上書きしたら |
+|---|---|---|
+| `config_base.py` | `getenv("TRACK_PITCH", rules.TRACK_PITCH)` → `finalize` が `setdefault` | **設計の値**（これが正） |
+| `route_channels.py` | `_cfg.getenv("TRACK_PITCH", …)` = **環境変数をもう一度** | プロセスの既定 |
+| `ripup_reroute_shorts.py` | `rules.TRACK_PITCH` | プロセスの既定 |
+| `route_top_pins.py` | `rules.TRACK_PITCH` | プロセスの既定 |
+
+`CORE_WIDTH_UM = CORE_WIDTH_TRACKS × TRACK_PITCH` は**設計の値**から出るので、
+設計が `TRACK_PITCH` を書いた瞬間に「**コア幅は新しいピッチ、配線は古いピッチ**」
+になる。実際に設計の `config.py` に `TRACK_PITCH = 10.8` と書いて確かめた:
+
+    rules.TRACK_PITCH（プロセスの既定）: 5.4
+    cfg.TRACK_PITCH（設計の値）        : 10.8
+    route_channels                     : 5.4   ← 直す前
+    ripup_reroute_shorts               : 5.4   ← 直す前
+    route_top_pins                     : 5.4   ← 直す前
+
+★ `ripup` と `top_pins` のコメントは**どちらも「must match route_channels.py's
+TRACK_PITCH exactly」と書いてあった** — 揃っていなければならないことは分かって
+いて、その手段が**手で写すこと**だった。
+
+**直したもの** — 4 本とも `cfg.TRACK_PITCH`（設計の値）を読む。
+下限の検査も `M1_PAD_SIZE + M2_MIN_GAP` の再導出をやめて
+`rules.TRACK_PITCH_MIN` へ。`route_channels.py` の `TRACK0_OFFSET = 2.0`
+（`rules.TRACK0_OFFSET` と同じ値の**直書き**）も `rules` へ。
+
+**再発を止めた** — `apr/lint.py` に検査 `design-knob` を足した。
+**`config_base.ENV_KNOBS` と `rules` の両方にある名前**（＝設計が上書きできて、
+かつ `rules` にも同名がある値。いまは `TRACK_PITCH` 1 つ）を `rules.` から
+直読みしていたら NG。設計に依らない道具は `# lint: ok 理由` で外す。
+
+★ **その lint を書いたとき、自分で同じ穴に落ちた。** 最初
+`except Exception: return set()` と書いたため、`rules` 未 import の
+`NameError` を握り潰して**対象 0 個のまま「指摘なし」**になった。
+検査が空振りしているのと、本当に 0 件なのは**出力が同じ**である（U74）。
+いまは対象が 0 個なら止める。
+
+**検算**:
+
+| 見たもの | 結果 |
+|---|---|
+| 3 設計の `TRACK_PITCH` / `TRACK0_OFFSET`（4 モジュール） | 全部 `(5.4, 2.0)` で**一致**。既存の設計は 1 つも変わらない |
+| `TRACK_PITCH = 10.8` と書いた設計 | 4 本とも **10.8**（直す前は 3 本が 5.4） |
+| `APR_TRACK_PITCH=5.0` | `TRACK_PITCH 5.0 が下限 5.4 未満` で停止 |
+| lint | 例外を外すと `design-knob` が**発火**、戻すと 0 件 |
+| 正当な 2 件（`mklef.py` / `pin_grid_check.py`） | どちらもライブラリ側の格子。理由付きで `# lint: ok` |
+
+★ **「値はずれない」は、いまずれていないという意味でしかない。**
+  同じ値を 2 箇所で導出している限り、ずれる日が来る（決定 11 / U4 と同じ形）。
+★ **「〜と一致していなければならない」とコメントに書いたら、それは
+  仕組みで保証していないという告白。**
 
 #### U6 — `info.yaml` の `pdk.ref: dev` を固定タグに戻す
 
@@ -1046,7 +1102,7 @@ yosys 自身の `102 1.74E+05 cells` とも合う。古い 2 形式の合成 sta
 
 #### U45 — 中間ファイルの数字を成果物の数字として読んだ
 
-**状態**: 一部残 ／ **出典**: 2026-09-15
+**状態**: 決着 2026-09-17 ／ **出典**: 2026-09-15
 
 **中間ファイルの数字を成果物の数字として読んだ**。`compaction_info.json` の `ch_heights` は圧縮**前の予算**なのに最終値だと思い込み、SCLK_SPI のコア高を「1329.6 → 308.7、面積 4.4 倍改善」と報告した。実測は 314.1 → 340.6 でほとんど変わらない。**寸法は GDS を測る**。`syn_report` / `explore_rows` のように「予算」と「実測」を両方出す道具に、どちらなのかを書かせる
 
@@ -1800,6 +1856,9 @@ TD4 の追跡済み 23 本（`layout/step6/` 6 + `layout/portrait/` 17）が
 - **生産者と消費者は同じ場所を見る**（決定 21。U28 / U40 / U52 の 3 件 + `mklvsnet`）。
   書いた先を誰も読まない道具は、壊れても誰も気づかない。
 - **設計固有の値を共通側に直書きしない**（決定 22。U25 / U26 / U36）。
+- ★ **「〜と一致していなければならない」とコメントに書いたら、仕組みで保証していない
+  という告白**（U5 — `ripup` と `top_pins` が「must match route_channels」と書いて
+  手で写していた）。一致が要るなら同じ 1 箇所から読む。
   他の設計で引数なしに回すと**黙って別設計の値を読む**。
 - **複製は「消せるか」ではなく「正本だけで回るか」で判断する**（U65）。
 - **コピーしてきた文書は、中身を読むまで「それらしく」見える**（U64）。

@@ -33,6 +33,7 @@ EPS = 1e-3
 # ★ `ROW_H` だけは `rules.py` に無い（世代で変わるので `config.ROW_HEIGHT_UM`）。
 #   ここは STDCELL を作る側の道具なので、あえて config を引かず直書きのまま。
 ROW_H, SITE_W = 59.4, rules.SITE_W  # 標準セル行高 / 配置グリッド（ポリピッチ）
+# lint: ok セルライブラリ側の格子。設計の TRACK_PITCH ではなくプロセスの値（U5）
 M2_PITCH, M2_OFFSET, M2_W = (rules.TRACK_PITCH, rules.M2_TRACK_OFFSET,
                              rules.M2_WIRE_WIDTH)   # M2 配線トラック
 DBU = 1000                          # LEF DATABASE MICRONS

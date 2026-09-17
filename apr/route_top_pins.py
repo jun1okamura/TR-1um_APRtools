@@ -84,8 +84,11 @@ TXM2_LAYER = (49, 0)
 M1_TRUNK_WIDTH = rules.M1_TRUNK_WIDTH
 M1_PAD_SIZE = rules.VIA_PAD
 PAD_HALF = M1_PAD_SIZE / 2.0
-TRACK_PITCH = rules.TRACK_PITCH  # this session: was 4.0 (v6) -- must match the v7
-                    # recipe's TRACK_PITCH (design_notes 47/48)
+# ★ **設計の値を読む**（U5、2026-09-17）。配線器（route_channels）と同じ
+#   `config` から取る。`rules.TRACK_PITCH` はプロセスの既定であって、
+#   設計が上書きした値は入っていない。
+#   （this session: was 4.0 (v6) -- must match the v7 recipe. design_notes 47/48）
+TRACK_PITCH = _cfg.TRACK_PITCH
 TRACK0_OFFSET = rules.TRACK0_OFFSET
 M1_MIN_GAP = rules.M1_SPACE_MIN
 M2_MIN_GAP = rules.M2_SPACE_MIN

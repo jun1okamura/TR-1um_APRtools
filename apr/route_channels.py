@@ -183,10 +183,17 @@ M2_MIN_GAP = rules.M2_SPACE_MIN
 # 実測（`APR_TRACK_PITCH=5.0` で step10 まで通した）: M2 の間隔違反 2 件が
 # ちょうど `dy=1.6 dx=3.4`（= 5.0 - 3.4）で出た。M1 側も 11 件出る。
 # 高さは 1655.8 → 1593.6 µm と確かに縮むが DRC が通らないので**使えない**。
-TRACK_PITCH = _cfg.getenv("TRACK_PITCH", rules.TRACK_PITCH, float)
-_TRACK_PITCH_MIN = M1_PAD_SIZE + M2_MIN_GAP
-if TRACK_PITCH < _TRACK_PITCH_MIN - 1e-9:
-    raise SystemExit(f"APR_TRACK_PITCH {TRACK_PITCH} は下限 {_TRACK_PITCH_MIN} を割る"
+# ★ **設計が決めた値を読む**（U5、2026-09-17）。以前はここで
+#   `_cfg.getenv("TRACK_PITCH", …)` と**環境変数をもう一度**読んでいた。
+#   `config_base.finalize()` は `ns.setdefault("TRACK_PITCH", …)` なので
+#   **設計の config.py で直に指定できる**のに、その値がここへ届かず、
+#   `CORE_WIDTH_UM`（設計の値から導出）と配線器（環境変数か既定）が
+#   **黙って食い違う**ところだった。値の出どころは 1 つにする（決定 22）。
+TRACK_PITCH = _cfg.TRACK_PITCH
+# 下限も `rules` の 1 箇所から。`M1_PAD_SIZE + M2_MIN_GAP` と同じ導出を
+# ここで書き直していた（`rules.TRACK_PITCH_MIN = VIA_PAD + M2_SPACE_MIN`）。
+if TRACK_PITCH < rules.TRACK_PITCH_MIN - 1e-9:
+    raise SystemExit(f"TRACK_PITCH {TRACK_PITCH} は下限 {rules.TRACK_PITCH_MIN} を割る"
                      f"（via_1 の M2 パッド {M1_PAD_SIZE} + M2 最小間隔 {M2_MIN_GAP}）")
 # 以下は 5.4 を選んだ経緯（v17, design_notes 47/48）:
                     # adjacent-track via_1 M1 pads (M1_PAD_SIZE=3.4) at
@@ -203,7 +210,7 @@ if TRACK_PITCH < _TRACK_PITCH_MIN - 1e-9:
                     # Channel heights are right-sized afterward via the
                     # existing measure-then-compress flow (section 41) to
                     # recover the extra area this coarser pitch costs.
-TRACK0_OFFSET = 2.0
+TRACK0_OFFSET = rules.TRACK0_OFFSET   # ★ 2.0 の直書きをやめた（U5）
 LANE_MARGIN = 2.0
 X_GRID = rules.SITE_W     # cell/pin grid pitch -- all jog/search X steps use this
 # --- TD4 移植 (1): 行幅を設定から取る ---------------------------------------
