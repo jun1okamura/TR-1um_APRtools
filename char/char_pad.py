@@ -29,8 +29,19 @@ import argparse, json, os, re, subprocess, sys
 HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "OSS_ESD_5V_DIO"
+# ★ U42: `XU` の並びは**ネットリストの `.subckt` から読む**。
+#   以前は "PAD VDD OUT HIZ VSS" を 3 箇所に直書きしていた。ngspice は
+#   数が合えば黙って繋ぐので、セル側が並べ替わっても落ちずに嘘の波形が出る。
+#   `main()` が `ports_for()` で決める。
+PORTS = None
+
+
+def ports_for(netlist):
+    """`XU <PORTS> OSS_ESD_5V_DIO` の並び。節点名はピン名そのままなので、
+    `.subckt` の宣言順をそのまま使う（U42）。"""
+    return " ".join(subckt_ports_of(netlist, CELL))
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
-from check_comb import models_dir, need_ngspice                                 # noqa: E402
+from check_comb import models_dir, need_ngspice, subckt_ports_of               # noqa: E402
 MODELS = models_dir()
 # パッドセルの面積。標準セルの cell_area.json（STDCELL の GDS 実測）には
 # 入っていないので、フレームの LEF の MACRO ... SIZE から読む。
@@ -139,7 +150,7 @@ def build_cap(netlist, pin, hiz):
     L.append(f"Vin {pin}_src 0 {ramp(T0, sl, True)}")
     L.append(f"Rin {pin}_src {pin} 0.001")
     L.append(f"V_{other} {other} 0 {hiz*VDD:g}")
-    L.append(f"XU PAD VDD OUT HIZ VSS {CELL}")
+    L.append(f"XU {PORTS} {CELL}")
     L.append(f"CL PAD 0 {LOADS[3]}f")            # 代表負荷 10pF
     L.append(f".tran 0.02n {T0+full_ramp(sl)+200:g}n")
     L.append(f".meas tran q INTEG i(Vin) FROM={T0:g}n TO={T0+full_ramp(sl):g}n")
@@ -156,7 +167,7 @@ def build_padcap(netlist):
     L.append(f"Vhiz HIZ 0 {VDD}")
     L.append(f"Vpad padsrc 0 {ramp(T0, sl, True)}")
     L.append("Rp padsrc PAD 0.001")
-    L.append(f"XU PAD VDD OUT HIZ VSS {CELL}")
+    L.append(f"XU {PORTS} {CELL}")
     L.append(f".tran 0.05n {T0+full_ramp(sl)+200:g}n")
     L.append(f".meas tran q INTEG i(Vpad) FROM={T0:g}n TO={T0+full_ramp(sl):g}n")
     L += ["", ".end", ""]
@@ -177,7 +188,7 @@ def build_tristate(netlist, mode, slew, out_lvl, cl, i0=None):
     L.append(f"Vout OUT 0 {rail:g}")
     L.append(f"Vhiz src 0 {ramp(T0, slew, mode == 'disable')}")
     L.append("Rhiz src HIZ 0.001")
-    L.append(f"XU PAD VDD OUT HIZ VSS {CELL}")
+    L.append(f"XU {PORTS} {CELL}")
     tend = T0 + full_ramp(slew) + SETTLE
     vt = VDD * TH_DELAY / 100
     if mode == "enable":
@@ -227,6 +238,9 @@ def main():
     ap.add_argument("-o", "--out", default=f"{HERE}/char/{CELL}.json")
     ap.add_argument("--only", choices=["delay", "tri", "cap"], help="一部だけ流す（確認用）")
     a = ap.parse_args()
+    global PORTS
+    PORTS = ports_for(a.netlist)                # U42: 順はネットリストから読む
+    print(f"  XU の並び（{os.path.basename(a.netlist)} の .subckt から）: {PORTS}")
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     n = len(LOADS)
     PAD_AREA = pad_area()

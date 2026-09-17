@@ -118,7 +118,7 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "REG8x16"
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
-from check_comb import models_dir, need_ngspice                                 # noqa: E402
+from check_comb import models_dir, need_ngspice, subckt_ports_of               # noqa: E402
 MODELS = models_dir()
 FRAME_LEF = None            # マクロなので面積は cell_area.json から取る
 
@@ -156,9 +156,40 @@ QPIN = [f"QQ{i}" for i in range(8)]
 # **ポート順はネットリストによって違う。**
 #   抽出 (lef/extracted/REG8x16.extracted): ADD D Q WEB vdd vss
 #   設計 (lef/simulation/REG8x16.spice):     ADD WEB D Q vdd vss
-PORTS_EXT = " ".join(APIN + DPIN + QPIN + ["WEB", "vdd", "vss"])
-PORTS_SRC = " ".join(APIN + ["WEB"] + DPIN + QPIN + ["vdd", "vss"])
-PORTS = PORTS_SRC
+# ★ U42: この 2 つを**直書きして `--ext` で選び分けていた**。ngspice は
+#   数が合えば黙って繋ぐので、どちらかがずれても落ちずに嘘の波形が出る。
+#   いまは `ports_for()` が**そのとき食わせるネットリストから読む**。
+#   上の 2 行は「実際にこういう違いがある」という記録として残してある。
+PORTS = None            # main() が ports_for(a.netlist) で決める
+
+
+def ports_for(netlist):
+    """`XU <PORTS> REG8x16` の並びを**ネットリストの `.subckt` から**作る（U42）。
+
+    セル側のピン名（`ADD[j]` / `D[i]` / `Q[i]` / `WEB` / `vdd` / `vss`）を
+    この TB の節点名（`A{j}` / `DD{i}` / `QQ{i}` / …）へ写すだけで、
+    **順はネットリストが決める**。知らないピン名が出たら止める
+    （数だけ合って中身が違う、を防ぐ）。
+    """
+    out = []
+    for pin in subckt_ports_of(netlist, CELL):
+        m = re.match(r"^ADD\[(\d+)\]$", pin)
+        if m:
+            out.append(f"A{m.group(1)}"); continue
+        m = re.match(r"^D\[(\d+)\]$", pin)
+        if m:
+            out.append(f"DD{m.group(1)}"); continue
+        m = re.match(r"^Q\[(\d+)\]$", pin)
+        if m:
+            out.append(f"QQ{m.group(1)}"); continue
+        if pin.lower() in ("vdd", "vss", "web"):
+            out.append(pin.lower() if pin.lower() != "web" else "WEB"); continue
+        raise SystemExit(f"{netlist}: .subckt {CELL} に知らないピン {pin!r} がある")
+    want = APIN + DPIN + QPIN + ["WEB", "vdd", "vss"]
+    if sorted(out) != sorted(want):
+        raise SystemExit(f"{netlist}: .subckt {CELL} のピンが足りない/多い\n"
+                         f"  読んだ: {' '.join(out)}\n  要る  : {' '.join(sorted(want))}")
+    return " ".join(out)
 
 
 def full_ramp(s):
@@ -903,8 +934,6 @@ def main():
     if a.out is None:
         a.out = (f"{HERE}/char/{CELL}.json" if RUNTAG == "src"
                  else f"{HERE}/char/{CELL}_{RUNTAG}.json")
-    if a.ext:
-        PORTS = PORTS_EXT
     if a.netlist is None:                       # -n が無いときだけこちらが決める
         a.netlist = (f"{HERE}/cells_mem/{CELL}.spi" if a.ext
                      else f"{HERE}/cells_mem/{CELL}_src.spi")
@@ -916,6 +945,8 @@ def main():
         raise SystemExit(
             f"** ネットリストが無い: {a.netlist}\n"
             f"   {'抽出' if a.ext else '設計'}ネットリストから作るには:\n{how}")
+    PORTS = ports_for(a.netlist)                # U42: 順はネットリストから読む
+    print(f"  XU の並び（{os.path.basename(a.netlist)} の .subckt から）: {PORTS}")
     global EDGE, WEB_PRE, WEB_LOW, D_HOLD
     edges = ([float(x) for x in a.edge.split(",")] if a.edge else [])
     if len(edges) == 1:

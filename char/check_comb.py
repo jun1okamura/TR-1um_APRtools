@@ -96,6 +96,31 @@ def models_include():
     return f".include {models_dir()}/ip62_models"
 
 
+def subckt_ports_of(path, cell):
+    """`.subckt <cell> …` のポートを**宣言順のまま**返す（U42）。
+
+    `all_ports_of` は「セルの既定の置き場にある、その file の最初の
+    `.subckt`」を読む。こちらは**パスとセル名を指定して**読む形で、
+    `char_mem.py` のように**同じセルの別ネットリスト**（抽出版と設計版で
+    ポート順が違う）を切り替えて回すときに使う。
+
+    ★ 継続行（`+`）も拾う。`.subckt` の綴りは大小どちらでもよい。
+    ★ **順を直書きしない**のがこの関数の目的。ngspice は数が合えば
+      黙って繋ぐので、順を間違えても落ちずに嘘の波形が出る（U42）。
+    """
+    lines = open(path, encoding="utf-8", errors="replace").read().splitlines()
+    for i, s_ in enumerate(lines):
+        t = s_.split()
+        if len(t) >= 2 and t[0].lower() == ".subckt" and t[1] == cell:
+            ports = t[2:]
+            for nxt in lines[i + 1:]:
+                if not nxt.startswith("+"):
+                    break
+                ports += nxt[1:].split()
+            return ports
+    raise SystemExit(f".subckt {cell} が {path} に無い")
+
+
 def all_ports_of(cell):
     """`.subckt` 行のポートを**宣言順のまま**返す。
 

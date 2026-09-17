@@ -139,12 +139,21 @@ def sub_regbuf():
     return o
 
 
+def addbuf_ports():
+    """`ADDBUF` の**宣言順**（電源は除く）。
+
+    ★ U42: `.subckt` 行とインスタンス行の**両方がここを引く**。以前は
+    同じ並びを 2 箇所に書いていて、片方だけ並べ替わっても SPICE は数さえ
+    合えば黙って繋ぐ（落ちずに嘘の波形が出る）。
+    """
+    return ([f"A{k}_PIN" for k in range(4)] + ["WEB_PIN"]
+            + [n for k in range(4) for n in (f"A{k}", f"AB{k}")] + ["WEB"])
+
+
 def sub_addbuf():
-    pins = " ".join(f"A{k}_PIN" for k in range(4))
-    outs = " ".join(f"A{k} AB{k}" for k in range(4))
     o = ["* ADDBUF — アドレス相補生成 + WE バッファ (99.0 x 63.4 um)",
          "*   ABk = INV(Ak_PIN) / Ak = INV(ABk)  -> スキューを INV 1段に固定した平衡型",
-         f".subckt ADDBUF {pins} WEB_PIN {outs} WEB {VDD} {VSS}"]
+         f".subckt ADDBUF {' '.join(addbuf_ports())} {VDD} {VSS}"]
     n = 0
     for k in range(4):
         o += inv(n, f"A{k}_PIN", f"AB{k}", WP_BUF, WN_BUF); n += 1
@@ -164,7 +173,12 @@ def top():
          f".subckt {TOP} {apins} {P_WEB} {dpins} {qpins} {VDD} {VSS}", ""]
     ai = " ".join(f"a{k} ab{k}" for k in range(4))
     o.append(f"* アドレス相補生成 + WE バッファ")
-    o.append(f"XADDBUF {apins} {P_WEB} {ai} {W_INT} {VDD} {VSS} ADDBUF")
+    # 実引数は `addbuf_ports()` と**同じ位置**に並べる（U42）。
+    addbuf_args = f"{apins} {P_WEB} {ai} {W_INT}".split()
+    if len(addbuf_args) != len(addbuf_ports()):
+        raise SystemExit(f"ADDBUF の実引数 {len(addbuf_args)} 本が宣言 "
+                         f"{len(addbuf_ports())} 本と合わない: {addbuf_args}")
+    o.append(f"XADDBUF {' '.join(addbuf_args)} {VDD} {VSS} ADDBUF")
     o.append("")
     o.append(f"* 行デコーダ: DEC2 x{WORDS//2}（1個で2行、bit0 以外のアドレスは2行で共有）")
     for k in range(WORDS // 2):
