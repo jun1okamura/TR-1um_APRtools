@@ -70,8 +70,14 @@ V1_GA_SPACE_MIN = 1.2      # V1.GA（GA = GC + GR。重なりは即違反）
 #   幅 10.000 を幅 0 に潰して落とす。**10.000 を超えたら**（1 dbu = 0.001 でも）
 #   M1(W) になり、接する M1 に 2.0 を要求する。
 #   電源バー（CHIP_BUS_W / POWER_BAR_W / RO_VSS_BAR_W）は 10.0 ちょうどで、
-#   **境界の内側 1 dbu** にいる。探針は mk_drc_probe.py の T_SW_10 / T_SW_10p。
+#   **境界の内側**にいる（余裕は MFG_GRID 1 つ分）。
+#   探針は mk_drc_probe.py の T_SW_10 / T_SW_10p / T_SW_TEE。デッキで確認済み。
 M1_WIDE_MIN = 10.0         # M1.W2  これを**超える**と M1(W)
+# ★ 製造グリッド。`01_Basics.drc` が 12 層すべてに `ongrid(0.050)` を掛けており、
+#   外れると `ERR01: OFFGRID 0.050`。**DBU（0.001）は座標の刻みであって、
+#   作れる刻みではない。** したがって 10.0 の電源バーの次に作れる幅は 10.050 で、
+#   `M1(W)` までの余裕は 1 dbu ではなく **0.050 µm**（U18 / U84、2026-09-17）。
+MFG_GRID = 0.05            # ERR01
 M1_WIDE_SPACE_MIN = 2.0    # M1.SW  M1(W) に接する M1 は 2.0 必要（1.4 ではない）
 METAL_WIDTH_MAX = 45.0     # M1.W3 / M2.W3（パッド部と AC は除外）
 SCRIBE_SPACE_MIN = 5.0     # M1.SCR / M2.SCR
