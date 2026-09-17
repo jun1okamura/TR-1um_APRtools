@@ -31,6 +31,7 @@ import argparse
 import cellspec
 from charlib import (CELLDIR, CELLEXT, HERE, TEMP, VDD, all_ports_of,
                      header, models_include, run_ngspice, to_xm)
+from check_comb import subckt_ports_of
 
 RAMP_US = 200.0          # 片道の傾斜時間 [µs]。準 DC（セル本来の ~1ns の 2e5 倍）
 FLAT_US = 20.0           # 両端で落ち着かせる時間 [µs]
@@ -56,6 +57,11 @@ def one_in_one_out(cell):
     return ipins[0], opin
 
 
+def ports_for(cell, netlist=None):
+    """インスタンス行のポート順。`--netlist` のときはその file の宣言順を読む。"""
+    return subckt_ports_of(netlist, cell) if netlist else all_ports_of(cell)
+
+
 def build(cell, ipin, opin, ramp_us=RAMP_US, netlist=None):
     t0 = FLAT_US
     t1 = t0 + ramp_us                     # 頂点
@@ -76,7 +82,14 @@ def build(cell, ipin, opin, ramp_us=RAMP_US, netlist=None):
              f"{t2:g}u {VDD:g} {t3:g}u 0 {tend:g}u 0)")
     L.append(f"Rin {ipin}_src {ipin} 0.001")
     L.append("")
-    L.append("X0 " + " ".join(all_ports_of(cell)) + f" {cell}")
+    # ★ **ポート順はそのネットリスト自身から読む**（U42）。
+    #   `all_ports_of` は既定の置き場（抽出網）の順を返すので、`--netlist` で
+    #   別の網を指すと**ずれる**。実際にずれた（2026-09-17）:
+    #     抽出網          .SUBCKT BUFTH A Y vss vdd
+    #     LVS ソース      .subckt BUFTH A Y vdd vss
+    #   ngspice は数が合えば黙って繋ぐので、**電源と接地が入れ替わったまま
+    #   落ちずに**中点に居座り、`.measure` だけが "out of interval" で失敗した。
+    L.append("X0 " + " ".join(ports_for(cell, netlist)) + f" {cell}")
     L.append(f"C0 {opin} 0 {LOAD_FF:g}f")
     L.append("")
     L.append(f".tran {ramp_us / 2000:g}u {tend:g}u")
@@ -113,6 +126,8 @@ def main():
     print(f"=== {a.cell} シュミットのしきい値")
     print(f"  条件   : typ モデル / VDD {VDD:g} V / {TEMP:g} °C / 準 DC 三角波")
     print(f"  網     : {src}")
+    print(f"  ポート順: {' '.join(ports_for(a.cell, a.netlist))}"
+          f"   （その網の .subckt 宣言順。U42）")
     print(f"  しきい値の定義: 出力が {'/'.join(str(p) for p in OUT_PCT)} % を"
           f"横切った瞬間の**入力**電圧")
     print()
@@ -127,8 +142,16 @@ def main():
                [f"vr{p}" for p in OUT_PCT] + [f"vf{p}" for p in OUT_PCT]}
         if any(v is None for v in got.values()):
             print(log[-2000:])
-            raise SystemExit(f"** しきい値が取れなかった。"
-                             f"{HERE}/logs/schmitt_{a.cell}_{ramp:g}us.log を見ること")
+            raise SystemExit(
+                f"** しきい値が取れなかった。\n"
+                f"   log: {HERE}/logs/schmitt_{a.cell}_{ramp:g}us.log\n"
+                f"   使ったポート順: {' '.join(ports_for(a.cell, a.netlist))}\n"
+                f"   ★ 出力が一度も振れていないなら**電源と接地が入れ替わって"
+                f"いる**のを疑う。\n"
+                f"     ngspice は数が合えば黙って繋ぐので、順を間違えても落ちない"
+                f"（U42）。\n"
+                f"     ログ冒頭の Initial Transient Solution で出力が中点に"
+                f"居座っていたらそれ。")
         row = f"  {ramp:>8g}  " + "".join(f"  {got[f'vr{p}']:6.3f}" for p in OUT_PCT) \
               + "".join(f"  {got[f'vf{p}']:6.3f}" for p in reversed(OUT_PCT)) \
               + f"   {got['vr50'] - got['vf50']:6.3f}"
