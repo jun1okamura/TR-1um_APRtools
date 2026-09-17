@@ -401,7 +401,19 @@ def main():
             rec = r["recovery"][dk][ci][ci]
             rem = r["removal"][dk][ci][ci]
             print(f"{'':<10}  {r['async_pin']}: recovery {s(rec,1)} ns / "
-                  f"removal {s(rem,1)} ns  （slew 1.5、U8）", flush=True)
+                  f"removal {s(rem,1)} ns  （slew 1.5、CK_HIGH={CK_HIGH:g}、U8）",
+                  flush=True)
+            # ★ **数字が波形に張り付いていないかを、その場で言う。**
+            #   removal が CK_HIGH とほぼ同じなら、測れているのは
+            #   「クロックが下りるまでリセットを保て」という波形の性質で、
+            #   セルの定数ではない（U8 の `DFFRB` がこれだった）。
+            if rem is not None and abs(rem - CK_HIGH) < 2.0:
+                print(f"{'':<10}  ★ removal が CK_HIGH({CK_HIGH:g}) に張り付いている。"
+                      f"**セルの定数ではない**", flush=True)
+                print(f"{'':<10}    このセルの非同期ピンは**出力段だけ**に効いて"
+                      f"いて、取り込みとの競合が無い可能性が高い。", flush=True)
+                print(f"{'':<10}    `TR1UM_CK_HIGH` を変えて 2 回回し、"
+                      f"答えが一緒に動くかで確かめること。", flush=True)
 
 
 if __name__ == "__main__":
