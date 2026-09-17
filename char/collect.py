@@ -196,6 +196,31 @@ def build_verify(res, jobs):
     return v
 
 
+def merge_verify(new, old):
+    """`_verify.json` は **測っていない部分を既存から引き継ぐ**（U70）。
+
+    `verify_lib.py` の段 2（格子の外）と段 3（入力容量）は、ここに入っている
+    実測値で回る。**1 セルだけの pack で `collect.py` を回すと、それ以外の
+    セルの測定値が消えて段 2 が丸ごと「測定できず」になる** ので、
+    新しく測れたものだけ上書きする。
+
+    ★ ただし**測定条件（slew / cl）が違う pack なら引き継がない**。
+      条件の違う数字を混ぜると、段 2 の照合が意味を失う。
+    """
+    if not old:
+        return new
+    if (old.get("slew"), old.get("cl")) != (new.get("slew"), new.get("cl")):
+        print("  ** _verify.json: 測定条件が違うので引き継がずに置き換える "
+              f"（旧 slew={old.get('slew')} cl={old.get('cl')} / "
+              f"新 slew={new.get('slew')} cl={new.get('cl')}）")
+        return new
+    for k in ("offgrid", "fanout"):
+        merged = dict(old.get(k) or {})
+        merged.update({kk: vv for kk, vv in (new.get(k) or {}).items() if vv is not None})
+        new[k] = merged
+    return new
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("-p", "--pack", default=f"{HERE}/pack")
@@ -227,8 +252,10 @@ def main():
 
     for cell, d in out.items():
         json.dump(d, open(f"{HERE}/char/{cell}.json", "w"), indent=1)
-    json.dump(build_verify(res, jf["jobs"]),
-              open(f"{HERE}/char/_verify.json", "w"), indent=1)
+    vp = f"{HERE}/char/_verify.json"
+    vf = merge_verify(build_verify(res, jf["jobs"]),
+                      json.load(open(vp)) if os.path.exists(vp) else None)
+    json.dump(vf, open(vp, "w"), indent=1)
 
     # --- 概要 ---
     print(f"\n--- 代表値（入力遷移 0.6ns / 負荷 50fF）---")
