@@ -5,13 +5,22 @@
 
 `scripts/lvs_check.py` と目的は同じだが、**P&R したコア**向けに 3 つ違う:
 
-  1. `combine_devices()` を掛けない（`--combine` で掛けられる）。
+  1. KLayout の `combine_devices()` を掛けない（`--combine` で掛けられる）。
      掛けると KLayout が
        `Internal error: Terminal still connected after removing device in
-        device combination: name=, circuit=DFFRB, terminal=D`
-     で落ちる。この設計のセルは全部シングルフィンガで、直列/並列の
-     まとめが要る形（マルチフィンガ）が無いので、**両側とも掛けなければ**
-     比較の意味は変わらない。
+        device combination: name=, circuit=MUXDFFRB, terminal=D`
+     で落ちる（klayout 0.30.12 でも再現。2026-09-17）。
+     代わりに**自前の並列 MOS まとめ** `combine_parallel_mos()` を
+     **両側に**掛ける（`--no-parallel` で止められる）。
+
+     なぜ要るか（U32 で踏んだ）: `MUXDFFRB` は W=10.4µm の PMOS 3 本を
+     5.2µm の 2 フィンガで描いてある。抽出すると 41 個、ソース
+     （`stdcell/*/simulation/MUXDFFRB.spice` = combine 済みの抽出を
+     golden として凍結したもの）は 38 個で、15 インスタンス分
+     ちょうど 45 個ずれた。「このライブラリのセルは全部シングルフィンガ」
+     というそれまでの前提が**間違っていた**。
+     自前のまとめは両側に同じ正規化を掛けるので、ソースが combine 済み／
+     未 combine のどちらでも同じ形に落ちる。
   2. 不一致のとき**どこが合わないか**を出す。`GenericNetlistCompareLogger` を
      継承して、照合できなかった網・デバイス・ピンを拾う。
   3. 抽出結果を `-o` で保存できる（既定は保存しない）。
@@ -85,10 +94,66 @@ class Logger(db.GenericNetlistCompareLogger):
             self.errors.append(f"[{level}] {msg}")
 
 
-def normalize(nl, combine=False, flat=True):
+# 並列 MOS をまとめるときに足すパラメータ。S/D が逆向きなら入れ替えて足す。
+_SUM_PARAMS = ("W", "AS", "AD", "PS", "PD")
+_SWAP_PARAM = {"AS": "AD", "AD": "AS", "PS": "PD", "PD": "PS"}
+
+
+def _terminal_nets(d):
+    """{端子名: ネット名} を返す。"""
+    out = {}
+    for t in d.device_class().terminal_definitions():
+        n = d.net_for_terminal(t.id())
+        out[t.name] = n.expanded_name() if n is not None else ""
+    return out
+
+
+def combine_parallel_mos(nl):
+    """同じ回路の中で **G/S/D/B が全部同じ MOS** を 1 個にまとめる。
+
+    マルチフィンガで描いたトランジスタは抽出するとフィンガの数だけ
+    デバイスになる。ソース側（回路図なり凍結した抽出なり）は 1 個なので、
+    まとめないと素子数が合わない。W と面積・周長を足して 1 個にする。
+
+    KLayout の `Netlist.combine_devices()` は同じ事をするが、この設計では
+    内部エラーで落ちる（docstring 参照）。直列（スタック）は触らない。
+    まとめた数を返す。
+    """
+    n = 0
+    for c in nl.each_circuit():
+        groups = {}
+        for d in list(c.each_device()):
+            dc = d.device_class()
+            names = {t.name for t in dc.terminal_definitions()}
+            if not {"S", "G", "D"} <= names:
+                continue                      # MOS でない（ダイオードなど）
+            k = _terminal_nets(d)
+            if k["S"] == k["D"]:
+                continue                      # 両端が同じ = デキャップ。触らない
+            key = (dc.name, k["G"], tuple(sorted((k["S"], k["D"]))),
+                   k.get("B", ""), round(d.parameter("L"), 6))
+            groups.setdefault(key, []).append(d)
+        for ds in groups.values():
+            if len(ds) < 2:
+                continue
+            head = ds[0]
+            hk = _terminal_nets(head)
+            for d in ds[1:]:
+                swap = _terminal_nets(d)["S"] != hk["S"]
+                for p in _SUM_PARAMS:
+                    q = _SWAP_PARAM.get(p, p) if swap else p
+                    head.set_parameter(p, head.parameter(p) + d.parameter(q))
+                c.remove_device(d)
+                n += 1
+    return n
+
+
+def normalize(nl, combine=False, flat=True, parallel=True):
     nl.make_top_level_pins()
     if combine:
         nl.combine_devices()
+    elif parallel:
+        combine_parallel_mos(nl)
     nl.purge()
     nl.purge_nets()
     if flat:
@@ -112,7 +177,10 @@ def main():
     ap.add_argument("src")
     ap.add_argument("-o", "--out", default=None, help="抽出網をここへ書く")
     ap.add_argument("--combine", action="store_true",
-                    help="combine_devices() を掛ける（この設計では落ちる）")
+                    help="KLayout の combine_devices() を掛ける（この設計では落ちる）")
+    ap.add_argument("--no-parallel", dest="parallel", action="store_false",
+                    help="自前の並列 MOS まとめを掛けない"
+                         "（マルチフィンガのセルがあると素子数がずれる）")
     ap.add_argument("--hier", action="store_true", help="平坦化せずに比べる")
     ap.add_argument("--tie-floating-power", action="store_true",
                     help="トップピンを持たない電源の島を VDD / GND に**仮に**繋いでから"
@@ -127,12 +195,12 @@ def main():
         l2n.netlist().write(a.out, db.NetlistSpiceWriter(),
                             f"TR-1um {a.top} — KLayout 抽出 (lvs_pnr.py)")
         print(f"  wrote {cfg.show(a.out)}")
-    normalize(lay, combine=a.combine, flat=not a.hier)
+    normalize(lay, combine=a.combine, flat=not a.hier, parallel=a.parallel)
 
     print(f"=== ソース {cfg.show(a.src)}")
     sch = db.Netlist()
     sch.read(a.src, db.NetlistSpiceReader())
-    normalize(sch, combine=a.combine, flat=not a.hier)
+    normalize(sch, combine=a.combine, flat=not a.hier, parallel=a.parallel)
 
     # --- 電源の島（トップピンを持たない大きな網）を探す --------------------
     # P&R したコアで真っ先に出るのはこれ。マクロを横に置くと、マクロの

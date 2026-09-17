@@ -53,11 +53,12 @@ import config as cfg                                    # noqa: E402
 
 GIO_CELL = "OSS_FRAME_GIO"          # .spice の中での名前
 CHIP_GIO_CELL = cfg.FRAME_CELL_CHIP  # チップ GDS / LVS での名前（OSS_FRAME）
-# **`combine_devices()` を掛けていない方**を使う。`lvs_pnr.py` は DFFRB で
-# KLayout が内部エラーを出すので両側とも combine しない方針で、ここで
-# combine 済みのフレームを混ぜると素子数が 316 個ずれる（2026-09-14 に実測:
-# レイアウト 4225 vs ソース 3909）。`lef/simulation/OSS_FRAME_GIO.spice` は
-# ngspice 用の combine 済みで、そちらは触らない。
+# **`combine_devices()` を掛けていない方**を使う。`lef/simulation/OSS_FRAME_GIO.spice`
+# は ngspice 用の combine 済みで、そちらは触らない。
+# 経緯: 2026-09-14 に combine 済みを混ぜて素子数が 316 個ずれた
+# （レイアウト 4225 vs ソース 3909）。2026-09-17 に `lvs_pnr.py` が
+# **両側へ同じ並列まとめを掛ける**ようになった（U92）ので、いまはどちらを
+# 渡しても同じ形に落ちる。それでも**未 combine の方が抽出に近い**ので変えない。
 # フレームの LVS ソース。**設計ごとに置き場が違う**（SCLK_SPI の
 # `lef/simulation` は xschem の作業場への symlink で、リポジトリの外を指す）。
 # `config.py` の `FRAME_LVS_SPICE` で指定できる。既定は I2C と同じ置き場。

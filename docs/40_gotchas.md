@@ -74,18 +74,26 @@ WE バッファ 2 段の入出力が**短絡して見えた**。内部線を `WE
 → **大小だけで別ネットを作らない。** 照合も大小無視で行う（KLayout の SPICE リーダは
 回路名を大文字化する）。
 
-### 1-6. ★ `combine_devices()` は DFFRB で内部エラーを出す
+### 1-6. ★ KLayout の `combine_devices()` は落ちる。並列 MOS は自前でまとめる
 
 ```
-Terminal still connected after removing device … circuit=DFFRB, terminal=D
+Terminal still connected after removing device … circuit=MUXDFFRB, terminal=D
 ```
 
-→ `lvs_pnr.py` は**両側とも combine しない**方針。
-フレームも `mkframespice.py --no-combine` で作った `OSS_FRAME_GIO_nocombine.spice` を使う。
-combine 済み（ngspice 用）を混ぜると**素子数が 316 個ずれる**（レイアウト 4225 / ソース 3909）。
+klayout 0.30.12 でも再現する。→ `lvs_pnr.py` は KLayout の `combine_devices()` を
+使わず、**自前の `combine_parallel_mos()` を両側に掛ける**（既定で有効、
+`--no-parallel` で止まる）。G/S/D/B が全部同じ MOS だけを 1 個にまとめ、
+`W` と `AS`/`AD`/`PS`/`PD` を足す。直列とデキャップは触らない。
 
-このライブラリのセルは全部シングルフィンガで、直列/並列のまとめが要る形が無いので、
-**両側とも掛けなければ意味は変わらない。**
+★ **「このライブラリのセルは全部シングルフィンガ」は誤りだった**（U92）。
+`MUXDFFRB` は W=10.4 µm の PMOS 3 本を **5.2 µm の 2 フィンガ**で描いてある。
+ソースの `simulation/MUXDFFRB.spice` は combine 済みの抽出を凍結したものなので
+38 個、レイアウト抽出は 41 個で、**15 インスタンス分ちょうど 45 個**ずれた。
+I2C のコアとチップも同じ理由で**黙って不一致**になっていた。
+
+**両側に同じ正規化を掛ける**ので、ソースが combine 済みでも未 combine でも
+同じ形に落ちる。フレームは従来どおり `mkframespice.py --no-combine` で作った
+`OSS_FRAME_GIO_nocombine.spice` を使う（どちらでも同じ結果になるが、変えていない）。
 
 ### 1-7. 階層のまま渡すと照合できないセルがある
 

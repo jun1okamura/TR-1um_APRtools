@@ -209,6 +209,12 @@ python3 apr/lvs_pdk.py <gds> -r <out.lvsdb>                     # PDK 公式。�
 **PDK デッキは階層で比べるので、flatten では見えない不一致がある**
 （APR_2026 の出力パッド 5 本がこれで自作側だけ素通りした）。
 
+`lvs_pnr.py` は flatten の前に**並列 MOS を両側でまとめる**
+（`combine_parallel_mos()`。`--no-parallel` で止まる）。`MUXDFFRB` のように
+マルチフィンガで描いたセルがあると、まとめないと素子数がインスタンス数の
+整数倍でずれる（U92）。KLayout 自身の `combine_devices()` は内部エラーで
+落ちるので使っていない（§1-6 / `docs/40_gotchas.md`）。
+
 ### デッキの参照規約
 
 - `05_Compare.lvs` の `Sch_file = "simulation/" + source.cell_name + ".spice"`

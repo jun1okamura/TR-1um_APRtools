@@ -50,6 +50,7 @@ print(one(getattr(c, "STA_PERIOD_NS", "")))             # 15
 print("1" if getattr(c, "SYN_CELLS_GEN", False) else "")        # 16
 print("1" if getattr(c, "SYN_CELLS_IN_SYNTH", False) else "")   # 17
 print(" ".join("-I" + d for d in (getattr(c, "SYN_TB_INCDIR", []) or [])))  # 18
+print(one(c.ROOT))                                      # 19
 PY
 ) || { echo "config.py が読めない（設計のルートで、PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
 f() { echo "$CFG" | sed -n "$1p"; }
@@ -57,7 +58,23 @@ TOP=$(f 1);   LIB=$(f 2);       RTL=$(f 3);     OUT=$(f 4);   CONSTR=$(f 5)
 CELLS=$(f 6); CELLS_ARGS=$(f 7); BLACKBOX=$(f 8)
 TB_RTL=$(f 9); TB_NET=$(f 10);  BUFTH=$(f 11);  REF=$(f 12);  NET=$(f 13)
 CLK=$(f 14);  PER=${PER:-$(f 15)}
-CELLS_GEN=$(f 16); CELLS_SYN=$(f 17); INCDIR=$(f 18)
+CELLS_GEN=$(f 16); CELLS_SYN=$(f 17); INCDIR=$(f 18); ROOTDIR=$(f 19)
+APRROOT=$(cd "$HERE/.." && pwd)
+
+# 生成ログに**その機械の置き方を焼き付けない**（U35 / `config_base.disp()` と同じ規約）。
+#   設計の下   -> 相対パス
+#   APRtools の下 -> $APRTOOLS/...
+#   それ以外のホーム配下 -> $HOME/...
+# 端末に出す間は絶対パスのまま（`show()` の側。人がそのまま開ける）。
+# **ファイルに落とし切ってから**書き換える。
+sanitize_file() {
+  [ -f "$1" ] || return 0
+  t=${TMPDIR:-/tmp}/tr1um_syn_san.$$
+  sed -e "s#$ROOTDIR/##g" -e "s#$ROOTDIR#.#g" \
+      -e "s#$APRROOT#\$APRTOOLS#g" -e "s#$HOME/#\$HOME/#g" \
+      "$1" > "$t" && cat "$t" > "$1"
+  rm -f "$t"
+}
 [ -n "$CELLS_SYN" ] && SYN_CELLS=$CELLS || SYN_CELLS=""
 
 [ -n "$TOP" ] || { echo "config.py の SYN_TOP / TOP_CELL_NAME が空" >&2; exit 1; }
@@ -68,6 +85,8 @@ LOG=$OUT/SYN_RESULTS.txt
 if [ -z "${SYN_TEE:-}" ]; then
   SYN_TEE=1; export SYN_TEE
   sh "$0" "$@" 2>&1 | tee "$LOG"
+  sanitize_file "$LOG"
+  sanitize_file "$OUT/$TOP.synlog"
   tail -1 "$LOG" | grep -q '^完了' || {
     echo "** 途中で止まった。$LOG を見てください" >&2; exit 1; }
   exit 0
