@@ -13,6 +13,7 @@ STDCELL の GDS を触ったら必ず回す。
 見る規則（**綴りはデッキと同じ**。出典 `$TR1UM_PDK/.../drc/run.drc` Cat-6）:
 
     M1.W1 / M1.S1 / M2.W1 / M2.S1 / V1.S1 / V1.M1 / M2.V1
+    ERR01   製造グリッド 0.050（12 層すべての頂点。`01_Basics.drc`）
     M1.SW   M1(W) に接する M1 は間隔 2.0（1.4 ではない）
     M1.W3 / M2.W3   最大幅 45.0（パッドと AC は除外）
     V1.W1   カットは 1.4 ちょうど（幅・bbox_min・bbox_max）
@@ -51,6 +52,13 @@ M1, M2, V1 = rules.M1, rules.M2, rules.V1
 M1_W, M1_S = rules.M1_WIDTH_MIN, rules.M1_SPACE_MIN
 M2_W, M2_S = rules.M2_WIDTH_MIN, rules.M2_SPACE_MIN
 V1_S, V1_ENC = rules.V1_SPACE_MIN, rules.V1_ENC_M1
+
+
+# `01_Basics.drc` が `ongrid( 0.050 )` を掛ける 12 層（綴りと順もデッキのまま）
+ERR01_LAYERS = (("WN", rules.WN), ("AP", rules.AP), ("AN", rules.AN),
+                ("AR", rules.AR), ("AC", rules.AC), ("GC", rules.GC),
+                ("GR", rules.GR), ("CO", rules.CO), ("M1", rules.M1),
+                ("V1", rules.V1), ("M2", rules.M2), ("PO", rules.PO))
 
 
 def check_cell(ly, cell, dbu):
@@ -107,6 +115,24 @@ def check_cell(ly, cell, dbu):
     #   最初からこちらの API を使っていた）
     for tag, metal in (("V1.M1 enclosure", m1), ("M2.V1 enclosure", m2)):
         add(tag, v1.enclosed_check(metal, um(V1_ENC)), V1_ENC)
+
+    # --- ERR01: 製造グリッド（U84） --------------------------------------
+    # `01_Basics.drc` は **12 層すべて**に `(<層>).ongrid( 0.050 )` を掛ける。
+    # 層は `00_Layers.drc` の `input(...).not(MASK + SCRB)` で読むので、
+    # **ここも `reg()` を通す**（= `MASK` を引いた形）。`SCRB` はセルに無い
+    # 層なので `main()` が入力ごと弾いている。
+    # ★ **数字だけ写すと誤報が出る**（U84）。`grid_check` を生の層に当てると、
+    #   パッドリングの角の 45° が 3 設計とも 31 頂点ぶん「グリッド外れ」に
+    #   出たが、デッキは同じ GDS を clean と言う。デッキ側はそこを `SCRB` で
+    #   落としているため。**層の導出ごと写して初めて一致する。**
+    gg = um(rules.MFG_GRID)
+    for tag, lay in ERR01_LAYERS:
+        r = reg(lay)
+        if r.is_empty():
+            continue
+        for e in r.grid_check(gg, gg).each():
+            px, py = e.first.p1.x * dbu, e.first.p1.y * dbu
+            out.append((f"ERR01 offgrid {tag}", 0.0, rules.MFG_GRID, px, py, "grid"))
 
     # ---- U55: PDK デッキにあって自作側に無かった 4 規則 -------------------
     # 出典は `$TR1UM_PDK/libs.tech/klayout/tech/drc/run.drc`（Cat-6）と
@@ -178,6 +204,8 @@ def main(gds=None, only=()):
         for rule, d, lim, x, y, how in v:
             if how == "hit":
                 what = "重なり"
+            elif how == "grid":
+                what = f"格子 {lim:.3f} um の外"
             elif how == ">":
                 what = f"{d:.3f} um > {lim:.3f} um" if d else f"> {lim:.3f} um"
             else:

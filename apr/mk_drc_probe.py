@@ -23,6 +23,8 @@
 
     T_SW_10   幅 **ちょうど 10.000** の M1 の隣 1.8 µm — **合法**（否定対照）
     T_SW_10p  幅 **10.050**（製造グリッド 1 つ分だけ太い）の隣 1.8 µm — **M1.SW 違反**
+    T_GRID_OK 10.000 x 2.000 の M1 — **合法**（否定対照）
+    T_GRID_NG 右辺を 1 dbu ずらした 10.001 — **ERR01（頂点 2 つ）**
     T_SW_TEE  幅ちょうど 10.000 の M1 が直交して刺さる T 字 — **合法**
 
 ★ 上の 3 つが U18 の答えそのもの。デッキの `M1W = M1.sized(-5.0)…sized(5.0)` は
@@ -110,6 +112,10 @@ def build():
     # T 字: 同じ幅のバーが直交して刺さっても、角は 10x10 で -5.0 すると点になる
     cell("T_SW_TEE", (rules.M1, 0, 0, w0, 40), (rules.M1, -20, 15, 0, 15 + w0),
          (rules.M1, w0 + edge, 0, w0 + edge + 3.4, 40))
+    # 製造グリッド（U84）。**発火と否定対照を対にする。**
+    # `T_GRID_NG` は右辺を 1 dbu だけずらしてある（頂点 2 つが ERR01）。
+    cell("T_GRID_OK", (rules.M1, 0, 0, 10.0, 2.0))
+    cell("T_GRID_NG", (rules.M1, 0, 0, 10.0 + rules.DBU, 2.0))
     return ly
 
 
@@ -120,5 +126,7 @@ if __name__ == "__main__":
     a = ap.parse_args()
     build().write(a.out)
     print(f"書いた: {a.out}")
-    print("  T_OK / T_SW_10 / T_SW_TEE 以外の 7 セルがそれぞれ 1 規則だけ違反する。"
-          "\n  否定対照は T_OK / T_SW_10 / T_SW_TEE の 3 つ（何も出てはいけない）。")
+    print("  T_OK / T_SW_10 / T_SW_TEE / T_GRID_OK 以外の 8 セルが"
+          "それぞれ 1 規則だけ違反する。"
+          "\n  否定対照は T_OK / T_SW_10 / T_SW_TEE / T_GRID_OK の 4 つ"
+          "（何も出てはいけない）。")
