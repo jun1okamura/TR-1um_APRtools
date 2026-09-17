@@ -127,6 +127,16 @@ def build_ckq(cell, spec, ck_slew, d_rise):
 
 
 HOLD_SETUP_MARGIN = 60.0   # hold 測定で setup 側に確保する余裕 [ns]
+# recovery / removal で**クロックを下ろす**時刻（取り込み端から）[ns]（U8）。
+# ★ setup / hold はクロックを上げっぱなしで測っている（下ろす必要が無い）。
+#   だが非同期ピンの測定では**下ろさないと測れない**: この世代の `DFFRB` は
+#   スレーブが CK 高で透過なので、CK を上げたままリセットを解除すると
+#   **いつ解除しても Q が D になる**。境界が出ない（実測: recovery が探索の
+#   下端 -20 に張り付き、removal は「一番緩くても保持できない」で `-`）。
+# ★ **これは否定対照のつまみでもある。** 答えが `CK_HIGH` と一緒に動くなら、
+#   それは「クロックが下りるまでリセットを保つ」という**波形の性質**であって
+#   セルの定数ではない。動かなければセルの定数。`TR1UM_CK_HIGH` で振れる。
+CK_HIGH = float(os.environ.get("TR1UM_CK_HIGH", 20.0))
 
 
 def build_constraint(cell, spec, ck_slew, d_slew, d_rise, dt, mode="setup"):
@@ -185,9 +195,13 @@ def build_constraint(cell, spec, ck_slew, d_slew, d_rise, dt, mode="setup"):
     # 取り込み前に Q を逆の値にしておく（1 発目のクロックで下地を作る）
     t_pre = T_CK - 120
     tf = full_ramp(ck_slew)
-    L.append(f"Vck CK_src 0 PWL(0 0 {t_pre-20:g}n 0 {t_pre-19:g}n {VDD:g} "
-             f"{t_pre:g}n {VDD:g} {t_pre+1:g}n 0 "
-             f"{T_CK-tf/2:g}n 0 {T_CK+tf/2:g}n {VDD:g})")
+    ck = (f"PWL(0 0 {t_pre-20:g}n 0 {t_pre-19:g}n {VDD:g} "
+          f"{t_pre:g}n {VDD:g} {t_pre+1:g}n 0 "
+          f"{T_CK-tf/2:g}n 0 {T_CK+tf/2:g}n {VDD:g}")
+    if mode in ("recovery", "removal"):
+        t_fall = T_CK + CK_HIGH
+        ck += f" {t_fall-tf/2:g}n {VDD:g} {t_fall+tf/2:g}n 0"
+    L.append(f"Vck CK_src 0 {ck})")
     L.append("Rck CK_src CK 0.001")
     L.append("")
     L.append("XU " + " ".join(all_ports_of(cell)) + f" {cell}")
@@ -195,9 +209,10 @@ def build_constraint(cell, spec, ck_slew, d_slew, d_rise, dt, mode="setup"):
     L.append(f"C1 {qb} 0 {LOADS[2]}f")
     t_meas = T_CK + 100.0
     if mode in ("recovery", "removal"):
-        # ★ 解除が遅いほど落ち着くのも遅い。**測る時刻は解除から十分後**に取る
-        #   （既定の T_CK+100 のままだと dt=80 のとき 20 ns しか空かない）。
-        t_meas = max(t_meas, t_r + 60.0)
+        # ★ 解除が遅いほど落ち着くのも遅い。**測る時刻は解除から十分後**、
+        #   かつ**クロックを下ろしたあと**に取る（既定の T_CK+100 のままだと
+        #   dt=80 のとき 20 ns しか空かない）。
+        t_meas = max(t_meas, t_r + 60.0, T_CK + CK_HIGH + 60.0)
     L.append(f".tran 0.05n {t_meas+20:g}n")
     L.append(f".meas tran vq FIND v({q}) AT={t_meas:g}n")
     L += ["", ".end", ""]
