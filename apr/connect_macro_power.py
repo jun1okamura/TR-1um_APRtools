@@ -193,14 +193,21 @@ def main():
     ports = macro_power_ports(cfg.LEF_PATH, cfg.MACRO_CELL)
     # 下辺（マクロ座標で y が小さい方）のポートだけ使う。上辺はコア上辺と
     # 面一でコア内から届かない（チップ組み立てで上から受ける）。
+    # ★ U12: 下辺のポートを**全部**使う（前は「いちばん右」の 1 組だけ）。
+    #   `REG8x16` は下辺に vdd / vss を 2 枚ずつ持っていて、左の 1 枚は
+    #   マクロの左端（x +1.0 / +76.6）にある。ストラップは TAP 柱
+    #   （マクロより左）から右端のポートまで引くので、**左のポートの x は
+    #   もともとストラップの上を通っている**。ライザと via を 1 本ずつ
+    #   足すだけで 2 点給電になり、ストラップも帯も増えない。
     feed = {}
     for net, rects in ports.items():
         ymin = min(r[1] for r in rects)
-        bottom = [r for r in rects if abs(r[1] - ymin) < 1e-6]
-        r = max(bottom, key=lambda r: r[0])          # いちばん右
-        feed[net] = (r[0] + mx, r[1] + my, r[2] + mx, r[3] + my)
-        print(f"  {net} ポート（下辺・右端） x {feed[net][0]:.1f}..{feed[net][2]:.1f}"
-              f"  y {feed[net][1]:.1f}..{feed[net][3]:.1f}")
+        bottom = sorted((r for r in rects if abs(r[1] - ymin) < 1e-6),
+                        key=lambda r: r[0])
+        feed[net] = [(r[0] + mx, r[1] + my, r[2] + mx, r[3] + my) for r in bottom]
+        for i, f in enumerate(feed[net]):
+            print(f"  {net} ポート（下辺 {i + 1}/{len(feed[net])}） "
+                  f"x {f[0]:.1f}..{f[2]:.1f}  y {f[1]:.1f}..{f[3]:.1f}")
 
     # --- TAP の電源柱（右端の TAP を使う）---
     tap_x = max(cfg.TAP_X)
@@ -211,7 +218,7 @@ def main():
 
     # --- ストラップを通す y 帯を探す（マクロの下を下へ走査）---------------
     x_lo = min(col["vss"][0], col["vdd"][0]) - 1.0
-    x_hi = max(feed["vss"][2], feed["vdd"][2])
+    x_hi = max(f[2] for fs in feed.values() for f in fs)
     need = 2 * W + G
     band = None
     y = my - M1_MIN_GAP - need
@@ -232,30 +239,36 @@ def main():
     for net in ("vdd", "vss"):
         sy0, sy1 = ys[net]
         cx0, cx1 = col[net]
-        px0, py0, px1, py1 = feed[net]
-        # ストラップ本体（M1）
-        if not d.clear(d.m1, cx0, sy0, px1, sy1, M1_MIN_GAP):
+        x_end = max(f[2] for f in feed[net])          # いちばん右のポート
+        # ストラップ本体（M1）: TAP 柱から右端のポートまで 1 本。
+        # 左のポートはこの帯の上に載っているので、ストラップは増やさない。
+        if not d.clear(d.m1, cx0, sy0, x_end, sy1, M1_MIN_GAP):
             raise SystemExit(f"{net} のストラップ（y {sy0:.1f}..{sy1:.1f}）が M1 で塞がっている")
-        # ライザ（M2）: ストラップからポートまで。
-        # **検査はマクロの下端で打ち切る。** ここを普通に margin つきで見ると、
-        # 上に伸ばした分が**繋ぎ先のポートそのもの**を拾って「塞がっている」に
-        # なる（実測でこれに引っかかった）。ポートから上はマクロ自身の金属で、
-        # 同じネットなので検査の対象ではない。
-        rx0, rx1 = px0, px1
-        probe = d.box(rx0 - M2_MIN_GAP, sy0 - M2_MIN_GAP, rx1 + M2_MIN_GAP, my)
-        r = db.Region(d.top.begin_shapes_rec_overlapping(d.m2, probe)) & db.Region(probe)
-        if not r.is_empty():
-            raise SystemExit(f"{net} のライザ（x {rx0:.1f}..{rx1:.1f}, y {sy0:.1f}..{my:.1f}）"
-                             f"が M2 で塞がっている")
-        plan.append((net, sy0, sy1, cx0, cx1, rx0, rx1, py0, py1))
-        print(f"  [OK] {net}: ストラップ y {sy0:.1f}..{sy1:.1f} x {cx0:.1f}..{px1:.1f}"
-              f" / ライザ x {rx0:.1f}..{rx1:.1f} y {sy0:.1f}..{py1:.1f}")
+        risers = []
+        for px0, py0, px1, py1 in feed[net]:
+            # ライザ（M2）: ストラップからポートまで。
+            # **検査はマクロの下端で打ち切る。** ここを普通に margin つきで見ると、
+            # 上に伸ばした分が**繋ぎ先のポートそのもの**を拾って「塞がっている」に
+            # なる（実測でこれに引っかかった）。ポートから上はマクロ自身の金属で、
+            # 同じネットなので検査の対象ではない。
+            rx0, rx1 = px0, px1
+            probe = d.box(rx0 - M2_MIN_GAP, sy0 - M2_MIN_GAP, rx1 + M2_MIN_GAP, my)
+            r = db.Region(d.top.begin_shapes_rec_overlapping(d.m2, probe)) & db.Region(probe)
+            if not r.is_empty():
+                raise SystemExit(f"{net} のライザ（x {rx0:.1f}..{rx1:.1f}, y {sy0:.1f}..{my:.1f}）"
+                                 f"が M2 で塞がっている")
+            risers.append((rx0, rx1, py1))
+        plan.append((net, sy0, sy1, cx0, cx1, x_end, risers))
+        print(f"  [OK] {net}: ストラップ y {sy0:.1f}..{sy1:.1f} x {cx0:.1f}..{x_end:.1f}"
+              f" / ライザ {len(risers)} 本 "
+              + ", ".join(f"x {a:.1f}..{b:.1f}" for a, b, _ in risers))
 
-    for net, sy0, sy1, cx0, cx1, rx0, rx1, py0, py1 in plan:
-        d.m1_box(cx0, sy0, rx1, sy1)                      # 横ストラップ
+    for net, sy0, sy1, cx0, cx1, x_end, risers in plan:
+        d.m1_box(cx0, sy0, x_end, sy1)                    # 横ストラップ
         d.via((cx0 + cx1) / 2.0, (sy0 + sy1) / 2.0, PAD, W)   # TAP 柱へ
-        d.via((rx0 + rx1) / 2.0, (sy0 + sy1) / 2.0, PAD, W)   # ライザへ
-        d.m2_box(rx0, sy0, rx1, py1)                      # 縦ライザ（ポートまで）
+        for rx0, rx1, py1 in risers:
+            d.via((rx0 + rx1) / 2.0, (sy0 + sy1) / 2.0, PAD, W)   # ライザへ
+            d.m2_box(rx0, sy0, rx1, py1)                  # 縦ライザ（ポートまで）
 
     d.ly.write(a.out)
     print(f"wrote {cfg.show(a.out)}")
