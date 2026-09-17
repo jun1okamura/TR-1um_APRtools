@@ -34,7 +34,7 @@ STEP:
 """
 
 from __future__ import annotations
-import argparse, json, os, random, re, sys
+import argparse, json, math, os, random, re, sys
 from collections import defaultdict
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -278,7 +278,8 @@ def partition(names, width, net_cells, n, cap, macro_name, restarts, seed,
     緩めるとカットは 7% ほど減るが行の凸凹が 16 ポイントに広がる。
     チャネル予算には余裕があるのでカットより**均一な充填**を取る。
     混んだ行はフィードスルーの隙間が無くなって配線で詰まる。"""
-    cap = min(cap, sum(width.values()) / n * (1.0 + tol))
+    # U91: 浮動小数の足し算は `math.fsum`（版に依らない厳密な丸め）
+    cap = min(cap, math.fsum(width.values()) / n * (1.0 + tol))
     rng = random.Random(seed)
     fixed = {macro_name} if macro_name else set()
     best_a, best_c = None, None
@@ -379,7 +380,15 @@ def order_rows(assign, width, net_cells, ports, rows_y, n, mpin,
                       if o in cx and o != c]
                 xs += [mpin[net][0] for net in nets_of[c] if net in mpin]
                 xs += [prefs[net][1] for net in nets_of[c] if net in prefs]
-                key[c] = sum(xs) / len(xs) if xs else cx[c]
+                # ★ `sum` ではなく `math.fsum`（U91）。**Python 3.12 で
+                #   `sum()` の浮動小数の足し方が変わった**（Neumaier の補正
+                #   付き加算）ので、同じ入力でも 3.11 以前と 3.12 以降で
+                #   **最下位が違う値**が出る。これはそのまま `seq.sort` の
+                #   鍵なので、僅差の 2 つが入れ替わり、そこから別の谷に
+                #   落ちて**配置ごと変わる**（実測: 同じ seed・同じ入力で
+                #   HPWL 87111.2 と 87567.5）。`fsum` は**厳密に丸めた 1 つの
+                #   答え**を返すので版に依らない。
+                key[c] = math.fsum(xs) / len(xs) if xs else cx[c]
             seq.sort(key=lambda c: (key[c], c))
         hp = hpwl(order, width, net_cells, ports, rows_y, mpin, prefs)
         if hp < best_hp:
@@ -558,8 +567,8 @@ def pack_row(seq, width, cellof, row_w, with_tap, with_fill, mode="alternate"):
         elif with_fill:
             out.append(("__PRI__", None, x, w))
 
-    left_cells = sum(width[c] for c in todo)
-    left_cap = sum(c for _x, c in segs)
+    left_cells = math.fsum(width[c] for c in todo)          # U91
+    left_cap = math.fsum(c for _x, c in segs)               # U91
     picked_by = [[] for _ in segs]
     used_by = [0.0] * len(segs)
     for si, (x0, cap) in enumerate(segs):
@@ -754,8 +763,8 @@ def main(net_path=None, info_path=None, restarts=800, order_passes=40,
     fx = fixed_blocks(row_w)
     taps = sum(1 for _x, _w, k in fx if k == "tap")
     pris = sum(1 for _x, _w, k in fx if k == "pri")
-    usable = row_w - sum(w for _x, w, _k in fx)
-    total = sum(width.values())
+    usable = row_w - math.fsum(w for _x, w, _k in fx)       # U91
+    total = math.fsum(width.values())                       # U91
     print(f"配置: 標準セル {len(cells)} 個 / 幅合計 {total:.1f} um")
     mname = macro.name if macro else None
     if macro:
