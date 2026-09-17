@@ -540,6 +540,7 @@ class Drawer:
         self.shapes = defaultdict(list)
         self.net = None
         self._via_done = set()
+        self._via_net = []          # (x, y, net)。同じ網の近すぎる via を弾く
 
     def um(self, v): return int(round(v / self.dbu))
 
@@ -561,10 +562,30 @@ class Drawer:
                  box.right * self.dbu, box.top * self.dbu))
 
     def via(self, cx, cy, x=VIA_PAD, y=VIA_PAD):
-        """`via_1` を 1 個。x/y を大きくすると PCell がカットを配列にする。"""
+        """`via_1` を 1 個。x/y を大きくすると PCell がカットを配列にする。
+
+        ★ **同じ場所**は前から弾いていた（`_via_done`）。**近すぎる場所**も
+        弾く（2026-09-17、U32）。ルートの「幹」と「足」がそれぞれ via を
+        落とすと、中心が 1.8 µm 離れただけの 2 個が並ぶことがある。カットは
+        1.4 なので縁の隙間は 0.4 で、**`V1.S1`（1.5）違反**になる
+        （SCLK_SPI の `cs_n` で実際に出た。自作 DRC が
+        `V1 space viol: 1 at (-831.6, 529.1)` と言った）。
+        **同じ網のときだけ**弾く。違う網なら、近いこと自体が別の問題なので
+        黙って消してはいけない。
+        """
         key = (round(cx, 3), round(cy, 3))
         if key in self._via_done:
             return
+        near = rules.V1_CUT + rules.V1_SPACE_MIN
+        if self.net:
+            for px, py, pnet in self._via_net:
+                if pnet == self.net and abs(cx - px) < near and abs(cy - py) < near:
+                    print(f"  via を 1 個まとめた（{self.net}）: "
+                          f"({cx:.1f}, {cy:.1f}) は ({px:.1f}, {py:.1f}) と "
+                          f"{max(abs(cx-px), abs(cy-py)):.1f} µm しか離れていない"
+                          f"（V1.S1 は {rules.V1_SPACE_MIN}）")
+                    return
+            self._via_net.append((cx, cy, self.net))
         self._via_done.add(key)
         idx = self.layout.add_pcell_variant(
             self.via_lib, self.via_decl.id(),
