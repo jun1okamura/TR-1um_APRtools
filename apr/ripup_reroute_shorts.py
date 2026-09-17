@@ -181,7 +181,34 @@ def find_conflicts(net_shapes):
     return conflicts
 
 
-def component_conflicts(fixer):
+def _via_pad_bridge(fixer, sx, sy):
+    """(ix, iy, layer) when a via pad at an ENDPOINT of box `ix` of shape
+    list `sx` lands on box `iy` of shape list `sy`, else None.
+
+    Vias are never recorded in net_shapes (the via_1 PCell draws its own
+    3.4x3.4 M1+M2 pads), so a via of one net sitting on another net's
+    metal produces no box-pair overlap at all. Every via this router
+    places sits at the END of a run, so probing both endpoints of each
+    box with a full pad footprint finds it."""
+    for ix, (lx, ax0, ay0, ax1, ay1) in enumerate(sx):
+        if (ax1 - ax0) >= (ay1 - ay0):
+            mid = (ay0 + ay1) / 2.0
+            pts = ((ax0, mid), (ax1, mid))
+        else:
+            mid = (ax0 + ax1) / 2.0
+            pts = ((mid, ay0), (mid, ay1))
+        for ex, ey in pts:
+            pad = db.Region(db.Box(fixer.um(ex - PAD_HALF), fixer.um(ey - PAD_HALF),
+                                   fixer.um(ex + PAD_HALF), fixer.um(ey + PAD_HALF)))
+            for iy, (ly, bx0, by0, bx1, by1) in enumerate(sy):
+                box = db.Region(db.Box(fixer.um(bx0), fixer.um(by0),
+                                       fixer.um(bx1), fixer.um(by1)))
+                if box.interacting(pad).count() > 0:
+                    return (ix, iy, lx)
+    return None
+
+
+def component_conflicts(fixer, unidentified=None):
     """TD4: the conflicts `find_conflicts` structurally cannot see.
 
     `find_conflicts` compares the router's own recorded boxes and flags
@@ -277,29 +304,28 @@ def component_conflicts(fixer):
                 if gap <= EPS and (best is None or gap < best[0]):
                     best = (gap, ia, ib, la)
         if best is None:
-            # via-mediated: find A's box whose own endpoint pad touches B
-            breg = db.Region()
-            for lb, bx0, by0, bx1, by1 in sb:
-                breg.insert(db.Box(fixer.um(bx0), fixer.um(by0),
-                                   fixer.um(bx1), fixer.um(by1)))
-            for ia, (la, ax0, ay0, ax1, ay1) in enumerate(sa):
-                if (ax1 - ax0) >= (ay1 - ay0):
-                    mid = (ay0 + ay1) / 2.0
-                    pts = ((ax0, mid), (ax1, mid))
-                else:
-                    mid = (ax0 + ax1) / 2.0
-                    pts = ((mid, ay0), (mid, ay1))
-                for ex, ey in pts:
-                    pad = db.Region(db.Box(fixer.um(ex - PAD_HALF), fixer.um(ey - PAD_HALF),
-                                           fixer.um(ex + PAD_HALF), fixer.um(ey + PAD_HALF)))
-                    if breg.interacting(pad).count() > 0:
-                        best = (0.0, ia, 0, la)
-                        break
-                if best:
+            # via-mediated: a via pad of ONE net landing on the OTHER
+            # net's metal. v35: this used to probe A's endpoints against
+            # B's boxes only, so a bridge made by B's via on A's metal
+            # was never identified and the pair fell through to
+            # "reporting only" -- TD4's reg_a[0] <-> reg_b[3] is exactly
+            # that (reg_b[3]'s PIN via at (899.1, 836.6) sits under
+            # reg_a[0]'s M2 column, which runs straight through that row).
+            # Both directions are probed now, and the pair is returned
+            # with the net whose VIA makes the bridge FIRST, so the box
+            # handed to try_fix_* is the one that has to move.
+            for nx, sx, ny, sy in ((na, sa, nb, sb), (nb, sb, na, sa)):
+                hit = _via_pad_bridge(fixer, sx, sy)
+                if hit is not None:
+                    ix, iy, lx = hit
+                    out.append((nx, ix, ny, iy, lx))
+                    best = True
                     break
-        if best is None:
-            print(f"  component check: {na} <-> {nb} share a component but no box pair "
-                  f"could be identified -- reporting only")
+            if best is None:
+                print(f"  component check: {na} <-> {nb} share a component but no box pair "
+                      f"could be identified -- reporting only")
+                if unidentified is not None:
+                    unidentified.append((na, nb))
             continue
         _gap, ia, ib, lyr = best
         out.append((na, ia, nb, ib, lyr))
@@ -521,6 +547,23 @@ class Fixer:
                 return True
         return False
 
+    @staticmethod
+    def _is_via_inst(inst):
+        """True for an instance of the via_1 PCell, whatever suffix
+        KLayout gave that particular variant.
+
+        KLayout renames PCell variants on read/insert: the same via
+        appears as "via_1$2" in a GDS written by route_channels.py, and
+        every add_pcell_variant() here creates another one ("via_1$3",
+        "via_1$4", ...). The literal `name != "via_1"` test this class
+        used before therefore matched NOTHING: remove_via_at() removed
+        0 vias and _nearby_via_center() never found one, so every
+        rip-up left its old via behind. Those orphans are invisible
+        until another net later takes the vacated track and lands on
+        one -- which is exactly what TD4's _011_/_050_, _089_/_096_ and
+        reg_a[0]/reg_b[3] shorts turned out to be."""
+        return inst.cell.name == "via_1" or inst.cell.name.startswith("via_1$")
+
     def _nearby_via_center(self, x, y, radius=2.5):
         """Exact center of a real via_1 PCell instance within `radius`
         um of (x, y), or (None, None) if none found. radius=2.5 covers
@@ -531,7 +574,7 @@ class Fixer:
         r = self.um(radius)
         best, best_d2 = None, None
         for inst in self.top.each_inst():
-            if inst.cell.name != "via_1":
+            if not self._is_via_inst(inst):
                 continue
             d = inst.trans.disp
             dx, dy = d.x - target.x, d.y - target.y
@@ -567,7 +610,7 @@ class Fixer:
         eps = self.um(VIA_MATCH_EPS_UM)
         removed = 0
         for inst in list(self.top.each_inst()):
-            if inst.cell.name != "via_1":
+            if not self._is_via_inst(inst):
                 continue
             d = inst.trans.disp
             if abs(d.x - target.x) <= eps and abs(d.y - target.y) <= eps:
@@ -1165,13 +1208,26 @@ def main():
             # asks (real merged geometry unioned through real vias), so a
             # zero-gap abutment or a via pad landing on another net gets a
             # repair attempt instead of being discovered only at sign-off.
-            conflicts = [c for c in component_conflicts(fixer)
+            unidentified = []
+            conflicts = [c for c in component_conflicts(fixer, unidentified)
                          if (c[0], c[2]) not in permanently_failed
                          and (c[2], c[0]) not in permanently_failed]
             if conflicts:
                 print(f"iteration {it}: box overlaps clean, but the component check finds "
                       f"{len(conflicts)} shorted net pair(s): "
                       f"{sorted({(c[0], c[2]) for c in conflicts})}")
+            # v35: a pair the component check sees but cannot map back to a
+            # box pair is still a SHORT. It used to be printed and then
+            # dropped, so the loop went on to announce "0 conflicts remain
+            # -- converged" and the summary said "0 shorted net pair(s)
+            # remain" over the top of it. Nothing downstream re-checks, so
+            # that false all-clear is how TD4's reg_a[0] <-> reg_b[3]
+            # reached step11.
+            for pr in unidentified:
+                if pr not in permanently_failed and pr[::-1] not in permanently_failed:
+                    permanently_failed.add(pr)
+                    print(f"iteration {it}: {pr[0]} <-> {pr[1]} is shorted but could not be "
+                          f"mapped to a box pair -- recorded as UNRESOLVED")
         if not conflicts:
             print(f"iteration {it}: 0 conflicts remain -- converged")
             break
@@ -1293,9 +1349,12 @@ def main():
         pairs = {(c[0], c[2]) for c in remaining}
         print("unresolved net pairs:", pairs)
     if USE_COMPONENT_CHECK:
-        comp = component_conflicts(fixer)
-        print(f"component-level check: {len(comp)} shorted net pair(s) remain"
-              + (f": {sorted({(c[0], c[2]) for c in comp})}" if comp else ""))
+        unidentified = []
+        comp = component_conflicts(fixer, unidentified)
+        # v35: unidentified pairs count too -- see the loop above.
+        pairs = sorted({(c[0], c[2]) for c in comp} | set(unidentified))
+        print(f"component-level check: {len(pairs)} shorted net pair(s) remain"
+              + (f": {pairs}" if pairs else ""))
 
     fixer.layout.write(out_gds)
     with open(out_pin_map_json, "w") as f:

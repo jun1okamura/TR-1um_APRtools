@@ -334,10 +334,16 @@ def checks(gds, pin_map, ch, squeezed=False):
     p = json.load(open(cfg.PLACEMENT_JSON))
     # the scan window must cover the ROUTED core, not the placement estimate
     if squeezed:
-        import gdstk
-        top = [c for c in gdstk.read_gds(gds).cells
-               if c.name == cfg.TOP_CELL_NAME][0]
-        hi = top.bounding_box()[1][1] + 10
+        # klayout.db, not gdstk: this is one bounding box, and
+        # verify_connectivity_m1m2.py (the very next call) already reads
+        # the same GDS with klayout. Importing gdstk here made the final
+        # two checks -- connectivity and the port-pin coverage after it --
+        # unrunnable anywhere gdstk is missing, even though steps 7-11
+        # themselves need only klayout.
+        import klayout.db as _db
+        _ly = _db.Layout()
+        _ly.read(gds)
+        hi = _ly.cell(cfg.TOP_CELL_NAME).dbbox().top + 10
     else:
         hi = routed_core_h(ch) + 10
     subprocess.run([sys.executable,
