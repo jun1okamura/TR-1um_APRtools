@@ -47,6 +47,7 @@
 | `design-knob` | NG | **設計が上書きできる値**（`ENV_KNOBS` ∩ `rules`）を `rules.` から直読み → `cfg.` から取る |
 | `drc-const` | NG | プロセス定数の写し。(a) `M1_*` / `M2_*` / `V1_*` … への**数値リテラル代入** (b) **argparse の既定**に書かれた同じもの |
 | `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている（`/home/…` `/Users/…` `/sessions/…` `/var/folders/…` `/opt/homebrew/…`）|
+| `set-iter` | NG | **集合を `for` で回している**。反復順は `PYTHONHASHSEED` で変わるので、書き出す順・差し込む順が実行ごとに違いうる → `sorted()` で包む（U1）|
 
 `--constants` を付けると、**`rules.py` の「まるくない」値と一致する数値リテラル**を
 全部並べる（合否には関係しない。`docs/90_improvement_notes.md` U62 の作業リスト）。
@@ -220,6 +221,27 @@ def enclosing_src(src, tree, node):
     return seg(src, best) if best else src
 
 
+def _is_set_expr(node, set_names):
+    """`node` が集合そのものか、集合だと分かっている名前か（U1 の `set-iter`）。
+
+    `sorted(...)` で包んであるものは**通す**（それが直し方なので）。
+    `set(...)` / `frozenset(...)` / 集合リテラル / 集合内包、および
+    集合どうしの演算（`a | b` など）を集合とみなす。"""
+    if isinstance(node, (ast.Set, ast.SetComp)):
+        return True
+    if isinstance(node, ast.Call) and isinstance(node.func, ast.Name):
+        if node.func.id in ("set", "frozenset"):
+            return True
+        return False                      # sorted(...) を含め、ほかの呼び出しは通す
+    if isinstance(node, ast.Name):
+        return node.id in set_names
+    if isinstance(node, ast.BinOp) and isinstance(node.op, (ast.BitOr, ast.BitAnd,
+                                                            ast.Sub, ast.BitXor)):
+        return (_is_set_expr(node.left, set_names)
+                or _is_set_expr(node.right, set_names))
+    return False
+
+
 def check_file(path):
     src = open(path, encoding="utf-8").read()
     lines = src.splitlines()
@@ -256,6 +278,19 @@ def check_file(path):
             if base in apr_dir_names:
                 apr_root_names.add(name)          # apr/ の親 = APRtools の根
 
+    # set-iter（U1）: この file で「集合」だと分かっている名前を集める。
+    # **一度でも集合以外を代入されている名前は外す**（同じ名前を使い回して
+    # いるだけのものを NG にしないため）。
+    _set_names, _not_set = set(), set()
+    for nd in ast.walk(tree):
+        if not isinstance(nd, ast.Assign):
+            continue
+        for t in nd.targets:
+            if not isinstance(t, ast.Name):
+                continue
+            (_set_names if _is_set_expr(nd.value, ()) else _not_set).add(t.id)
+    _set_names -= _not_set
+
     _inner_div = set()
     for nd in ast.walk(tree):
         # --- foreign-path ---
@@ -281,6 +316,18 @@ def check_file(path):
                         and not isinstance(_v.value, bool):
                     add("NG", "drc-const", nd, f"{_nm} = {_v.value}",
                         "プロセス定数を写している。`rules.py` を引く（決定 11）")
+
+        # --- set-iter: 集合を for で回している（U1） ---
+        # 集合の反復順は `PYTHONHASHSEED` で変わる。回した結果を**書き出す順**
+        # や**図形を差し込む順**に使うと、同じ入力から違うファイルが出る。
+        # ルータの非決定性（U1）はこの形で、`place.py` / `route.py` は
+        # `PYTHONHASHSEED=0` を立てて自分を起動し直して抑えている。
+        # **抑えるのと無くすのは別**なので、新しく増えたら NG にする。
+        # 順序に意味が無いと分かっているなら `# lint: ok 理由` で外す。
+        if isinstance(nd, ast.For) and _is_set_expr(nd.iter, _set_names):
+            add("NG", "set-iter", nd, seg(src, nd.iter)[:60],
+                "集合の反復順は PYTHONHASHSEED で変わる。`sorted()` で包む"
+                "（U1 / 決定 24）。順序に意味が無いなら `# lint: ok 理由`")
 
         # --- design-knob: 設計が上書きできる値を rules から直読み ---
         # ★ `config_base` は `getenv("X", rules.X)` で**設計が上書きできる値**を

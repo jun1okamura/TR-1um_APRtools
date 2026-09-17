@@ -75,7 +75,7 @@ def build_cap(cell, ipin, side, opins):
     L.append("XU " + " ".join(all_ports_of(cell)) + f" {cell}")
     # 出力を素のままにすると出力が速く振れて Miller 帰還が最大になり、
     # 入力容量が過大に出る。代表負荷（50fF）を付けて測る。
-    for p_ in opins:
+    for p_ in sorted(opins):                   # 決定 24: デッキの行順を実行ごとに変えない
         L.append(f"CL_{p_} {p_} 0 50f")
     L.append(f".tran 0.02n {T0+full_ramp(sl)+50:g}n")
     L.append(f".meas tran q INTEG i(Vin) FROM={T0:g}n TO={T0+full_ramp(sl):g}n")

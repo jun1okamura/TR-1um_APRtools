@@ -1068,12 +1068,12 @@ class Fixer:
                     if lyr == "M2":
                         cx = (bx0 + bx1) / 2.0
                         via_xs.add(round(cx, 6))
-                for cx in via_xs:
+                for cx in sorted(via_xs):          # 決定 24
                     self.remove_via_at(cx, old_track_y)
                 for lyr, cand in new_boxes:
                     self.add_box(lyr, *cand)
                     self.net_shapes[net].append([lyr, *cand])
-                for cx in via_xs:
+                for cx in sorted(via_xs):          # 決定 24: 差し込む順が実行ごとに変わらないように
                     self.add_via(cx, new_track_y)
                 # update pin_map entries whose via sat at old_track_y for this net
                 if net in self.pin_map:

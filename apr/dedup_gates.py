@@ -168,7 +168,7 @@ def main(in_path, out_path):
           f"{dup_instance_count} redundant instance(s) to remove")
 
     # ---- text surgery -----------------------------------------------
-    for name in dead_instances:
+    for name in sorted(dead_instances):        # 決定 24: 集合を素で回さない
         # remove "TYPE NAME (\n ... \n);" block (and an immediately
         # preceding (* src = ... *) attribute line, if present)
         pat = re.compile(
@@ -180,7 +180,7 @@ def main(in_path, out_path):
         if n == 0:
             print(f"  WARNING: could not find instance block for {name!r}")
 
-    for out_net in set(rename.keys()):
+    for out_net in sorted(rename):             # 決定 24: 集合を素で回さない
         wire_pat = re.compile(r"^\s*wire\s+" + re.escape(out_net) + r"\s*;\s*\n", re.M)
         text, n = wire_pat.subn("", text, count=1)
         # (n==0 is fine -- some nets may not have a bare wire decl, e.g.

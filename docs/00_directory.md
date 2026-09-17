@@ -115,7 +115,7 @@ TR-1um_APRtools/
 │   ├── 40_gotchas.md          ★ 踏んだ穴集（設計非依存）
 │   ├── 50_char.md
 │   ├── 90_improvement_notes.md ★ 技術的負債の台帳（U1–U82。残りは §7-2）
-│   └── 91_decisions.md        ★ 決定事項 1〜23（コードが引く「決定 N」の出典）
+│   └── 91_decisions.md        ★ 決定事項 1〜24（コードが引く「決定 N」の出典）
 │
 └── legacy/                    ── 移植原本（read-only・履歴保存・★改名しない）
     ├── async_i2c/             TR-1um_Async_I2C/script/ の原本
