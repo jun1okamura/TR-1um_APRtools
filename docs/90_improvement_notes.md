@@ -2898,6 +2898,14 @@ SCHMITT = {"BUFTH": {"vt_rise": 3.709, "vt_fall": 1.201}}
 
 **残り** — Mac で 1 回回して突き合わせる（ngspice が要る）。
 
+**ついでに直したもの** — 1 回目の実行が `FileNotFoundError` の生トレースバックで
+落ちた。シェルに古い `TR1UM_CELLDIR`（TD4 の `scripts/char/cells_ext`）が
+残っていたため。**同じ踏み方が 3 回目**（`char_seq.py` / `char_pad.py` /
+`char_schmitt.py`）なので、`char/` の道具が全部通る `check_comb.to_xm()` で
+受けるようにした — 見た場所・`TR1UM_CELLDIR` / `TR1UM_CELLEXT` の現在値・
+既定の置き場・`loadext.py` での埋め方・「シェルの古い値を外すだけかも」を出す。
+否定対照（`TR1UM_CELLDIR=/nowhere`）で発火と、既定で通ることの両方を確認。
+
 ★ 教訓: **「実測値」と書いてあることは、測り直せることを意味しない。**
 U45（予算・計算・実測のどれかを名乗らせる）の次の段 —
 **名乗るだけでなく、再現の手順を隣に置く。**

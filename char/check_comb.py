@@ -154,7 +154,23 @@ def classify(cell, ports, ins, outs):
 
 
 def to_xm(path):
-    """抽出ネットリストの M 行を XM 呼び出しに直す（PDK は PMOS/NMOS がサブサーキット）"""
+    """抽出ネットリストの M 行を XM 呼び出しに直す（PDK は PMOS/NMOS がサブサーキット）
+
+    ★ **無いときは `FileNotFoundError` で投げない。** `char/` の道具は全部ここを
+    通るので、ここで「どこを見たか」と「どう直すか」を言う。`TR1UM_CELLDIR` は
+    シェルに古い値が残っていることがあり、2026-09-17 までに 3 回踏んだ
+    （`char_seq.py` / `char_pad.py` / `char_schmitt.py`）。
+    """
+    if not os.path.exists(path):
+        sys.exit(f"** セルのネットリストが無い: {path}\n"
+                 f"   見た場所: {CELLDIR}/<セル>{CELLEXT}\n"
+                 f"   TR1UM_CELLDIR={os.environ.get('TR1UM_CELLDIR', '(未設定)')} "
+                 f"TR1UM_CELLEXT={os.environ.get('TR1UM_CELLEXT', '(未設定)')}\n"
+                 f"   既定の置き場: {HERE}/cells_ext\n"
+                 f"   抽出ネットリストを置くには: "
+                 f"python3 loadext.py <設計>/lef/extracted -o cells_ext\n"
+                 f"   シェルに古い TR1UM_CELLDIR が残っているだけなら、"
+                 f"その 1 行だけ外して回してください")
     out = []
     for ln in open(path):
         t = ln.split()
