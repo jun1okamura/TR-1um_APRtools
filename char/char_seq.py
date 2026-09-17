@@ -358,7 +358,15 @@ def main():
     from check_comb import CELLDIR, CELLEXT
     miss = [c for c in want if not os.path.exists(f"{CELLDIR}/{c}{CELLEXT}")]
     if miss:
-        print(f"** ネットリストが無いので特性化しない: {', '.join(miss)}", flush=True)
+        # ★ **どこを見たかを言う。** 「無い」だけだと、置き場が違うのか
+        #   本当に無いのかが分からない（`TR1UM_CELLDIR` / `TR1UM_CELLEXT` で
+        #   変えられるので、シェルに古い値が残っているだけのことがある）。
+        print(f"** ネットリストが無いので特性化しない: {', '.join(miss)}\n"
+              f"   見た場所: {CELLDIR}/<セル>{CELLEXT}\n"
+              f"   TR1UM_CELLDIR={os.environ.get('TR1UM_CELLDIR', '(未設定)')} "
+              f"TR1UM_CELLEXT={os.environ.get('TR1UM_CELLEXT', '(未設定)')}\n"
+              f"   抽出ネットリストを置くには: "
+              f"python3 loadext.py <設計>/lef/extracted -o cells_ext", flush=True)
     want = [c for c in want if c not in miss]
     os.makedirs(f"{HERE}/char", exist_ok=True)
     print(f"{'cell':<10}  CK->Q(slew0.6/CL50) [ns]      setup [ns]        hold [ns]", flush=True)
