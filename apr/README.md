@@ -28,7 +28,9 @@ python3 $APRTOOLS/apr/verify_chip.py
 python3 $APRTOOLS/apr/place_logo.py                # チップ step4（I2C だけ配線の前）
 python3 $APRTOOLS/apr/mklvsnet.py && python3 $APRTOOLS/apr/mkchipnet.py
 python3 $APRTOOLS/apr/export_mpw.py
-python3 $APRTOOLS/apr/pre_check.py src/<chip_top>.gds --top <chip_top>
+python3 $APRTOOLS/apr/pre_check.py src/<chip_top>.gds --top <chip_top>   # 上流のゲート。click が要る
+#   ★ export_mpw.py が**同じ 4 項目を既に見ている**（トップ 1 個 / dbu / bbox / フレーム）。
+#     手元で上流版まで回すなら `pip install click`。回さなくても提出物は出る。
 python3 $APRTOOLS/apr/drc_pdk.py / lvs_pdk.py      # サインオフ
 python3 $APRTOOLS/apr/gen_chip_sim_ready.py        # ngspice
 python3 $APRTOOLS/apr/cmp_gds.py HEAD:<path> <path>   # 再現の確認
