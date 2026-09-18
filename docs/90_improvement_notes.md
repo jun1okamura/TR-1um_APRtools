@@ -3131,8 +3131,20 @@ cells_gds   XM3 n6  A vss vss  AS=9.52p AD=2.04p    -> vss が 9.52 / n6 が 2.0
 
 **まだ測り直していないもの** — `RSLATCH` / `REG8x16` / `OSS_ESD_5V_DIO` の
 3 つ（`char_latch.py` / `char_mem.py` / `char_pad.py` の担当）。
-`cells_mem/RSLATCH.spi` は `cells_ext` と**同じ出どころ**なので同じ不具合を
-持つ。いまの `char/*.json` は**新旧が混ざっている**。
+いまの `char/*.json` は**新旧が混ざっている**。3 つとも出どころを確かめた:
+
+| セル | 何を読んでいたか | 影響 |
+|---|---|---|
+| `RSLATCH` | `charlib.CELLDIR`（= `cells_ext` だった） | **受ける**。既定を `cells_gds` にしたので、回し直すだけ |
+| `REG8x16` | `char/char/REG8x16.json` の `netlist` が **`REG8x16.spi`**（= `--ext`、`cells_mem/`、`loadext.py` 由来） | **受ける**。`cells_gds/REG8x16.spi` を作った |
+| `OSS_ESD_5V_DIO` | `cells_pad/OSS_FRAME_GIO_sim.spi`（`frame2sim.py` が LVS ランセット出力から起こす） | **受ける**。フレーム GDS から起こし直す口を足した |
+
+★ **訂正** — 少し前にここで「マクロは `char_mem.py` が `cells_mem/` の別の
+ネットリストで測るので触らない」と書いたが**間違い**。`char_mem.py` の
+*既定*は設計由来の `_src` だが、**実際に `.lib` に入っている数字は `--ext`
+（抽出由来）で測ったもの**だった。`json` の `netlist` を見れば分かることを、
+道具の既定値だけ見て決めつけていた。★ **「既定がこうだから」で決めない。
+出来上がったファイルに何が書いてあるかを見る。**
 
 ★ 教訓 1: **LVS が通るネットリストと、シミュレーションに使ってよいネットリストは別物。**
 LVS は並列をまとめて比べる（U92）。まとめたネットリストをそのまま ngspice に
