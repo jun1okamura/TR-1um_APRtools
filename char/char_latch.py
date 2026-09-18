@@ -261,7 +261,7 @@ def interp2(x_idx, y_idx, tbl, x, y):
     return a + (b - a) * fx
 
 
-def collect(pack, cells):
+def collect(pack, cells, outdir=None):
     res = read_results(pack)
     ng = 0
     for cell in cells:
@@ -316,7 +316,8 @@ def collect(pack, cells):
                 ng += 1
 
         os.makedirs(f"{HERE}/char", exist_ok=True)
-        json.dump(out, open(f"{HERE}/char/{cell}.json", "w"), indent=1)
+        json.dump(out, open(os.path.join(outdir or f"{HERE}/char",
+                                        f"{cell}.json"), "w"), indent=1)
 
         # --- 格子の外での検算 ---
         print(f"--- {cell} ---")
@@ -342,7 +343,7 @@ def collect(pack, cells):
                   f"実測 {vf * 1e9:.3f} / 表から {est * 1e9:.3f} ns  ずれ {err:.1f}%{mark}")
             if err >= 15:
                 ng += 1
-        print(f"  -> {HERE}/char/{cell}.json")
+        print(f"  -> {os.path.join(outdir or f'{HERE}/char', cell + '.json')}")
     print("逸脱なし" if ng == 0 else f"** {ng} 件")
     return ng
 
@@ -351,8 +352,15 @@ def collect(pack, cells):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("cmd", choices=["gen", "collect"])
-    ap.add_argument("-o", "--out", default=f"{HERE}/pack_rslatch")
-    ap.add_argument("-p", "--pack", default=f"{HERE}/pack_rslatch")
+    # ★ `-o` の意味が段で違う。**`collect` では黙って無視していた**ので、
+    #   否定対照を別ファイルに出すつもりで叩いたら**本番の json を上書き**した
+    #   （2026-09-18）。`collect` では**置き場**として効くようにし、
+    #   `gen` に `-p` を渡したときは止める。
+    ap.add_argument("-o", "--out", default=None,
+                    help="gen: デッキの置き場（既定 pack_rslatch）／"
+                         "collect: json の置き場（既定 char/）")
+    ap.add_argument("-p", "--pack", default=f"{HERE}/pack_rslatch",
+                    help="collect: 読む pack（既定 pack_rslatch）")
     ap.add_argument("cells", nargs="*", default=None)
     a = ap.parse_args()
     cells = a.cells or sorted(LATCH)
@@ -360,9 +368,17 @@ def main():
     if bad:
         raise SystemExit(f"知らないセル: {', '.join(bad)}")
     if a.cmd == "gen":
-        gen(a.out, cells)
+        gen(a.out or f"{HERE}/pack_rslatch", cells)
     else:
-        sys.exit(1 if collect(a.pack, cells) else 0)
+        outdir = a.out
+        if outdir and not os.path.isdir(outdir):
+            if outdir.endswith(".json"):
+                raise SystemExit(
+                    f"** collect の -o は**ディレクトリ**です（json のファイル名ではない）。\n"
+                    f"   いま渡されたもの: {outdir}\n"
+                    f"   別の場所に出すなら: -o <ディレクトリ>（無ければ作ります）")
+            os.makedirs(outdir, exist_ok=True)
+        sys.exit(1 if collect(a.pack, cells, outdir) else 0)
 
 
 if __name__ == "__main__":
