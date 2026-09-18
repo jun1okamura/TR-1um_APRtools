@@ -5,9 +5,11 @@
          python3 char_schmitt.py BUFTH --deck-only   # デッキを見るだけ
 
 なぜ要るか（2026-09-17）:
-  `BUFTH` の **VT+ 3.709 V / VT- 1.201 V** は `mklib.py` の `SCHMITT` に
-  **直書きの定数**で、「DC で往復させて測った実測値」と書いてあるだけだった。
-  デッキもログもリポジトリに無く、**測り直せない**。この値は
+  `BUFTH` の VT+ / VT− は `mklib.py` の `SCHMITT` に**直書きの定数**
+  （3.709 / 1.201）で、「DC で往復させて測った実測値」と書いてあるだけだった。
+  デッキもログもリポジトリに無く、**測り直せなかった**。測ったら
+  **VT+ 3.433 / VT− 1.436**（0.27 V 違う）。いまは結果を
+  `char/schmitt.json` に書き、`mklib.py` がそこから読む。この値は
 
     - Liberty の `input_voltage (BUFTH_in)`（合成と STA が読む）
     - `insert_bufth.py` / `docs/10_pdk_facts.md` / `docs/11_frame_io.md`
@@ -198,22 +200,25 @@ def main():
         print(f"  -> char/{os.path.relpath(path, HERE)} に書いた"
               f"（mklib.py がここから読む）")
 
+    # ★ **`mklib.SCHMITT` と比べても意味が無い** — json を書いた直後は、
+    #   それ自身を読み返して「一致」と言うだけになる（自分と自分を比べる）。
+    #   比べる相手は **json が無いときの保険の定数**。
     import mklib
-    frozen = mklib.SCHMITT.get(a.cell)
+    frozen = mklib.SCHMITT_FALLBACK.get(a.cell)
     if frozen:
         dr = vr - frozen["vt_rise"]
         df = vf - frozen["vt_fall"]
         print()
-        print(f"  mklib.SCHMITT の値 : VT+ {frozen['vt_rise']:.3f} / "
+        print(f"  保険の定数（json が無いとき）: VT+ {frozen['vt_rise']:.3f} / "
               f"VT- {frozen['vt_fall']:.3f}")
         print(f"  差                 : VT+ {dr:+.3f} V / VT- {df:+.3f} V")
         if max(abs(dr), abs(df)) > 0.05:
-            print("  ** 50 mV を超えてずれている。Liberty の input_voltage は"
-                  " mklib の定数から出ているので、直すならそちら")
-            print("     直す前に (1) 傾斜を振って収束しているか（--sweep）")
-            print("            (2) 別のネットリストでも同じか（--netlist）を見ること")
+            print("  ** 保険の定数とは 50 mV 以上違う。**Liberty に出るのは"
+                  " json の実測値の方**なので、そのままでよい。")
+            print("     保険の定数は json が読めないときにしか使われない"
+                  "（mklib.SCHMITT_FALLBACK）")
         else:
-            print("  -> 一致（50 mV 以内）。Liberty の input_voltage はこの値でよい")
+            print("  -> 保険の定数とも 50 mV 以内で一致している")
     return 0
 
 

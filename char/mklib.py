@@ -91,7 +91,8 @@ def tmpl_of(cell, data):
 #   VT+ が 0.27 V も違っていた（U95）。「DC で往復させて測った実測値」と
 #   名乗ってはいたが、デッキもログも条件も無く**測り直せなかった**。
 #   手で写すとまた同じことになるので、**json から読む**。
-SCHMITT_FALLBACK = {"BUFTH": {"vt_rise": 3.709, "vt_fall": 1.201}}
+# 2026-09-18 に測った値の写し（`char/schmitt.json` が読めないときだけ使う）。
+SCHMITT_FALLBACK = {"BUFTH": {"vt_rise": 3.4326, "vt_fall": 1.4362}}
 SCHMITT_JSON = os.path.join(HERE, "schmitt.json")
 
 

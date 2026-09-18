@@ -1,0 +1,13 @@
+{
+ "BUFTH": {
+  "hysteresis": 1.9964,
+  "measured": "2026-09-18",
+  "method": "準 DC の三角波で往復させ、出力が 50 % を横切った瞬間の入力電圧。char/char_schmitt.py",
+  "netlist": "char/cells_gds/BUFTH.spi",
+  "ramp_us": 20000.0,
+  "temp_c": 25,
+  "vdd": 5.0,
+  "vt_fall": 1.4362,
+  "vt_rise": 3.4326
+ }
+}
