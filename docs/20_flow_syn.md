@@ -169,8 +169,14 @@ sh syn/sta/sta.sh <netlist> <top> <period_ns> syn/sta/path.tcl   # クリティ�
   | `.lib` の中身 | OpenSTA は | 条件 |
   |---|---|---|
   | `ADD -> Q` / `WEB -> Q` の組合せアーク | **見る** | — |
-  | `ADD` / `D` の `hold_rising`（6.0 ns）| **見る** | ★ **`WEB` がクロックとして伝播しているときだけ** |
-  | `WEB` の `min_pulse_width`（11 ns）| **見ない** | 記録として置いてあるだけ |
+  | `ADD` / `D` の `hold_rising` | **見る** | ★ **`WEB` がクロックとして伝播しているときだけ** |
+  | `WEB` の `min_pulse_width` | **見ない** | 記録として置いてあるだけ。担保は `char/regress_limits.py`（U73）|
+
+  ★ **値はここに書かない**（U99）。`.lib` が正本で、写すと古くなる
+  （`11 ns` と書いてあったのが U96 の作り直しで 10.0 ns になっていた）。
+  いま入っている値は `apr/lib_query.py` で引ける:
+
+      python3 $APRTOOLS/apr/lib_query.py mpw <lib> REG8x16 WEB
 
   ★ **`WEB` がクロックから作られていれば、宣言は要らない**（2026-09-16、TD4 の実設計で確認）。
   TD4 の `WEB` は `mem_wrap.py` が置く `OR2(clk_buf, ~wr_hi)` なので、`clk` の
@@ -284,6 +290,11 @@ STA（period 100 ns、**P&R 前なので配線容量は入っていない**）:
   => reg->reg が要求する最小周期 27.512 ns  (36.35 MHz)
      周期係数 a = 0.50 -> 半周期パス（立上り <-> 立下り）。経路の実遅延は 13.756 ns
 ```
+
+> ★ **これは 2026-09-15 の記録。** その後 `.lib` を作り直し（U96）、
+> `set_load` を `.lib` から引くようにした（U99）ので、**いまの数字は
+> 27.620 ns / 36.21 MHz**（2026-09-18 実測、`out/STA_spi_slave_sclk.txt`）。
+> 表そのものは当時の記録なので書き換えない。
 
 **`sclk` の立上りで出て立下りで取り込む半周期パス。** hold が +5.381 ns
 あるので、この構造でもホールド側には余裕がある。

@@ -1,9 +1,13 @@
 # ngspice / IRSIM による機能・速度検証
 
-対象: `apr/gen_chip_tb.py` / `check_chip_sim.py` / `klayout_extract.py` /
-`frame2sim.py` / `spi2ngspice.py` / `spi2sim.py` / `check_ngspice.py` /
-`gen_irsim_cmd.py` / `check_irsim_log.py`、
-`apr/from_sclk_spi/{gen_chip_sim_ready.py,gen_sim_from_extracted.py}`
+対象（**正本は `$APRTOOLS/apr/`**）: `klayout_extract.py` / `frame2sim.py` /
+`spi2ngspice.py` / `spi2sim.py` / `check_ngspice.py` / `gen_irsim_cmd.py` /
+`check_irsim_log.py` / `gen_chip_sim_ready.py`
+
+★ **チップの TB は設計側**（`<設計>/scripts/gen_chip_tb.py` と
+`check_chip_sim.py`）。刺激もパッドの割り当ても設計ごとに違うので、
+2026-09-16 に `apr/` から設計へ戻した（U25）。設計に依らない部分だけが
+`apr/chip_tb_lib.py` に残っている。
 
 ## 0. 実行手順（APRtools から回す）
 
@@ -160,10 +164,14 @@ PDK 既定の `AS/AD = w*sdwidth`、`PS/PD = 2*(sdwidth+w)` は
 ## 3. テストベンチ
 
 ```sh
-python3 apr/gen_chip_tb.py --models $TR1UM_PDK/libs.tech/spice/models/ip62_models
-ngspice -b tb_chip.spice > spice_chip.log
-python3 apr/check_chip_sim.py spice_chip.log
+python3 scripts/gen_chip_tb.py
+( cd layout/chip/simulation && ngspice -b tb_chip_spi.spice > spice_chip.log 2>&1 )
+python3 scripts/check_chip_sim.py layout/chip/simulation/spice_chip.log
 ```
+
+★ **TB の生成器は設計側**（上の注記）。オプションは設計ごとに違うので
+`--help` を見ること。SPI は `--relax-tol`（収束用の緩和。**既定では入れない**。
+U43 で「いまのネットリストは既定の許容差で通る」と実測した）を持つ。
 
 期待値は `*_expected.json` に出し、ログだけで合否が付くようにする。
 
