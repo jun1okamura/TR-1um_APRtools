@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """IRSIM タイミング測定用コマンドファイル生成
 
-  usage: python3 scripts/gen_irsim_timing.py irsim/reg4x16_timing.cmd
+  usage: python3 $APRTOOLS/apr/gen_irsim_timing.py irsim/reg4x16_timing.cmd
 
 1ns 分解能（stepsize 1）で次を測る:
 
@@ -9,7 +9,7 @@
   M2  書込レイテンシ        WEB 立下げ -> Q に反映
   M3  最小 WEB パルス幅     WEB=0 の幅を 1ns ずつ広げ、書けるようになる幅
 
-判定は scripts/check_irsim_timing.py で行う。
+判定は $APRTOOLS/apr/check_irsim_timing.py で行う。
 """
 from __future__ import annotations
 import sys
@@ -59,8 +59,8 @@ class G:
 def build():
     g = G()
     g.c("reg4x16_timing.cmd -- REG4x16 タイミング測定（IRSIM, 1ns 分解能）")
-    g.c("scripts/gen_irsim_timing.py が生成。手で編集しないこと。")
-    g.c("判定: python3 scripts/check_irsim_timing.py irsim/reg4x16_timing_run.log")
+    g.c("$APRTOOLS/apr/gen_irsim_timing.py が生成。手で編集しないこと。")
+    g.c("判定: python3 $APRTOOLS/apr/check_irsim_timing.py irsim/reg4x16_timing_run.log")
     g.r("stepsize 1")
     g.r("settle 10")
     g.r("h Vdd")

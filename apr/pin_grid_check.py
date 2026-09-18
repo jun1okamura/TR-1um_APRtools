@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """セル境界（prBoundary）とピンが配置グリッドに乗っているかを確認する
 
-  usage: python3 scripts/pin_grid_check.py lef/TR-1um_STDCELL.gds [--pitch 5.4] [--offset 2.7]
+  usage: python3 $APRTOOLS/apr/pin_grid_check.py lef/TR-1um_STDCELL.gds [--pitch 5.4] [--offset 2.7]
 
 確認するもの:
 

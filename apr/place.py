@@ -2,8 +2,8 @@
 """place.py -- TD4 の標準セル配置。**STEP ごとに GDS を残す**。
 
   usage:
-    python3 scripts/pnr/place.py
-    python3 scripts/pnr/place.py --restarts 2000 --order-passes 80 --seed 3
+    python3 $APRTOOLS/apr/place.py
+    python3 $APRTOOLS/apr/place.py --restarts 2000 --order-passes 80 --seed 3
 
 `TR-1um_SCLK_SPI/scripts/place.py` の派生。配置規約（I2C 実チップの GDS から
 実測したもの）は同じ:
@@ -742,7 +742,7 @@ def main(net_path=None, info_path=None, restarts=800, order_passes=40,
     net_path = net_path or cfg.NET_PATH
     info_path = info_path or cfg.CELL_INFO
     if not os.path.exists(info_path):
-        raise SystemExit(f"{info_path} が無い。先に scripts/pnr/mkcellinfo.py")
+        raise SystemExit(f"{info_path} が無い。先に $APRTOOLS/apr/mkcellinfo.py")
 
     # ★ 何で回したかを毎回残す。**結果だけ見て「再現しない」と言わない**ため。
     params = dict(seed=seed, pad_weight=PAD_WEIGHT, restarts=restarts,

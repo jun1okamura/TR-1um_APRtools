@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """KLayout のエンジンで GDS からネットリストを抽出する（TR-1um / IP62）。
 
-  usage: python3 scripts/klayout_extract.py <gds> <top> -o out.spice [--flat]
+  usage: python3 $APRTOOLS/apr/klayout_extract.py <gds> <top> -o out.spice [--flat]
 
 なぜこれが要るか:
-  `scripts/gds_extract.py` は標準セル向けの簡易抽出で、フレームのパッドセル
+  `$APRTOOLS/apr/gds_extract.py` は標準セル向けの簡易抽出で、フレームのパッドセル
   （`OSS_ESD_5V_DIO` など）には通用しない。実際に踏んだ不具合:
 
     - poly が横向きに走るので W と L が入れ替わる（W=500µm の出力段が W=2µm に）
@@ -181,7 +181,7 @@ def main():
     # いけない（--flat で顕著）。名前の付いたネットは名前で書かせる。
     # lef/extracted/*.extracted（PDK の LVS ランセット出力）と同じ書き方になる。
     w.use_net_names = True
-    nl.write(a.out, w, f"TR-1um {a.top} — KLayout 抽出 (scripts/klayout_extract.py)")
+    nl.write(a.out, w, f"TR-1um {a.top} — KLayout 抽出 ($APRTOOLS/apr/klayout_extract.py)")
     # MOS を `M...` で書くが、PDK の PMOS/NMOS は `.model` ではなく
     # **サブサーキット**なので `XM...` でないと ngspice に持っていけない。
     # lef/extracted/ の既存ファイル（PDK の LVS ランセット出力）も XM なので

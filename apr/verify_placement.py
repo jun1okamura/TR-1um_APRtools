@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """verify_placement.py -- 配置結果の検証。
 
-  usage: python3 scripts/pnr/verify_placement.py [layout/step4/place_step4_fill.json]
+  usage: python3 $APRTOOLS/apr/verify_placement.py [layout/step4/place_step4_fill.json]
 
 見るもの:
   1. ネットリストのインスタンスが**過不足なく 1 回ずつ**置かれているか

@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """add_prboundary.py -- 階層マクロのトップに prBoundary (235,0) を入れる。
 
-  usage: python3 scripts/add_prboundary.py lef/TR-1um_STDCELL.gds REG8x16 REG4x16
-         python3 scripts/add_prboundary.py lef/TR-1um_STDCELL.gds --all   # 候補を列挙のみ
+  usage: python3 $APRTOOLS/apr/add_prboundary.py lef/TR-1um_STDCELL.gds REG8x16 REG4x16
+         python3 $APRTOOLS/apr/add_prboundary.py lef/TR-1um_STDCELL.gds --all   # 候補を列挙のみ
 
 配下のセルが持つ (235,0) を展開してマージし、**穴の無い矩形 1 枚**になることを
 確かめたうえで、同じ矩形をトップセル自身に 1 枚描く。
 
 なぜ要るか
-  `scripts/mklef.py` の `hier_bound()` は配下から外形を合成するので LEF の SIZE は
+  `$APRTOOLS/apr/mklef.py` の `hier_bound()` は配下から外形を合成するので LEF の SIZE は
   自前の (235,0) が無くても正しい。しかし
     * それ以外のツール（KLayout の素の cell.bbox() など）は全レイヤ bbox を採る。
       REG8x16 では N-well (140,0) が左 6.3 / 下 4.0 um はみ出すので 405.9 x 937.0 と

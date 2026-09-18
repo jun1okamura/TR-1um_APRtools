@@ -33,6 +33,36 @@ HAS_CONFIG = os.path.exists(CONFIG_PATH)
 if DESIGN_ROOT not in sys.path:
     sys.path.append(DESIGN_ROOT)
 
+# ★ **設計の config.py は「道」ではなく「ファイル」で読む**（2026-09-18、U94）。
+#   上の `append` は sys.path の**末尾**なので、`config` という名前が
+#   **ほかの場所にもある**とそちらが勝つ。実際に踏んだ:
+#     仮想環境（`.venv`）に pip の `config` パッケージが入っていると、
+#     `import config` がそれを掴み、
+#       AttributeError: module 'config' has no attribute 'SYN_TOP'
+#       AttributeError: module 'config' has no attribute 'ROW_HEIGHT_UM'
+#     と出る。**「無い」ではなく「別物」**なので ModuleNotFoundError の
+#     案内（下の `_ConfigHint`）にも掛からない。
+#   設計ルートに `config.py` があるなら、**その 1 本を名指しで読み込んで**
+#   `sys.modules["config"]` に入れる。曖昧さを残さない。
+def _load_design_config():
+    import importlib.util
+    m = sys.modules.get("config")
+    if m is not None and getattr(m, "__file__", None) and \
+            os.path.abspath(m.__file__) == CONFIG_PATH:
+        return                                   # すでに正しいものが入っている
+    spec = importlib.util.spec_from_file_location("config", CONFIG_PATH)
+    mod = importlib.util.module_from_spec(spec)
+    sys.modules["config"] = mod                  # config.py 自身の import より前に置く
+    try:
+        spec.loader.exec_module(mod)
+    except BaseException:
+        del sys.modules["config"]
+        raise
+
+
+if HAS_CONFIG:
+    _load_design_config()
+
 
 def _message():
     src = "APR_DESIGN_ROOT" if "APR_DESIGN_ROOT" in os.environ else "カレントディレクトリ"

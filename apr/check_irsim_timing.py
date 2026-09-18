@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """IRSIM タイミング測定ログの読み取り
 
-  usage: python3 scripts/check_irsim_timing.py irsim/reg4x16_timing_run.log
+  usage: python3 $APRTOOLS/apr/check_irsim_timing.py irsim/reg4x16_timing_run.log
 
-`scripts/gen_irsim_timing.py` が生成した .cmd の出力から次を読み取る:
+`$APRTOOLS/apr/gen_irsim_timing.py` が生成した .cmd の出力から次を読み取る:
 
   M1  読出アクセス時間    ADD 変化から Q が確定するまで（立上り／立下り）
   M2  書込レイテンシ      WEB 立下げから Q に反映されるまで

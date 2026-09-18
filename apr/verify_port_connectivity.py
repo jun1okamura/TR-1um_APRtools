@@ -12,7 +12,7 @@ This walks the real geometry instead: it builds connected components over
 M1 + M2 joined through V1, then for every top-level port checks that its PIN
 marker and every cell pin on that net land in the same component.
 
-  usage:  scripts/verify_port_connectivity.py [GDS]
+  usage:  $APRTOOLS/apr/verify_port_connectivity.py [GDS]
 """
 import argparse
 import json

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """電源ラベルが正しいネットに乗っているかを、素子の側から検査する。
 
-  usage: python3 scripts/label_check.py lef/TR-1um_STDCELL.gds [CELL ...]
+  usage: python3 $APRTOOLS/apr/label_check.py lef/TR-1um_STDCELL.gds [CELL ...]
 
 **ラベルは人が置くので間違える。** DRC も LVS も見逃す:
   * DRC はラベルを見ない

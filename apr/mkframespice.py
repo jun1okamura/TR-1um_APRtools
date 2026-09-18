@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """フレーム（`OSS_FRAME_GIO` ほか）の LVS ソースネットリストを書き出す。
 
-  usage: python3 scripts/mkframespice.py <gds> <top> -o lef/simulation/<top>.spice
+  usage: python3 $APRTOOLS/apr/mkframespice.py <gds> <top> -o lef/simulation/<top>.spice
 
 出どころ（`lef/simulation/README` の分類でいう **(B) 検証済み抽出を golden 凍結**）:
   フレームは PDK から与えられたもので回路図が無い。したがってこの .spice は
@@ -12,8 +12,8 @@
       一致することを確かめられる（回帰検査）
     - 中身が読める形で残るので、OUT / HIZ / PAD の役割を人が確認できる
 
-抽出は `scripts/klayout_extract.py`（KLayout のエンジン + PDK のランセットと
-同じ層の導出）。**`scripts/gds_extract.py` は使えない** — パッドセルは
+抽出は `$APRTOOLS/apr/klayout_extract.py`（KLayout のエンジン + PDK のランセットと
+同じ層の導出）。**`$APRTOOLS/apr/gds_extract.py` は使えない** — パッドセルは
 poly が横向きで W/L が入れ替わり、ゲートの無い P+ in Nwell（ダイオード）を
 MOS の S/D と誤認して VDD と VSS を短絡させる。
 
@@ -72,7 +72,7 @@ def emit(nl, top, gds):
 
     L = [f"* {top} — LVS ソースネットリスト（フレーム）",
          "*",
-         "* scripts/mkframespice.py が生成。手で編集しないこと。",
+         "* $APRTOOLS/apr/mkframespice.py が生成。手で編集しないこと。",
          f"* 出どころ: {os.path.basename(gds)} を KLayout のエンジンで抽出し凍結した。",
          "*   フレームは PDK 提供で回路図が無いので、**この .spice に対する LVS は",
          "*   「レイアウト vs そのレイアウトから作ったネット」であり、それ自体は何も",
@@ -82,7 +82,7 @@ def emit(nl, top, gds):
          "* tech/lvs/01_Extract.lvs）に合わせてある。ESD 認識層 (63,2) の中の",
          "* NMOS は NMOSE、ゲートを持たない拡散はダイオード DN/DP として扱う。",
          "*",
-         "* 書き出したあと scripts/lvs_check.py で抽出ネットリストと照合して一致を確認済み",
+         "* 書き出したあと $APRTOOLS/apr/lvs_check.py で抽出ネットリストと照合して一致を確認済み",
          "* （ネットやピンを取り違えていないことの確認。レイアウトの正しさの証明ではない）。",
          "*",
          "* OSS_ESD_5V_DIO の動作（ngspice で確認）:",

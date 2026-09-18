@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """GDS のテキストラベルを一括で改名する。
 
-  usage: python3 scripts/relabel.py <gds> gnd=vss [old=new ...] [-o out.gds] [-n]
+  usage: python3 $APRTOOLS/apr/relabel.py <gds> gnd=vss [old=new ...] [-o out.gds] [-n]
 
 電源の綴りが `gnd` と `vss` に割れていたのを揃えるために作った。
 標準セル 43 個が `gnd`、`DEC0`/`DEC2`/`DEC16` の 3 個が `vss`、

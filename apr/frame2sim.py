@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """フレームの `.extracted` を ngspice で回せる形に直す。
 
-  usage: python3 scripts/frame2sim.py lef/extracted/OSS_FRAME_GIO.extracted -o cells_pad/
+  usage: python3 $APRTOOLS/apr/frame2sim.py lef/extracted/OSS_FRAME_GIO.extracted -o cells_pad/
 
 `scripts/char/loadext.py`（標準セル用）との違いは 2 つ:
 

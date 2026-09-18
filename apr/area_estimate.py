@@ -36,7 +36,7 @@ cfg = apr_path.soft_config()  # noqa: E402
 
 # OSS_FRAME_GIO のコア。パッドの内側は 1840 x 1840 だが、四隅の OSS_FRAME_CNR が
 # 120 x 120 um ずつ食うので実際に置けるのは 3.33 mm2（内接する最大の正方形は
-# 1600 x 1600 = 2.56 mm2）。数字の出どころは scripts/mkleffrm.py が実形状から出したもの。
+# 1600 x 1600 = 2.56 mm2）。数字の出どころは $APRTOOLS/apr/mkleffrm.py が実形状から出したもの。
 CORE_W = CORE_H = rules.FRAME_OPENING_UM
 CORE_AREA = CORE_W * CORE_H - 4 * 120.0 * 120.0      # = 3,328,000 um2
 HERE = os.path.dirname(os.path.abspath(__file__))

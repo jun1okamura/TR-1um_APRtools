@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """connect_macro_power.py -- マクロの電源をコアの電源レールに繋ぐ（step11）。
 
-  usage: python3 scripts/pnr/connect_macro_power.py <in.gds> -o <out.gds>
+  usage: python3 $APRTOOLS/apr/connect_macro_power.py <in.gds> -o <out.gds>
 
 ## なぜ要るか
 
@@ -10,7 +10,7 @@
 レールは x ≤ 行幅で終わり、その右の帯は縦 M2 バスが占めているので、
 **マクロの vdd も vss も金属では何にも繋がらないまま**残る。
 
-実測（`scripts/pnr/lvs_pnr.py`）:
+実測（`$APRTOOLS/apr/lvs_pnr.py`）:
 
     ** 電源の島が 1 個ある（トップピンに繋がっていない）:
          $3.vdd  端子 1476 本

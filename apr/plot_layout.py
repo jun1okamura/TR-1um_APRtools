@@ -5,8 +5,8 @@ Not part of the tapeout flow (KLayout is the real viewer); this just makes
 the routing result reviewable inline.  Draws the fabrication layers only:
 M1 (13/0), V1 (19/0), M2 (20/0), plus the cell prBoundary for context.
 
-  usage:  scripts/plot_layout.py layout/step10/route_step_6_squeezed.gds
-          scripts/plot_layout.py -o out.png --stack GDS1 GDS2 ...
+  usage:  $APRTOOLS/apr/plot_layout.py layout/step10/route_step_6_squeezed.gds
+          $APRTOOLS/apr/plot_layout.py -o out.png --stack GDS1 GDS2 ...
 """
 import argparse
 import os

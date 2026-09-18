@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """plot_chip_routing.py -- チップ配線の確認図（step2）。
 
-  usage: python3 scripts/pnr/plot_chip_routing.py [GDS] [-o PNG]
+  usage: python3 $APRTOOLS/apr/plot_chip_routing.py [GDS] [-o PNG]
 
 `route_chip.py` が**トップセル直下に置いた図形だけ**を描く。コアとフレームの
 中身は描かない（数万個あって潰れる）ので、チャネルに引いたものだけが見える。

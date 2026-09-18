@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """LVS ソースネットリスト -> ngspice で読めるネットリストに変換
 
-  usage: python3 scripts/spi2ngspice.py spice/REG4x16_src.spi > spice/REG4x16_ngspice.spi
+  usage: python3 $APRTOOLS/apr/spi2ngspice.py spice/REG4x16_src.spi > spice/REG4x16_ngspice.spi
 
 LVS 用の `spice/REG4x16_src.spi` は KLayout の LVS ランセットに合わせて
 `M<name> D G S B PMOS W=..u L=..u` と書いてある。一方 TR-1um の PDK は
@@ -58,7 +58,7 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         sys.exit(__doc__)
     src = sys.argv[1]
-    print(f"* converted from {src} by scripts/spi2ngspice.py")
+    print(f"* converted from {src} by $APRTOOLS/apr/spi2ngspice.py")
     print("* 回路は LVS ソースと同一。XM 呼び出し化とノード名の角括弧除去のみ。")
     for l in convert(src):
         print(l)

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """RTL と **マッピング後のネットリスト**が同じ回路かを形式的に確かめる。
 
-  usage: python3 scripts/syn_equiv.py <top> [-r "RTL ファイル..."] [-n out/<top>.v]
+  usage: python3 $APRTOOLS/apr/syn_equiv.py <top> [-r "RTL ファイル..."] [-n out/<top>.v]
 
 なぜ要るか:
   `abc -g simple` の頃は「抽象ゲートに落として面積を概算する」だけだったので、

@@ -23,9 +23,9 @@ Stages, each leaving its own GDS:
           see scripts/port_rules.py)
 
   usage:
-    scripts/route.py                 # all stages
-    scripts/route.py --to 6          # stop after channel routing
-    scripts/route.py --from 7        # resume
+    $APRTOOLS/apr/route.py                 # all stages
+    $APRTOOLS/apr/route.py --to 6          # stop after channel routing
+    $APRTOOLS/apr/route.py --from 7        # resume
 """
 
 import argparse

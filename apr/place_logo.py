@@ -30,7 +30,7 @@ TD4 のコアは開口をほぼ埋めているので、移植元（SCLK_SPI）�
 ロゴ単体で DRC を掛けてから置き、置いたあとにチップ全体をもう一度見て
 **新しい違反が 1 件も出ていない**ことを確かめる。ロゴは違反 1 件の価値も無い。
 
-  usage: python3 scripts/pnr/place_logo.py [--scale 2] [--cols 0:64] [-o OUT]
+  usage: python3 $APRTOOLS/apr/place_logo.py [--scale 2] [--cols 0:64] [-o OUT]
 """
 from __future__ import annotations
 

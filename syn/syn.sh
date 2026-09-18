@@ -29,6 +29,11 @@ PYTHONPATH=${PYTHONPATH:-$APR}; export PYTHONPATH
 
 # --- 設計の config.py を読む -------------------------------------------------
 CFG=$(python3 - <<'PY'
+# ★ `apr_path` を先に通す。`config` という名前は仮想環境の pip パッケージ
+#   にもあるので、素の `import config` は**別物を掴むことがある**（2026-09-18、
+#   `.venv` で `AttributeError: module 'config' has no attribute 'SYN_TOP'`）。
+#   `apr_path` は設計ルートの config.py を**名指しで**読み込む。
+import apr_path  # noqa: F401
 import os, config as c
 def one(v):        return "" if v is None else str(v)
 def many(v):       return " ".join(str(x) for x in (v or []))

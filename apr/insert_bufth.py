@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """insert_bufth.py -- 外部入力を `BUFTH`（シュミットトリガ）で一度受ける。
 
-  usage: python3 scripts/insert_bufth.py IN.v OUT.v            # 全入力ポート
-         python3 scripts/insert_bufth.py IN.v OUT.v --nets clk,rst_n
-         python3 scripts/insert_bufth.py IN.v OUT.v --list      # 対象を出すだけ
+  usage: python3 $APRTOOLS/apr/insert_bufth.py IN.v OUT.v            # 全入力ポート
+         python3 $APRTOOLS/apr/insert_bufth.py IN.v OUT.v --nets clk,rst_n
+         python3 $APRTOOLS/apr/insert_bufth.py IN.v OUT.v --list      # 対象を出すだけ
 
     clk ──▶ BUFTH u_bufth_clk ──▶ clk_buf ──▶ 内部の全シンク
 
@@ -109,7 +109,7 @@ def insert(src, ports, cell=CELL, suffix=SUFFIX, prefix=PREFIX):
     if not m:
         raise SystemExit("module ヘッダが見つからない")
     src = (src[:m.end() + 1]
-           + f"  // --- 外部入力のシュミット受け（scripts/insert_bufth.py が生成）---\n"
+           + f"  // --- 外部入力のシュミット受け（$APRTOOLS/apr/insert_bufth.py が生成）---\n"
            + "\n".join(wires) + "\n" + src[m.end() + 1:])
     src = nu.add_instances(
         src, [f"  // --- 外部入力 {len(done)} 本を {cell} で受ける ---"] + blocks)

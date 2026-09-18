@@ -90,7 +90,7 @@ HIZ と浮いた OUT の結線はすべてレール直結で、四辺に散っ�
         VSS は y=-780。どちらも左右でリングに落ちる。VSS はさらに
         VSS PAD からの M2 ストリップ 5 本が下から直接刺さる。
 
-  usage: python3 scripts/pnr/route_chip.py [-o OUT]
+  usage: python3 $APRTOOLS/apr/route_chip.py [-o OUT]
 """
 from __future__ import annotations
 

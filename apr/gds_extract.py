@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """TR-1um_STDCELL.gds から1セルを簡易抽出して SPICE サブサーキットを起こす。
 
-  usage: python3 scripts/gds_extract.py lef/TR-1um_STDCELL.gds TLAT [-o tlat.spi]
+  usage: python3 $APRTOOLS/apr/gds_extract.py lef/TR-1um_STDCELL.gds TLAT [-o tlat.spi]
 
 正規の LVS 抽出器ではない（PDK の KLayout ランセットを置き換えるものではない）。
 セルの回路構成を確認し、SPICE 検証の出発点を作るための道具。
@@ -195,7 +195,7 @@ def cell_pins(cell):
 def spice(cell, devs, name):
     pins = cell_pins(cell)
     lines = [f".subckt {name} {' '.join(pins)} vdd vss",
-             "* auto-extracted by scripts/gds_extract.py -- NOT an LVS-grade netlist"]
+             "* auto-extracted by $APRTOOLS/apr/gds_extract.py -- NOT an LVS-grade netlist"]
     for i, (tag, gate, sd, w, l) in enumerate(devs):
         # ソースとドレインが同じネットに落ちるのは異常ではない。
         # FILL2/FILL3 のデキャップは拡散の両側とも同じレールに繋ぐ MOS 容量なので、

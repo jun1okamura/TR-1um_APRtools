@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """verify_chip.py -- チップ配線の接続性と短絡（チップ step2 の検算）。
 
-  usage: python3 scripts/pnr/verify_chip.py [GDS]
+  usage: python3 $APRTOOLS/apr/verify_chip.py [GDS]
 
 `route_chip.py` が引いたあと、**図形だけ**を見て確かめる:
 

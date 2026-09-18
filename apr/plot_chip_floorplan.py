@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """plot_chip_floorplan.py -- チップ組み立ての確認図。
 
-  usage: python3 scripts/pnr/plot_chip_floorplan.py [-o layout/chip/floorplan.png]
+  usage: python3 $APRTOOLS/apr/plot_chip_floorplan.py [-o layout/chip/floorplan.png]
 
 `assemble_top.py` が置いたものを俯瞰する:
 

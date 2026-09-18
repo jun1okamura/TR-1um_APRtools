@@ -45,7 +45,7 @@ PTECT (63,1) で塞いでいた。TD4 のコアは 1357.0 で開口をほぼ埋�
 残りはそのまま配線チャネルになる。必要になったら `--ptect` で足せるように
 してある。
 
-  usage: python3 scripts/pnr/assemble_top.py [-o OUT] [--core-gds GDS]
+  usage: python3 $APRTOOLS/apr/assemble_top.py [-o OUT] [--core-gds GDS]
 """
 from __future__ import annotations
 
@@ -152,7 +152,7 @@ def main():
                   + (" …" if len(dropped) > 8 else ""))
 
     # ---- MPW のチェッカに合わせてフレームを `OSS_FRAME` に改名 ----
-    # `scripts/pre_check.py` の `FRAME_CELL_NAMES` は {OSS_FRAME, OSS_FRAME_TEG}
+    # `$APRTOOLS/apr/pre_check.py` の `FRAME_CELL_NAMES` は {OSS_FRAME, OSS_FRAME_TEG}
     # で GIO 版の名前が無い。**刈ったあとにやること** -- フレーム GDS には
     # アナログ 16 パッドの `OSS_FRAME` も入っていて、読み込み直後は名前が
     # ぶつかる（刈ると参照の無いそちらが消える）。

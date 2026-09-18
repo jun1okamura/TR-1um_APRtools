@@ -5,17 +5,17 @@
     layout/chip/simulation/<top>.spice              -> src/<top>.cir
 
 `info.yaml` の `gds.top_cell` / `gds.extension` / `lvs.extension` から名前を
-組み立てる（CI の `scripts/read_info.py` と同じ決め方）。**名前が
+組み立てる（CI の `$APRTOOLS/apr/read_info.py` と同じ決め方）。**名前が
 info.yaml と食い違うと CI が即落ちる**ので、ここで突き合わせる。
 
-出す前に `scripts/pre_check.py` と同じことを見る:
+出す前に `$APRTOOLS/apr/pre_check.py` と同じことを見る:
 
     トップセルがちょうど 1 個 / 名前が info.yaml と一致
     dbu = 0.001
     bbox = (-1250,-1250)-(1250,1250)
     フレームのセル（OSS_FRAME か OSS_FRAME_TEG）がある
 
-  usage: python3 scripts/pnr/export_mpw.py [--info info.yaml] [-n]
+  usage: python3 $APRTOOLS/apr/export_mpw.py [--info info.yaml] [-n]
 """
 from __future__ import annotations
 

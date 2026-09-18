@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """ngspice の .meas 結果をまとめて表にする
 
-  usage: python3 scripts/check_ngspice.py tran <log> [<log> ...]
-         python3 scripts/check_ngspice.py pw   <log> [<log> ...]
+  usage: python3 $APRTOOLS/apr/check_ngspice.py tran <log> [<log> ...]
+         python3 $APRTOOLS/apr/check_ngspice.py pw   <log> [<log> ...]
 
 `tran` は spice/REG4x16_tran.spi、`pw` は spice/REG4x16_pw.spi のログを読む。
 ログにはデッキのコメント（日本語）がそのまま出るので、

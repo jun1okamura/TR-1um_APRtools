@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """plot_placement.py -- 配置 4 STEP の可視化（目視確認用。フロー外）。
 
-  usage: python3 scripts/pnr/plot_placement.py [-o layout/placement_steps.png]
+  usage: python3 $APRTOOLS/apr/plot_placement.py [-o layout/placement_steps.png]
 
 ラベルは ASCII のみ。日本語フォントの無い環境（クラウド側）で豆腐になるため。
 """

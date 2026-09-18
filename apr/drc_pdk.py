@@ -5,7 +5,7 @@
          python3 apr/drc_pdk.py layout/chip/step1c_logo.gds
          python3 apr/drc_pdk.py src/<top>.gds --mdp     # マスクデータまで
 
-`scripts/pnr/drc_check.py` は **M1 / M2 / V1 の幅と間隔しか見ない**。
+`$APRTOOLS/apr/drc_check.py` は **M1 / M2 / V1 の幅と間隔しか見ない**。
 ルータが自分の引いた線を検算するためのもので、拡散もコンタクトもゲートも
 見ていない。チップとして正しいかは PDK のデッキ
 （`TR-1um/libs.tech/klayout/tech/drc/run.drc`、00_Layers + 01_Basics +

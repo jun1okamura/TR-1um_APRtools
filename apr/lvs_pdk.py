@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """lvs_pdk.py -- **PDK の本物の LVS デッキ**を当てて結果を要約する。
 
-  usage: python3 scripts/pnr/lvs_pdk.py <gds> [top_cell] [-r report.lvsdb]
-         python3 scripts/pnr/lvs_pdk.py layout/chip/step3_top_pins.gds
+  usage: python3 $APRTOOLS/apr/lvs_pdk.py <gds> [top_cell] [-r report.lvsdb]
+         python3 $APRTOOLS/apr/lvs_pdk.py layout/chip/step3_top_pins.gds
 
-`scripts/pnr/lvs_pnr.py` は klayout.db を Python から叩いて**素子とネットの
+`$APRTOOLS/apr/lvs_pnr.py` は klayout.db を Python から叩いて**素子とネットの
 グラフ同型だけ**を見る。デバイス抽出のルール（どの拡散が MOS で、どの
 コンタクトがどのネットか）は PDK のデッキが持っているので、テープアウト
 前の最終判断は
@@ -142,7 +142,7 @@ def main():
     sch = os.path.abspath(sch)
     if not a.netlist_only and not os.path.exists(sch):
         raise SystemExit(f"デッキが探すソースが無い: {sch}\n"
-                         f"  先に scripts/pnr/mkchipnet.py を流してください")
+                         f"  先に $APRTOOLS/apr/mkchipnet.py を流してください")
     exe = os.environ.get("KLAYOUT", "klayout")
     ver = drc_pdk.klayout_version(exe)
     deck = pdk_lvs_dir()

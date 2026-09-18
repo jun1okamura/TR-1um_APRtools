@@ -542,6 +542,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U95 | `BUFTH` のしきい値が**測り直せない直書き定数**だった | **決着 2026-09-18** | 測ったら **VT+ 3.433 / VT− 1.436 V / ヒステリシス 1.996 V**（typ / 5.0 V / 25 °C、準 DC 三角波。2,000 µs 以降収束）。凍結定数 3.709 / 1.201 は **0.27 V ずれていて根拠も無かった**。**手で写さず `char/schmitt.json` に書き、`mklib.py` がそこから読む**形にした |
 | U96 | 特性化が**並列をまとめたネットリスト**で回っている（7 セル） | **未解決** | `char/cells_ext/` は PDK の LVS ランセット出力で、並列 MOS がまとまっている。GDS と素子数が違うのは `BUFTH` 10/8・`BUF_X2` 6/4・`DEL1` 10/8・`DFFRB` 29/26・`DFFS` 29/28・`MUXDFFRB` 41/38 の 6 セル。さらに **AS/AD が逆の端子に付いている**（別の不具合）。BSIM3 の狭幅項があるので**まとめると別物**（BUFTH で 0.15 V）。`.lib` は合成と STA が読む |
 | U97 | I2C を新しい `.lib` で再合成する | **決着 2026-09-18** | **ネットリストは 1 バイトも変わらなかった**（`out/i2c_slave_async_pnr.v` の差分 0）。120 セル、内訳も同一。TB は RTL / ゲートとも PASS。`reg->reg` slack は 1225.448 → **1225.733 ns**（+0.285 ns 速い）。**レイアウトは触らなくてよい** |
+| U98 | `import config` が仮想環境の別物を掴んでいた | **決着 2026-09-18** | `config` は pip の一般的なパッケージ名でもある。`apr_path.py` は設計ルートを `sys.path` の**末尾**に足していたので site-packages 側が勝ち、`AttributeError: module 'config' has no attribute 'SYN_TOP'` で落ちていた。**名前ではなくファイルで**読み込む形にした（否定対照で再現と解消を確認）。`syn.sh` / `sta.sh` の中の `python3` 3 箇所も `apr_path` を通していなかった |
 
 **97 件中、残っているのは 7 件**（未解決 / 判断待ち / 一部残 / 上流待ち）。
 
@@ -3019,6 +3020,46 @@ read_info.py  設計: docstring 無し（-16 行）
 ★ **先に手が付くのは (a) と (b) の 54 本。** (a) は無リスク、(b) は
 「古い方を呼ぶ」がまだ残っている分なので、**直す動機がいちばん強い**。
 (c) は設計ごとに「流れを寄せるか」の判断が要る。
+
+#### U98 — `import config` が仮想環境の別物を掴んでいた
+
+**状態**: 決着 2026-09-18 ／ **出典**: 2026-09-18（U96 の `.lib` 作り直しで I2C を再合成しようとして）
+
+`.venv` の中で `sh $APRTOOLS/syn/syn.sh` を回すと、段 2 で落ちる:
+
+```
+AttributeError: module 'config' has no attribute 'SYN_TOP'
+AttributeError: module 'config' has no attribute 'ROW_HEIGHT_UM'
+```
+
+**「無い」ではなく「別物」。** `config` は **pip の一般的なパッケージ名**でもある。
+仮想環境に入っていると、`sys.path` の順によってはそちらが勝つ。
+
+`apr/apr_path.py` は設計ルートを `sys.path` に**末尾で足す**作りだった
+（「設計側に同名ファイルがあっても `apr/` のモジュールを隠さないため」）。
+末尾なので、**site-packages の `config` の方が先に見つかる**。
+`_ConfigHint`（`config` が無いときに読める案内を出す仕掛け）は
+`ModuleNotFoundError` のときにしか働かないので、この形には掛からない。
+
+**直した** — 設計ルートに `config.py` があるなら、**その 1 本を名指しで
+読み込んで** `sys.modules["config"]` に入れる（`importlib.util.spec_from_file_location`）。
+道（`sys.path`）ではなくファイルで決めるので、順に依らない。
+
+★ **否定対照**（`/tmp/fakepkg/config.py` に `X = 1` だけ置いて先頭に通す）:
+
+```
+apr_path なし  -> config.__file__ = /tmp/fakepkg/config.py   SYN_TOP 無し（＝再現）
+apr_path あり  -> config.__file__ = <設計>/config.py          SYN_TOP = i2c_slave_async
+```
+
+**シェルの中の `python3` も同じ穴を持っていた。** `syn/syn.sh` と
+`syn/sta/sta.sh` の中の `import config as c`、TD4 の `scripts/syn.sh` の
+`python3 -c "import config; ..."` は `apr_path` を通していなかった。
+3 箇所とも `import apr_path` を先に入れた。
+
+★ **名前で解決するものは、名前が衝突する。** `config` / `rules` / `utils` の
+ような一般名を `sys.path` 任せで import していると、**環境が変わった日に
+別物を掴む**。**正本の場所が分かっているなら、名前ではなくファイルで読む。**
 
 #### U95 — `BUFTH` のしきい値が測り直せない直書き定数だった
 

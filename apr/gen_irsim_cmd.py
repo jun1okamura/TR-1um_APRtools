@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """IRSIM コマンドファイル生成 — hdl/tb/tb_reg4x16.v と同じベクタを .cmd に落とす
 
-  usage: python3 scripts/gen_irsim_cmd.py irsim/reg4x16.cmd [--bits 4]
-         python3 scripts/gen_irsim_cmd.py irsim/reg8x16.cmd --bits 8
+  usage: python3 $APRTOOLS/apr/gen_irsim_cmd.py irsim/reg4x16.cmd [--bits 4]
+         python3 $APRTOOLS/apr/gen_irsim_cmd.py irsim/reg8x16.cmd --bits 8
 
 IRSIM の .cmd 言語には条件分岐も算術も無いので、テストベンチのループを
 ここで展開して直線のコマンド列にする。合否判定は走らせたログを
-scripts/check_irsim_log.py でオフラインに突き合わせて行う
+$APRTOOLS/apr/check_irsim_log.py でオフラインに突き合わせて行う
 （TR-1um_Async_I2C/irsim と同じやり方）。
 
 Verilog 版（論理と接続の検証）と同じ順序・同じ期待値なので、
@@ -111,10 +111,10 @@ class Gen:
 def build():
     g = Gen()
     g.c(f"reg{NB}x16.cmd -- REG{NB}x16 全レジスタアクセス検証（IRSIM 版）")
-    g.c("scripts/gen_irsim_cmd.py が生成。手で編集しないこと。")
+    g.c("$APRTOOLS/apr/gen_irsim_cmd.py が生成。手で編集しないこと。")
     g.c("hdl/tb/tb_regx16.v と同じベクタ・同じ順序・同じ期待値。")
     g.c()
-    g.c(f"合否判定:  python3 scripts/check_irsim_log.py irsim/reg{NB}x16_run.log")
+    g.c(f"合否判定:  python3 $APRTOOLS/apr/check_irsim_log.py irsim/reg{NB}x16_run.log")
     g.c("読出のたびに print で期待値を刻み、assert でその場で判定し、")
     g.c("d で実際の値を残す。IRSIM の .cmd 言語には条件分岐も算術も無いので、")
     g.c("pass/fail の集計だけをログのオフライン突合せで行う。")

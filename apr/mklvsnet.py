@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """mklvsnet.py -- 配置配線したコアの **LVS ソースネットリスト**を書き出す。
 
-  usage: python3 scripts/pnr/mklvsnet.py        # -> layout/portrait/simulation/<top>.spice
+  usage: python3 $APRTOOLS/apr/mklvsnet.py        # -> layout/portrait/simulation/<top>.spice
 
 出どころ（`lef/simulation/README` の分類でいう **(A) 設計意図**）:
   合成後ネットリスト `out/td4_soc_arr_pnr.v`（= P&R が読んだのと同じ物）と、
@@ -458,7 +458,7 @@ def main():
     os.makedirs(os.path.dirname(os.path.abspath(a.out)) or ".", exist_ok=True)
     with open(a.out, "w") as f:
         f.write(f"* {a.top} -- LVS ソースネットリスト（設計意図側）\n"
-                f"* scripts/pnr/mklvsnet.py が生成。手で編集しないこと。\n*\n"
+                f"* $APRTOOLS/apr/mklvsnet.py が生成。手で編集しないこと。\n*\n"
                 f"*   論理セル : {cfg.disp(a.netlist)}\n"
                 f"*   物理セル : {cfg.disp(a.placement)} "
                 f"({', '.join(f'{t} x{n}' for t, n in sorted(phys.items()))})\n"

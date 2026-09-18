@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """lvs_pnr.py -- 配置配線したコアの LVS（レイアウト抽出 vs 設計意図）。
 
-  usage: python3 scripts/pnr/lvs_pnr.py <gds> <top> <src.spice> [-o <lay.spice>]
+  usage: python3 $APRTOOLS/apr/lvs_pnr.py <gds> <top> <src.spice> [-o <lay.spice>]
 
-`scripts/lvs_check.py` と目的は同じだが、**P&R したコア**向けに 3 つ違う:
+`$APRTOOLS/apr/lvs_check.py` と目的は同じだが、**P&R したコア**向けに 3 つ違う:
 
   1. KLayout の `combine_devices()` を掛けない（`--combine` で掛けられる）。
      掛けると KLayout が
@@ -25,7 +25,7 @@
      継承して、照合できなかったネット・デバイス・ピンを拾う。
   3. 抽出結果を `-o` で保存できる（既定は保存しない）。
 
-ソース側は `scripts/pnr/mklvsnet.py` が作ったもの。
+ソース側は `$APRTOOLS/apr/mklvsnet.py` が作ったもの。
 """
 from __future__ import annotations
 

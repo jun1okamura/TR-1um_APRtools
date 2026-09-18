@@ -13,7 +13,7 @@ driven when HIZ is low).  P<n> is labelled twice: once on the inner terminal the
 core routes to, once out on the bond pad at radius 1040.  Only the inner one is
 returned.
 
-  usage:  scripts/frame_pins.py          # print the table
+  usage:  $APRTOOLS/apr/frame_pins.py          # print the table
 """
 import os
 import re

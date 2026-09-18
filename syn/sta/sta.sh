@@ -21,6 +21,7 @@ command -v "$STA" >/dev/null 2>&1 || { echo "$STA が無い。ビルド手順は
 # Liberty / クロックポート / false path は **設計の config.py** から取る。
 # （PYTHONPATH=$APRTOOLS/apr が要る。手で上書きするなら LIB= / CLK= を渡す）
 CFG=$(python3 - <<'PY'
+import apr_path  # noqa: F401  設計の config.py を名指しで読む（U94）
 import config as c
 print(c.SYN_LIB)
 print(getattr(c, "STA_CLK_PORT", "") or "")

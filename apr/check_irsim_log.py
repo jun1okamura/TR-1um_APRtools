@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """IRSIM の実行ログから合否を集計する
 
-  usage: python3 scripts/check_irsim_log.py irsim/reg4x16_run.log [-v]
+  usage: python3 $APRTOOLS/apr/check_irsim_log.py irsim/reg4x16_run.log [-v]
 
 IRSIM の .cmd 言語には条件分岐も算術も無いので、テストベンチのように
-自前で pass/fail を数えられない。`scripts/gen_irsim_cmd.py` が生成した .cmd は
+自前で pass/fail を数えられない。`$APRTOOLS/apr/gen_irsim_cmd.py` が生成した .cmd は
 読出のたびに
 
     print CHECK tag=<名前> add=<bbbb> exp=<bbbb>   ← 何を期待しているか

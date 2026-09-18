@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """sweep_seed.py -- 配置のシードを振って、**配線して短絡が最少になる配置**を選ぶ。
 
-  usage: python3 scripts/pnr/sweep_seed.py --seeds 1 2 3 4 5 6 --restarts 800
-         python3 scripts/pnr/sweep_seed.py --seeds 7 8 --keep   （最良を残す）
+  usage: python3 $APRTOOLS/apr/sweep_seed.py --seeds 1 2 3 4 5 6 --restarts 800
+         python3 $APRTOOLS/apr/sweep_seed.py --seeds 7 8 --keep   （最良を残す）
 
 なぜ要るか: 行割当（FM 風分割）も行内順序（バリセンタ）も乱択で、`--seed` を
 変えるとカット数と HPWL が変わる。カットが少ない配置ほど行またぎが減り、

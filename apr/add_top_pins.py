@@ -31,13 +31,13 @@ LVS はどちらの側も、**誰も宣言していないトップのポート**
 P10/P11/P12/P13/P15 -- ちょうど**出力パッド 5 本**。入力パッドは `P<n>` 端子
 までコアから配線が来ているので触れているが、出力パッドはコアが `OUT<n>` を
 駆動するだけで、ボンドパッドのネットにはトップから何も触れていなかった
-（`scripts/klayout_extract.py` はラベル層を M2 に繋ぐので 44 ピン全部見えて
+（`$APRTOOLS/apr/klayout_extract.py` はラベル層を M2 に繋ぐので 44 ピン全部見えて
 いて、気づけなかった）。
 
 なので**同じ箱を M2 (20,0) にも置く**。パッドの M2 に重なるだけで DRC は
 変わらず（マージされる）、抽出器の設定によらずピンが生える。
 
-  usage: python3 scripts/pnr/add_top_pins.py [-o OUT]
+  usage: python3 $APRTOOLS/apr/add_top_pins.py [-o OUT]
 """
 from __future__ import annotations
 

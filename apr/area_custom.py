@@ -12,7 +12,7 @@
   → 今の見積りは以下を使うこと。数字は `scripts/cell_area.json`（GDS 実測）から読むので
      ライブラリを直せば自動で追従する。
 
-       python3 scripts/area_estimate.py     stat.txt --top TOP   # 合成結果の面積換算
+       python3 $APRTOOLS/apr/area_estimate.py     stat.txt --top TOP   # 合成結果の面積換算
        python3 scripts/mem_array_estimate.py                     # メモリ FF vs アレイ
 
 入力は area_estimate.py と同じ Yosys stat（FF数・組合せセル面積）。
@@ -23,7 +23,7 @@ import os as _os_r, sys as _sys_r  # noqa: E402
 _sys_r.path.insert(0, _os_r.path.dirname(_os_r.path.abspath(__file__)))
 import rules  # noqa: E402  プロセス定数の単一ソース
 
-print("** scripts/area_custom.py は行高 62.6µm 世代の見込み値。"
+print("** $APRTOOLS/apr/area_custom.py は行高 62.6µm 世代の見込み値。"
       "今の見積りは area_estimate.py / mem_array_estimate.py を使うこと。\n",
       file=sys.stderr)
 

@@ -33,7 +33,7 @@
 にする。まとめて 1 本にすると、浮いている端子どうしが短絡したネットとして
 LVS に見えてしまう。
 
-  usage: python3 scripts/pnr/mkchipnet.py [-o OUT]
+  usage: python3 $APRTOOLS/apr/mkchipnet.py [-o OUT]
 """
 from __future__ import annotations
 
@@ -296,7 +296,7 @@ def main():
 
     header = [
         f"** {os.path.basename(a.out)} -- チップレベルの LVS ソースネットリスト。",
-        "** scripts/pnr/mkchipnet.py が生成。手で編集しないこと。",
+        "** $APRTOOLS/apr/mkchipnet.py が生成。手で編集しないこと。",
         f"**   コア    : {cfg.disp(CORE_SPICE)}",
     ] + ([f"**   RING_OSC: {cfg.disp(RO_SPICE)}"] if HAS_RO else []) + [
         f"**   フレーム: {cfg.disp(GIO_SPICE)}",
@@ -309,7 +309,7 @@ def main():
         "** （まとめると浮いた端子どうしが短絡して見える）。",
         "** トップは 16 本のボンドパッドを宣言する（P1-P7, VSS, P9-P15, VDD。",
         "** P8 は VSS、P16 は VDD でフレーム固定）。レイアウト側は",
-        "** scripts/pnr/add_top_pins.py が同じ 16 本を打つ。**本数が合って",
+        "** $APRTOOLS/apr/add_top_pins.py が同じ 16 本を打つ。**本数が合って",
         "** いないと KLayout はグラフマッチに入らない。**",
     ]
     insts = [wrap("x1", [gio_net[p] for p in gio_ports], CHIP_GIO_CELL),

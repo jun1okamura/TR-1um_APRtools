@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """mkcellinfo.py -- 配置器が使うセル寸法表 `layout/cell_info.json` を作る。
 
-  usage: python3 scripts/pnr/mkcellinfo.py
+  usage: python3 $APRTOOLS/apr/mkcellinfo.py
 
 寸法は **LEF の SIZE と GDS の prBoundary の両方**から取って突き合わせる。
 片方だけだと、prBoundary を持たない／原点がずれているセルを黙って取りこぼす

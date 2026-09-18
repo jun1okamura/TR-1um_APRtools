@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """書き出した .spice がレイアウトと一致するかを、KLayout の比較器で確かめる。
 
-  usage: python3 scripts/lvs_check.py <gds> <top> <spice>
+  usage: python3 $APRTOOLS/apr/lvs_check.py <gds> <top> <spice>
 
-`scripts/mkframespice.py` が出した .spice は「抽出して凍結したもの」なので、
+`$APRTOOLS/apr/mkframespice.py` が出した .spice は「抽出して凍結したもの」なので、
 **書き出しの過程でネットやピンを取り違えていないか**を必ず確かめる。
 やることは PDK の LVS ランセット（`tech/lvs/05_Compare.lvs`）と同じ:
 レイアウトから抽出したネットと、.spice を読んだネットを `NetlistComparer` で照合する。

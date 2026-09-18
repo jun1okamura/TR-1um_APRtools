@@ -6,7 +6,7 @@
   -> layout/chip/simulation/<top>_sim.spice         （ngspice 用）
 
 LVS に使った `<top>.extracted`（`lvs_pnr.py -o` の出力）ではなく、
-`scripts/klayout_extract.py` で**もう一度抽出し直す**。理由は名前:
+`$APRTOOLS/apr/klayout_extract.py` で**もう一度抽出し直す**。理由は名前:
 LVS 用の方は比較のために平坦化しているのでネットが `1` `2` `3` …の番号に
 なっていて、`v(xdut.x2.busy)` のように中を覗けない。klayout_extract は
 階層とラベルを残すので、`tx_data[4]` や `rst_n` や `busy` がそのまま
@@ -32,7 +32,7 @@ LVS 用の方は比較のために平坦化しているのでネットが `1` `2
 回路そのものは一切変えない。W/L と AS/AD/PS/PD は**抽出した実物の寸法**
 がそのまま入っているので、拡散容量は設計値ではなくレイアウトの実測。
 
-  usage: python3 scripts/pnr/gen_chip_sim_ready.py [--gds ...] [--top ...]
+  usage: python3 $APRTOOLS/apr/gen_chip_sim_ready.py [--gds ...] [--top ...]
 """
 from __future__ import annotations
 
@@ -179,7 +179,7 @@ def main():
 
     header = [
         f"* {a.top} -- ngspice 用（**レイアウト抽出から**）",
-        "* scripts/pnr/gen_chip_sim_ready.py が生成。手で編集しないこと。",
+        "* $APRTOOLS/apr/gen_chip_sim_ready.py が生成。手で編集しないこと。",
         f"*   もと : {cfg.disp(a.gds)}",
         "*   W/L と AS/AD/PS/PD は抽出した実物の寸法。拡散容量は実測。",
         "*",

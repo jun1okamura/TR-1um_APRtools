@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """sweep_height.py -- コア高を詰めるための探索。
 
-  usage: python3 scripts/pnr/sweep_height.py
-         python3 scripts/pnr/sweep_height.py --cases 4:5:1 5:5:1 5:5:2
+  usage: python3 $APRTOOLS/apr/sweep_height.py
+         python3 $APRTOOLS/apr/sweep_height.py --cases 4:5:1 5:5:1 5:5:2
          （ケースは `行数:PRL_MIN_PINS:シード`）
 
 `sweep_seed.py` が「短絡が最少の配置」を選ぶのに対し、こちらは

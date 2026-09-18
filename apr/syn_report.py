@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """マッピング後のネットリストから面積と所要コア面積を出す。
 
-  usage: python3 scripts/syn_report.py <top> [-n out/<top>.v] [-s out/<top>.stat]
+  usage: python3 $APRTOOLS/apr/syn_report.py <top> [-n out/<top>.v] [-s out/<top>.stat]
 
 `area_estimate.py` との違い:
   あちらは `abc -g simple` の**抽象ゲート**（`$_AND_` など）を実セルに読み替える

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """フレームとパッドセルの LEF を生成する。
 
-  usage: python3 scripts/mkleffrm.py lef/TR-1um_frame_25x25.gds -o lef/TR-1um_frame.lef
+  usage: python3 $APRTOOLS/apr/mkleffrm.py lef/TR-1um_frame_25x25.gds -o lef/TR-1um_frame.lef
 
-`scripts/mklef.py`（標準セル用）と分けてある理由:
+`$APRTOOLS/apr/mklef.py`（標準セル用）と分けてある理由:
 
   - **ラベルの層が違う。** 標準セルはピン名を (49,1) に置いているが、
     フレームは PDK 提供で **(49,0)**（LVS の `M2_LBL` と同じ層）に置いてある。
@@ -302,7 +302,7 @@ def main():
     cells = {c.name: c for c in lib.cells}
 
     out = ["# TR-1um フレーム / パッドセルの LEF",
-           "# scripts/mkleffrm.py が生成。手で編集しないこと。",
+           "# $APRTOOLS/apr/mkleffrm.py が生成。手で編集しないこと。",
            f"# source: {os.path.basename(a.gds)}", ""]
 
     for nm in PAD_CELLS:

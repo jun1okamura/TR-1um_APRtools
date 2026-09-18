@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """plot_floorplan.py -- フロアプラン案の可視化。
 
-  usage: python3 scripts/plot_floorplan.py [-o out.png] [--frame lef/TR-1um_frame.lef]
+  usage: python3 $APRTOOLS/apr/plot_floorplan.py [-o out.png] [--frame lef/TR-1um_frame.lef]
 
 フレームの開口は `MACRO OSS_FRAME_GIO` の OBS から実測する（手書きしない）。
 コア枠・行・チャネル・TAP 列・マクロの寸法は下の FLOORPLAN で与える。

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """2 つのマップ後ネットリストのセル構成を突き合わせる。
 
-  usage: python3 scripts/cmp_cells.py <基準.v> <比較.v>
+  usage: python3 $APRTOOLS/apr/cmp_cells.py <基準.v> <比較.v>
 
 何のためか: 今回の再合成が V10（実際にテープアウトして SPICE 14/14 PASS した版）
 から**どう変わったか**を一目で見るため。セル種ごとの個数と面積の差分を出す。

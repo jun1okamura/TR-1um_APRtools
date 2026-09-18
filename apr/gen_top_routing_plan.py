@@ -29,7 +29,7 @@
 `addr_match` / `busy` / `rw` / `rx_valid` は V7/V9/V10 と同じく**未ボンド**。
 16 本のパッドに収まらないため。`UNBONDED` に挙げてある。
 
-  usage: python3 scripts/pnr/gen_top_routing_plan.py
+  usage: python3 $APRTOOLS/apr/gen_top_routing_plan.py
 """
 from __future__ import annotations
 

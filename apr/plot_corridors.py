@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """plot_corridors.py -- 優先 M2 コリドー（全行同じ x に縦へ抜ける列）の確認用。
 
-  usage: python3 scripts/pnr/plot_corridors.py
-         python3 scripts/pnr/plot_corridors.py -g layout/step10/route_step_6_squeezed.gds \\
+  usage: python3 $APRTOOLS/apr/plot_corridors.py
+         python3 $APRTOOLS/apr/plot_corridors.py -g layout/step10/route_step_6_squeezed.gds \\
                                                -o layout/corridors.png
 
 左: コア全体。コリドーの x に縦の帯を重ねる（全行で同じ x なのが見える）。

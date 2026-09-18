@@ -2,8 +2,8 @@
 """normalize_prboundary.py -- セルの中身ごと平行移動して prBoundary の左下を
 原点 (0,0) に合わせる。
 
-  usage: python3 scripts/normalize_prboundary.py lef/TR-1um_STDCELL.gds REG8x16 REG4x16
-         python3 scripts/normalize_prboundary.py lef/TR-1um_STDCELL.gds --all -n
+  usage: python3 $APRTOOLS/apr/normalize_prboundary.py lef/TR-1um_STDCELL.gds REG8x16 REG4x16
+         python3 $APRTOOLS/apr/normalize_prboundary.py lef/TR-1um_STDCELL.gds --all -n
 
 なぜ要るか: `REG8x16` / `REG4x16` の prBoundary は (-86.4, -54.6) から始まって
 いた。セル原点と境界の左下がずれていると、
@@ -162,7 +162,7 @@ def main():
     lib.write_gds(out)
     print(f"wrote {out}")
     print("  ** LEF は座標が変わる（FOREIGN が 0 になる）ので "
-          "scripts/mklef.py を回し直すこと")
+          "$APRTOOLS/apr/mklef.py を回し直すこと")
     return 0
 
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """2つの SPICE サブサーキットをグラフ同型判定で突き合わせる（LVS の予行演習）。
 
-  usage: python3 scripts/netcmp.py A.spi DEC2  B.extracted DEC2 [--map "$2=A0,$3=AB0,..."]
+  usage: python3 $APRTOOLS/apr/netcmp.py A.spi DEC2  B.extracted DEC2 [--map "$2=A0,$3=AB0,..."]
 
 MOSFET を「ゲート端子」と「S/D 端子（交換可能）」を区別したノードにして
 networkx の VF2 で同型を判定する。LVS を回す前に、意図した回路とレイアウトが

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """gen_placement_json.py -- ルータが読む配置 JSON へ変換する。
 
-  usage: python3 scripts/pnr/gen_placement_json.py [-o layout/placement.json]
+  usage: python3 $APRTOOLS/apr/gen_placement_json.py [-o layout/placement.json]
 
 `place.py` が配置そのものを持ち、ここではそれを移植元のルータ
 （`route_channels.py` 以下）が期待するスキーマに直すだけ:
@@ -21,7 +21,7 @@ TAP / FILL には合成した名前を付ける。TAP 直後に予約した FILL
 SCLK_SPI 版との違いは 2 つ:
 
   1. **レイヤ名を M1 / M2 に正規化する。** TD4 の LEF は `METAL1` / `METAL2`
-     と書く（`scripts/mklef.py` が LEF の慣習どおり技術ファイルのレイヤ名を
+     と書く（`$APRTOOLS/apr/mklef.py` が LEF の慣習どおり技術ファイルのレイヤ名を
      使うため）が、ルータは `"M2"` と文字列比較している。ここで直さないと
      **ピンが 1 本も見つからないまま静かに通る**。
 
