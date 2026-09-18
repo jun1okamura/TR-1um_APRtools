@@ -91,7 +91,7 @@ Python ラッパ生成。
 してあったが、U96 で `.lib` を作り直したら実測は **45.923 fF** になり、
 写した側だけが古いまま残った（U65 と同じ「正本が 1 箇所に無い」）。
 どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の
-1 箇所で決め、値は `apr/lib_pin_cap.py` が `.lib` から引く。
+1 箇所で決め、値は `apr/lib_query.py` が `.lib` から引く。
 `config.SYN_CONSTR` を設計が明示したときは、そちらをそのまま使う。
 
 ## 3. Liberty

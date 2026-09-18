@@ -37,6 +37,8 @@ print(getattr(c, "OUT_LOAD_CELL", "") or "")                    # 8
 print(getattr(c, "OUT_LOAD_PIN", "") or "")                     # 9
 print(getattr(c, "DRIVING_CELL", "") or "")                     # 10
 print(getattr(c, "DRIVING_PIN", "") or "")                      # 11
+print(getattr(c, "STA_MPW_CELL", "") or "")                     # 12
+print(getattr(c, "STA_MPW_PIN", "") or "")                      # 13
 PY
 ) || { echo "config.py が読めない（PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
 LIB=${LIB:-$(echo "$CFG" | sed -n 1p)}
@@ -45,12 +47,15 @@ FALSEPATH=${FALSEPATH:-$(echo "$CFG" | sed -n 3p)}
 NONSIG=${NONSIG:-$(echo "$CFG" | sed -n 4p)}
 LOADCELL=$(echo "$CFG" | sed -n 8p);  LOADPIN=$(echo "$CFG" | sed -n 9p)
 DRVCELL=$(echo "$CFG" | sed -n 10p); DRVPIN=$(echo "$CFG" | sed -n 11p)
+MPWCELL=$(echo "$CFG" | sed -n 12p); MPWPIN=$(echo "$CFG" | sed -n 13p)
 # ★ 出力ポートに掛ける負荷は **`.lib` から引く**（U99）。`setup.tcl` に
 #   `36.2` と直書きしてあり、U96 で `.lib` を作り直したら実測が 45.923 fF に
 #   なって**写した側だけが古いまま**になった（U65 と同じ形）。
 HERE_APR=$(cd "$(dirname "$0")/../../apr" && pwd)
-OUTLOAD=${OUTLOAD:-$(python3 "$HERE_APR/lib_pin_cap.py" "$LIB" "$LOADCELL" "$LOADPIN")} || {
+OUTLOAD=${OUTLOAD:-$(python3 "$HERE_APR/lib_query.py" cap "$LIB" "$LOADCELL" "$LOADPIN")} || {
   echo "** $LIB から $LOADCELL/$LOADPIN の capacitance が読めない" >&2; exit 1; }
+MPWVAL=""
+[ -n "$MPWCELL" ] && MPWVAL=$(python3 "$HERE_APR/lib_query.py" mpw "$LIB" "$MPWCELL" "$MPWPIN") || true
 MACROS=${MACROS:-$(echo "$CFG" | sed -n 5p)}
 FINAL=$(echo "$CFG" | sed -n 6p)
 EXTRA=${EXTRA:-$(echo "$CFG" | sed -n 7p)}
@@ -99,6 +104,8 @@ T=$(mktemp "${TMPDIR:-/tmp}/sta_XXXXXX.tcl")
 { echo "set NET $NET"; echo "set TOP $TOP"; echo "set PER $PER"
   echo "set LIB $LIB"; echo "set CLK $CLK"
   echo "set OUTLOAD $OUTLOAD"
+  # マクロの min_pulse_width は**値を .lib から引く**（U99）。指定が無ければ空。
+  echo "set MPW [list $MPWCELL $MPWPIN $MPWVAL]"
   echo "set DRVCELL $DRVCELL"; echo "set DRVPIN $DRVPIN"
   echo "set FALSEPATH [list $FALSEPATH]"; echo "set NONSIG [list $NONSIG]"
   echo "set MACROS [list $MACROS]"

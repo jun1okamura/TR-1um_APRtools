@@ -88,7 +88,7 @@ mkdir -p "$OUT"
 #   `config.SYN_CONSTR` を設計が明示したときは、そちらをそのまま使う。
 if [ -z "$CONSTR" ]; then
   CONSTR=$OUT/abc.constr
-  CAP=$(python3 "$APRROOT/apr/lib_pin_cap.py" "$LIB" "$LOADCELL" "$LOADPIN") || {
+  CAP=$(python3 "$APRROOT/apr/lib_query.py" cap "$LIB" "$LOADCELL" "$LOADPIN") || {
     echo "** $LIB から $LOADCELL/$LOADPIN の capacitance が読めない" >&2; exit 1; }
   printf 'set_driving_cell %s
 set_load %s

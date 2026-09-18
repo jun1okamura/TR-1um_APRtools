@@ -555,7 +555,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U43 | 59.4 の抽出ネットリストが ngspice の既定の許容差で進まない | 一部残 | なぜ 64.8 版では ngspice の既定で通ったのかを調べる |
 | U73 | Liberty に書いた制約のうち STA が見るのは一部だった | 一部残 | `min_pulse_width` 11 ns を ngspice の回帰として自動化する |
 | U94 | 同名の写しが 68 本残っている | 一部残 | 2026-09-18 に **23 本消した**（TD4 13 / I2C 10）。★ 「小さい差＝古いだけ」は早合点で、30 行以下でも設計固有が半分以上あった（読んで決める）。残りは **CI が呼ぶ上流テンプレート 6 本**（`pre_check.py` / `read_info.py`。CI に `$APRTOOLS` は無い）、**import されるもの**（`netlist_util` / `lef_parser` / `netlist_parser` / `klayout_extract` ほか。U98 と同じ形なので同じ直し方を入れてから）、**本当に設計固有なもの**（`place.py` / `route_chip.py` ほか。SPI の 3 本は凍結物 `reference/v64_8/` 専用）|
-| U99 | `set_load 36.2` が `.lib` から写した直書きで、古くなった | **決着 2026-09-18**（I2C 回し直し済み）| `apr/lib_pin_cap.py` を足し、`syn.sh` が `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**ようにした。`sta.sh` も同じ値を `setup.tcl` に渡す。**静的な `syn/abc.constr` は消した**（写しを残さない。U94）。どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の 1 箇所。**36.2 → 45.923 fF に変わるので 3 設計とも合成と STA の回し直しが要る** |
+| U99 | `set_load 36.2` が `.lib` から写した直書きで、古くなった | **決着 2026-09-18**（I2C 回し直し済み）| `apr/lib_query.py` を足し、`syn.sh` が `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**ようにした。`sta.sh` も同じ値を `setup.tcl` に渡す。**静的な `syn/abc.constr` は消した**（写しを残さない。U94）。どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の 1 箇所。**36.2 → 45.923 fF に変わるので 3 設計とも合成と STA の回し直しが要る** |
 | U93 | 追跡ファイルにホームパスが残っている | 一部残 | 残り 31 件は移植した写し（`scripts/i2c_ref/` `scripts/pnr/from_async_i2c/` `lef_parser.py`）とTD4 の配線ログ 1 本。**U94（写しをどうするか）と同じ判断**になる |
 
 ### 7-3. 記録（U 番号順）
@@ -3128,7 +3128,7 @@ U96 で `.lib` を作り直したら実測は **45.923 fF（+27 %）**。
 コメントに「`OSS_ESD_5V_DIO` の `OUT` ピン容量」と**正しく書いてあった**のに、
 それを引いてくる仕掛けが無かった。
 
-**直した** — `apr/lib_pin_cap.py`（Liberty からピンの `capacitance` を引く）
+**直した** — `apr/lib_query.py`（Liberty からピンの `capacitance` を引く）
 を足し、
 
 * `syn.sh` は `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**
@@ -3141,7 +3141,7 @@ U96 で `.lib` を作り直したら実測は **45.923 fF（+27 %）**。
 
 これで **特性化 → `.lib` → 合成 / STA が 1 本に繋がる**。
 
-★ **否定対照**（`lib_pin_cap.py` が名前で引けているか）:
+★ **否定対照**（`lib_query.py` が名前で引けているか）:
 
 ```
 OSS_ESD_5V_DIO OUT -> 45.923      OSS_ESD_5V_DIO HIZ -> 89.702
@@ -3154,6 +3154,40 @@ INV_X1 ZZZ         -> 「capacitance が無い」で exit 1
 
 ★ **コメントが正しくても、数字が写しなら古くなる。**
 「どこから来たか」を書くだけでは足りない。**引いてくる。**
+
+##### 同じ形がもう 1 つあった — `min_pulse_width` の `11 ns`（2026-09-18）
+
+TD4 の STA 報告の末尾が
+
+```
+★ ここが空なのは違反が無いからではなく、**OpenSTA が見ていない**から。
+   `WEB` の最小低パルス幅 11 ns（配線容量なし）は ngspice 側で担保する。
+```
+
+と出る。この `11` は `syn/sta/report_macro.tcl` の**直書き**で、U96 で
+実測は **10.0 ns** になっていた。`.lib` の中身（`fall_constraint … "10.0000"`）
+は正しいのに、**報告だけが古い数字を読み上げていた**。`set_load 36.2` と
+まったく同じ形。
+
+**直した** — 道具を `apr/lib_query.py` に改名して 2 つのモードにした:
+
+```
+lib_query.py cap <lib> OSS_ESD_5V_DIO OUT   -> 45.923
+lib_query.py mpw <lib> REG8x16        WEB   -> 10
+```
+
+`sta.sh` が値を引いて `report_macro.tcl` に `$MPW`（セル / ピン / 値）で渡す。
+**どこを見るか**は設計の `config.py`（`STA_MPW_CELL` / `STA_MPW_PIN`）、
+**値**は `.lib`。指定が無い設計では数字を言わない。
+
+★ 否定対照: `mpw RSLATCH R --rise` -> 1.8501（`.lib` と一致）、
+`mpw REG8x16 ADD` -> 「min_pulse_width が無い」で exit 1。
+
+★ **1 つ見つけたら同じ形を探す。** `set_load` を直したとき、
+`.lib` から写した数字が**他にもある**と考えるべきだった。
+探したのは、直した STA 報告を読み返して気づいたから。
+**自分が出した出力を読み返す。**
+
 
 ##### 回し直して 3 つ踏んだ（2026-09-18）
 

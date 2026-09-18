@@ -158,7 +158,7 @@ cd OpenSTA && cmake -B build -DCMAKE_BUILD_TYPE=Release -DCUDD_DIR=/usr/local &&
 - **`RSTB` の `recovery` / `removal` を特性化していない**（U8）。TD4 / I2C の
   リセットは電源投入時に一度きりなので `set_false_path` で正しいが、
   SCLK_SPI は**フレームごとに解除される**ので、そこは数字で言えない。
-- **`REG8x16` の `min_pulse_width`（`WEB` 低 11 ns）は OpenSTA が見ない**（U73）。
+- **`REG8x16` の `min_pulse_width`（`WEB` の低幅。値は `.lib` から引く）は OpenSTA が見ない**（U73）。
   Liberty には記録として入っているが、担保は ngspice の回帰側。
 
 `REG8x16` のタイミングは **2026-09-16 に読出し・書込みとも `.lib` に入った**（U7）ので、

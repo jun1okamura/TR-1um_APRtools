@@ -328,6 +328,10 @@ OUT_LOAD_CELL = "OSS_ESD_5V_DIO"
 OUT_LOAD_PIN = "OUT"
 # 駆動セル（入力ポートに置く仮想のドライバ）。こちらは名前なので写しではない。
 DRIVING_CELL, DRIVING_PIN = "BUF_X2", "Y"
+# マクロの `min_pulse_width` を STA の報告に出したい設計だけが指定する。
+# 値ではなく**どこを見るか**を書く（値は `.lib` から引く。U99）。
+STA_MPW_CELL = None
+STA_MPW_PIN = None
 # セルの振る舞いモデル（Verilog）。iverilog の TB が要る設計だけ。
 #   SYN_CELLS_GEN      char/mkcellverilog.py で起こす（I2C）。False なら既存を使う
 #   SYN_CELLS_IN_SYNTH RTL がセルを直接インスタンス化しているので yosys にも読ませる

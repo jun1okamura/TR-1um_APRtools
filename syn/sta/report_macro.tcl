@@ -6,7 +6,7 @@
 #
 #     ADD->Q / WEB->Q の組合せアーク  常に見る
 #     hold_rising（ADD / D の保持）   **`WEB` がクロックのときだけ**見る
-#     min_pulse_width（WEB 低 11 ns） **見ない**（`set_min_pulse_width` も効かない）
+#     min_pulse_width（WEB 低。値は `.lib` から引く） **見ない**（`set_min_pulse_width` も効かない）
 #
 #   最小ネットリストでは `WEB` を外部ポートにしたので、クロックとして
 #   宣言しない限り「パス無し」だった。**実設計では `WEB` が
@@ -56,6 +56,14 @@ foreach _m $MACROS {
     mtry "最小パルス幅（U73 より **何も出ないのが既知の正**）" {
         report_check_types -min_pulse_width -digits 3
         puts "     ★ ここが空なのは違反が無いからではなく、**OpenSTA が見ていない**から。"
-        puts "        `WEB` の最小低パルス幅 11 ns（配線容量なし）は ngspice 側で担保する。"
+        # ★ **値は `.lib` から引く**（U99）。以前は `11 ns` と直書きで、U96 で
+        #   実測が 10.0 ns になったときに**写した側だけが古いまま**になった。
+        #   `$MPW` は sta.sh が {セル ピン 値} で入れる（config が指定した設計だけ）。
+        if {[llength $MPW] == 3 && [lindex $MPW 2] ne ""} {
+            puts "        `[lindex $MPW 1]` の最小低パルス幅 [lindex $MPW 2] ns（配線容量なし、\
+[lindex $MPW 0] の .lib の拘束）は ngspice 側で担保する。"
+        } else {
+            puts "        担保は ngspice 側（値は .lib の min_pulse_width を見ること）。"
+        }
     }
 }
