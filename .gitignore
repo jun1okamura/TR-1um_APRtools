@@ -24,6 +24,7 @@ Claude outputs/
 
 # char/ の入力と作業場は生成物（RUN.md 手順 1-2）。正本は stdcell/v59_4/extracted/
 char/cells_ext/
+char/cells_gds/
 char/cells_mem/
 char/cells_pad/
 # 実験ごとに pack_<名前>/ を作る（U69）。個別に並べていたので pack_mux/ が漏れた。

@@ -83,9 +83,9 @@ def build(cell, ipin, opin, ramp_us=RAMP_US, netlist=None):
     L.append(f"Rin {ipin}_src {ipin} 0.001")
     L.append("")
     # ★ **ポート順はそのネットリスト自身から読む**（U42）。
-    #   `all_ports_of` は既定の置き場（抽出網）の順を返すので、`--netlist` で
-    #   別の網を指すと**ずれる**。実際にずれた（2026-09-17）:
-    #     抽出網          .SUBCKT BUFTH A Y vss vdd
+    #   `all_ports_of` は既定の置き場（抽出ネット）の順を返すので、`--netlist` で
+    #   別のネットを指すと**ずれる**。実際にずれた（2026-09-17）:
+    #     抽出ネット          .SUBCKT BUFTH A Y vss vdd
     #     LVS ソース      .subckt BUFTH A Y vdd vss
     #   ngspice は数が合えば黙って繋ぐので、**電源と接地が入れ替わったまま
     #   落ちずに**中点に居座り、`.measure` だけが "out of interval" で失敗した。
@@ -113,7 +113,7 @@ def main():
     ap.add_argument("--sweep", action="store_true",
                     help="傾斜を 4 通り回して収束を見る（否定対照）")
     ap.add_argument("--netlist", metavar="PATH",
-                    help="セルのネットリストを明示する（既定は TR1UM_CELLDIR の抽出網）")
+                    help="セルのネットリストを明示する（既定は TR1UM_CELLDIR の抽出ネット）")
     a = ap.parse_args()
 
     ipin, opin = one_in_one_out(a.cell)
@@ -125,9 +125,9 @@ def main():
     src = a.netlist or f"{CELLDIR}/{a.cell}{CELLEXT}"
     print(f"=== {a.cell} シュミットのしきい値")
     print(f"  条件   : typ モデル / VDD {VDD:g} V / {TEMP:g} °C / 準 DC 三角波")
-    print(f"  網     : {src}")
+    print(f"  ネット     : {src}")
     print(f"  ポート順: {' '.join(ports_for(a.cell, a.netlist))}"
-          f"   （その網の .subckt 宣言順。U42）")
+          f"   （そのネットの .subckt 宣言順。U42）")
     print(f"  しきい値の定義: 出力が {'/'.join(str(p) for p in OUT_PCT)} % を"
           f"横切った瞬間の**入力**電圧")
     print()
@@ -180,7 +180,7 @@ def main():
             print("  ** 50 mV を超えてずれている。Liberty の input_voltage は"
                   " mklib の定数から出ているので、直すならそちら")
             print("     直す前に (1) 傾斜を振って収束しているか（--sweep）")
-            print("            (2) 別の網でも同じか（--netlist）を見ること")
+            print("            (2) 別のネットでも同じか（--netlist）を見ること")
         else:
             print("  -> 一致（50 mV 以内）。Liberty の input_voltage はこの値でよい")
     return 0

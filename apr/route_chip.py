@@ -540,7 +540,7 @@ class Drawer:
         self.shapes = defaultdict(list)
         self.net = None
         self._via_done = set()
-        self._via_net = []          # (x, y, net)。同じ網の近すぎる via を弾く
+        self._via_net = []          # (x, y, net)。同じネットの近すぎる via を弾く
 
     def um(self, v): return int(round(v / self.dbu))
 
@@ -570,7 +570,7 @@ class Drawer:
         1.4 なので縁の隙間は 0.4 で、**`V1.S1`（1.5）違反**になる
         （SCLK_SPI の `cs_n` で実際に出た。自作 DRC が
         `V1 space viol: 1 at (-831.6, 529.1)` と言った）。
-        **同じ網のときだけ**弾く。違う網なら、近いこと自体が別の問題なので
+        **同じネットのときだけ**弾く。違うネットなら、近いこと自体が別の問題なので
         黙って消してはいけない。
         """
         key = (round(cx, 3), round(cy, 3))

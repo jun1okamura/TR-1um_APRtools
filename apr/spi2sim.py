@@ -38,7 +38,7 @@ def squash(devs):
     トップピンしか無かったので誰も踏まなかったが、TD4 のコアでは
     レジスタも `ld_addr` も内部ノードなので、`.cmd` の `vector` に書けない。
 
-    潰すと**別の網が同じ名前になり得る**（`a[1]` と `a1`）。黙って短絡する
+    潰すと**別のネットが同じ名前になり得る**（`a[1]` と `a1`）。黙って短絡する
     ので、衝突したらここで止める。
     """
     seen = {}
@@ -47,7 +47,7 @@ def squash(devs):
             y = sanitize(x)
             if seen.setdefault(y, x) != x:
                 sys.exit(f"角括弧を潰すと名前が衝突する: {x!r} と {seen[y]!r} が"
-                         f"どちらも {y!r} になる。元の網を改名してください。")
+                         f"どちらも {y!r} になる。元のネットを改名してください。")
     return [(k, sanitize(g), sanitize(s), sanitize(d), l, w)
             for k, g, s, d, l, w in devs]
 

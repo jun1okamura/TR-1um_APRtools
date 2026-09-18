@@ -151,12 +151,18 @@ def main():
     ap.add_argument("gds"); ap.add_argument("top")
     ap.add_argument("-o", "--out", required=True)
     ap.add_argument("--flat", action="store_true", help="階層を潰して抽出する")
+    ap.add_argument("--no-combine", dest="combine", action="store_false",
+                    help="並列 MOS をまとめない（**ngspice に持っていくならこちら**）。"
+                         "既定でまとめるのは LVS の素子数照合に合わせるため。"
+                         "この BSIM3 カードは狭幅のしきい値項を持つので、"
+                         "まとめたネットは電気的に別物になる（U96）")
     a = ap.parse_args()
 
     l2n = build(a.gds, a.top, a.flat)
     nl = l2n.netlist()
     nl.make_top_level_pins()
-    nl.combine_devices()
+    if a.combine:
+        nl.combine_devices()
     nl.purge()
     nl.purge_nets()
     if a.flat:

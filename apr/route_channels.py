@@ -14,7 +14,7 @@ via_1 -> M1 の水平ラン -> via_1（「ジョグ」）で移る。
   自分を再 exec するが、**ここを直接叩くとその保護が効かない**（ルータの
   どこかが集合を反復していて、同じ配置から違う結果が出る。U1）。
 ★ モジュール既定の `PER_ROW_LOCAL_NETS` / `FORCE_JOG_NETS` / `CH_HEIGHTS` は
-  **I2C 時代の網名と実測値**。`route.py` が毎回上書きして渡す。
+  **I2C 時代のネット名と実測値**。`route.py` が毎回上書きして渡す。
 ★ `TRACK_PITCH` の下限は 5.4 で、いまがその下限（`rules.TRACK_PITCH_MIN`）。
 
 以下は v3/v4 当時の変更経緯。参照している `design_notes.md` は

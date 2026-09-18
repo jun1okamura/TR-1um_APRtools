@@ -60,7 +60,7 @@ yosys の出力を P&R に渡せる形にする。
 |---|:--:|--:|--:|---|
 | `netlist_parser.py` |  | 98 | 7 | 構造 Verilog を読む（`mklvsnet` など 7 本が読む） |
 | `netlist_util.py` |  | 103 | 6 | yosys `write_verilog -noattr` の最小の読み書き（6 本が読む） |
-| `insert_bufth.py` |  | 194 |  | 外部入力を `BUFTH`（シュミットトリガ）で一度受ける。対象網は `config.BUFTH_NETS` |
+| `insert_bufth.py` |  | 194 |  | 外部入力を `BUFTH`（シュミットトリガ）で一度受ける。対象ネットは `config.BUFTH_NETS` |
 | `dedup_gates.py` |  | 189 |  | 同じ入力の同じゲートをまとめる |
 | `merge_muxdffrb_rslatch.py` |  | 301 |  | `MUX + DFFRB` を `RSLATCH` に寄せる（TD4）。`.VDD(VDD)` を書くので TB は `--power` が要る |
 | `syn_report.py` |  | 87 |  | マッピング後のネットリストから面積と所要コア面積を出す |

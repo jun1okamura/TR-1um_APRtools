@@ -93,13 +93,13 @@ x86_64 / KLayout 0.28.16 + `--allow-old-klayout`（**サインオフは 0.29 以
 
 | 対象 | DRC | LVS |
 |---|---|---|
-| コア `step11` | **0 件** | **一致**（layout = source = 3597 素子 / 1386 網 / 16 ピン） |
+| コア `step11` | **0 件** | **一致**（layout = source = 3597 素子 / 1386 ネット / 16 ピン） |
 | チップ `step4_final` | **0 件** | **一致**（4225 / 1503 / 16） |
 | 提出 GDS `src/tr_1um_jun1okamura.gds` | **0 件** | — |
 | MDP マスク（`run_mdp` → `run_IP62`） | **0 件**（マスク 6.0 MB） | — |
 
 `pre_check.py` OK（トップセル名 / dbu 0.001 / 2500 µm 角 / フレームあり）。
-素子・網・ピンの数は `docs/30_verify_drc_lvs.md` §4 の実績表と**同じ数字**。
+素子・ネット・ピンの数は `docs/30_verify_drc_lvs.md` §4 の実績表と**同じ数字**。
 
 ### ngspice — 12 サイクルすべて期待どおり
 

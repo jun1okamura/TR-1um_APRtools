@@ -5,7 +5,7 @@
 #          PER=2500 sh $APRTOOLS/syn/syn.sh （STA の周期だけ上書き）
 #
 # **設計ごとの値は全部 `config.py` から取る。** 以前は I2C の値（RTL の場所・
-# トップ名・abc 制約・BUFTH の網・V10 の参照ネットリスト）がこのファイルに
+# トップ名・abc 制約・BUFTH のネット・V10 の参照ネットリスト）がこのファイルに
 # 直書きで、TD4 と SCLK_SPI では回らなかった（`docs/40_gotchas.md` §4-0d）。
 #
 # 段は config.py が与えたものだけ回る:

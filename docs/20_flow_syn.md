@@ -11,7 +11,7 @@ export APRTOOLS=... ; export PYTHONPATH=$APRTOOLS/apr
 sh $APRTOOLS/syn/syn.sh          # 引数も環境変数も要らない
 ```
 
-以前は I2C の値（RTL の場所・トップ名・abc 制約・BUFTH の網・V10 の参照
+以前は I2C の値（RTL の場所・トップ名・abc 制約・BUFTH のネット・V10 の参照
 ネットリスト・周期）が `syn.sh` に直書きで、**TD4 でも SCLK_SPI でも
 回らなかった**（U36）。いまは全部 `config.py` から取り、**与えられた段だけ
 回る**。

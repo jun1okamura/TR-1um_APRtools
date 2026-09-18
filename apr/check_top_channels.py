@@ -133,7 +133,7 @@ class Ring:
 
 
 def rows_of(plan, path):
-    """プランの 1 行 = 端子 2 つの配線 1 本。同じ網が複数行に出る（DIS の
+    """プランの 1 行 = 端子 2 つの配線 1 本。同じネットが複数行に出る（DIS の
     スター配線など）ので、札は net か net.role にする。"""
     rows = plan.get("signals") if isinstance(plan, dict) else None
     bad = None
