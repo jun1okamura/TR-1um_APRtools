@@ -553,7 +553,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U22 | PDK に同名で中身の違うフレームが 2 つある | 上流待ち | 上流へ改名かリードミーを提案（PR 本文の末尾に書いてある） |
 | U43 | 59.4 の抽出ネットリストが ngspice の既定の許容差で進まない | 一部残 | なぜ 64.8 版では ngspice の既定で通ったのかを調べる |
 | U73 | Liberty に書いた制約のうち STA が見るのは一部だった | 一部残 | `min_pulse_width` 11 ns を ngspice の回帰として自動化する |
-| U94 | 同名の写しが 92 本残っている | 一部残 | 設計側の流れ（TD4 の `scripts/syn.sh` ほか）が呼んでいるぶん。**流れごと APRtools に寄せるか、設計固有として認めるか**を設計ごとに決める |
+| U94 | 同名の写しが 91 本残っている | 一部残 | 中身まで突き合わせて 4 つに分けた（2026-09-18）: **同一 17**（呼び先を向けて消すだけ・無リスク）／ **小さい差 37**（設計側が古いだけ＝「古い方を呼ぶ」が残っている）／ **大きい差 31**（本当に設計固有。うち SPI の 3 本は凍結物 `reference/v64_8/` 専用）／ README 6。**先に手が付くのは 54 本** |
 | U96 | 特性化が並列をまとめたネットリストで回っている（7 セル） | 未解決 | 1 セルで両方のネットの遅延を測って**影響の大きさを出す**。そのうえで再特性化するか決める |
 | U93 | 追跡ファイルにホームパスが残っている | 一部残 | 残り 31 件は移植した写し（`scripts/i2c_ref/` `scripts/pnr/from_async_i2c/` `lef_parser.py`）とTD4 の配線ログ 1 本。**U94（写しをどうするか）と同じ判断**になる |
 
@@ -2959,8 +2959,66 @@ U89（`TR-1um_PNR.gds` という派生を読んでいた）と同じ形で 2 度
 消したあと、**実行の形で消したものを参照している追跡ファイルは 0 件**を確認。
 目録の表には名前が残るので「正本は `$APRTOOLS/apr/`」と断る見出しを付けた。
 
-**残り 92 本** — 設計側の流れが現役で呼んでいるぶん。
+**残り 91 本** — 設計側の流れが現役で呼んでいるぶん。
 **流れごと APRtools に寄せるか、設計固有として認めるか**を設計ごとに決める。
+
+##### 決めるための材料（2026-09-18）— **4 つに分かれる**
+
+`git ls-files` の同名 91 本を、APRtools 側と**中身まで突き合わせた**:
+
+| 設計 | 同名 | 中身まで同一 | 小さい差（≤30 行） | 大きい差（>30 行） | README |
+|---|---:|---:|---:|---:|---:|
+| `TR-1um_TD4` | 35 | 9 | 13 | 10 | 3 |
+| `TR-1um_I2C_2026` | 34 | 7 | 15 | 9 | 3 |
+| `TR-1um_SCLK_SPI` | 22 | 1 | 9 | 12 | 0 |
+| **計** | **91** | **17** | **37** | **31** | **6** |
+
+**(a) 中身まで同一 17 本** — md5 が一致する。**呼び先を
+`$APRTOOLS/apr/` に向けて消すだけ**で、振る舞いは 1 ビットも変わらない。
+
+```
+TD4   check_irsim_log.py check_irsim_timing.py check_ngspice.py gds_extract.py
+      gen_irsim_cmd.py insert_bufth.py netcmp.py pnr/netlist_util.py spi2ngspice.py
+I2C   check_irsim_log.py check_irsim_timing.py check_ngspice.py gen_irsim_cmd.py
+      netcmp.py pnr/netlist_util.py spi2ngspice.py
+SPI   netlist_util.py
+```
+
+★ ただし TD4 の 5 本は **`irsim/*.cmd` から呼ばれている**。`.cmd` は IRSIM の
+コマンドファイルなので、`$APRTOOLS` が通っている保証が無い。**呼び先を
+書き換えるときに何が壊れるかは `.cmd` ごとに見る必要がある。**
+
+**(b) 小さい差 37 本** — 差を読むと**設計側が古いだけ**だった。
+設計側にしか無い行は 0〜10 行で、どれも「APRtools で書き換えた行の**前の姿**」。
+
+```
+cellinfo.py   設計: ROW_H, POLY_PITCH, W_BASE = 59.4, 5.4, 5.4
+              APR : import rules  +  ... = 59.4, rules.SITE_W, rules.SITE_W
+pre_check.py  設計: docstring 無し（-15 行）
+read_info.py  設計: docstring 無し（-16 行）
+```
+
+つまり **U89 / U14 で踏んだ「古い方を呼ぶ」がそのまま残っている 37 本**。
+
+**(c) 大きい差 31 本** — こちらは本当に設計固有。頭の方:
+
+```
+1509  SPI scripts/route_chip.py          978  SPI scripts/place.py
+ 325  TD4 scripts/pnr/place.py           322  SPI scripts/export_mpw.py
+ 300  SPI scripts/gen_chip_sim_ready.py  273  SPI scripts/place_logo.py
+ 211  TD4/I2C scripts/pnr/ripup_reroute_shorts.py
+```
+
+★ **SPI のいくつかは「設計固有」ですらなく「凍結物専用」だった。**
+`gate_count.py` / `gen_cell_spice.py` / `gen_liberty.py` は行き先が
+`reference/v64_8/lef/...` — **提出済みの旧版のツリー**を読み書きする。
+`reference/` は凍結物なので、**これらは二度と回らない**。
+
+**(d) README 6 本** — 目録。U94 の削除のときに見出しを付けてある。
+
+★ **先に手が付くのは (a) と (b) の 54 本。** (a) は無リスク、(b) は
+「古い方を呼ぶ」がまだ残っている分なので、**直す動機がいちばん強い**。
+(c) は設計ごとに「流れを寄せるか」の判断が要る。
 
 #### U95 — `BUFTH` のしきい値が測り直せない直書き定数だった
 
