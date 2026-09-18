@@ -25,12 +25,24 @@ RAIL_TOL = 0.25    # フルレール判定 [V]
 HERE = os.path.dirname(os.path.abspath(__file__))
 # 既定は GDS から抽出した cells/*.spi。環境変数で lef/simulation/*.spice に
 # 切り替えられる（生成した LVS ソースそのものを検証するため）。
-# 抽出ネットリストの置き場。既定は cells_ext（loadext.py の出力）。
+# セルのネットリストの置き場。
+# ★ **既定は cells_gds**（`mkcells_gds.py` の出力。GDS から `--no-combine` で
+#   起こしたもの）。2026-09-18 まで `cells_ext`（PDK の LVS ランセット出力）を
+#   既定にしていたが、あれは **ngspice に持っていってはいけない**:
+#     (1) 並列 MOS がまとまっている（6 セル。狭幅のしきい値項があるので別物）
+#     (2) AS/AD が逆の端子に付いている
+#   → U96。`char/RUN.md` の手順 1。
+#   無ければ従来どおり `cells_ext` に落ちる（LVS の照合にはあちらでよい）。
 # 以前は {HERE}/cells を既定にしていたが、そんなディレクトリは無く、
 # TR1UM_CELLDIR を設定しないと全セルが「ネットリストが無い」で飛んでいた。
-CELLDIR = os.environ.get(
-    "TR1UM_CELLDIR",
-    f"{HERE}/cells_ext" if os.path.isdir(f"{HERE}/cells_ext") else f"{HERE}/cells")
+def _celldir():
+    for d in ("cells_gds", "cells_ext", "cells"):
+        if os.path.isdir(f"{HERE}/{d}"):
+            return f"{HERE}/{d}"
+    return f"{HERE}/cells"
+
+
+CELLDIR = os.environ.get("TR1UM_CELLDIR", _celldir())
 CELLEXT = os.environ.get("TR1UM_CELLEXT", ".spi")
 
 

@@ -125,9 +125,9 @@ def main():
     src = a.netlist or f"{CELLDIR}/{a.cell}{CELLEXT}"
     print(f"=== {a.cell} シュミットのしきい値")
     print(f"  条件   : typ モデル / VDD {VDD:g} V / {TEMP:g} °C / 準 DC 三角波")
-    print(f"  ネット     : {src}")
+    print(f"  ネットリスト : {src}")
     print(f"  ポート順: {' '.join(ports_for(a.cell, a.netlist))}"
-          f"   （そのネットの .subckt 宣言順。U42）")
+          f"   （そのネットリストの .subckt 宣言順。U42）")
     print(f"  しきい値の定義: 出力が {'/'.join(str(p) for p in OUT_PCT)} % を"
           f"横切った瞬間の**入力**電圧")
     print()
@@ -180,7 +180,7 @@ def main():
             print("  ** 50 mV を超えてずれている。Liberty の input_voltage は"
                   " mklib の定数から出ているので、直すならそちら")
             print("     直す前に (1) 傾斜を振って収束しているか（--sweep）")
-            print("            (2) 別のネットでも同じか（--netlist）を見ること")
+            print("            (2) 別のネットリストでも同じか（--netlist）を見ること")
         else:
             print("  -> 一致（50 mV 以内）。Liberty の input_voltage はこの値でよい")
     return 0

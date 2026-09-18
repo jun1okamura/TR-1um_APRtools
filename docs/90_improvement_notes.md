@@ -3096,6 +3096,12 @@ cells_gds   XM3 n6  A vss vss  AS=9.52p AD=2.04p    -> vss が 9.52 / n6 が 2.0
 `verify_lib.py` は **5 段すべて逸脱なし（判定: OK）**。格子の外での照合は
 0.1〜0.6 %、入力容量は 0.2〜2.5 %。
 
+★ **既定の置き場も変えた**（2026-09-18）。`charlib.CELLDIR` の既定は
+`cells_ext` のままだったので、**環境変数を付けずに回すと黙って古い方を読む**。
+14,179 本の本番は `TR1UM_CELLDIR` を明示していたので無事だったが、
+`char_schmitt.py` を素で回したら `cells_ext` を読んで古い値が出た。
+既定を `cells_gds` → `cells_ext` → `cells` の順にした。
+
 **まだ測り直していないもの** — `RSLATCH` / `REG8x16` / `OSS_ESD_5V_DIO` の
 3 つ（`char_latch.py` / `char_mem.py` / `char_pad.py` の担当）。
 `cells_mem/RSLATCH.spi` は `cells_ext` と**同じ出どころ**なので同じ不具合を
