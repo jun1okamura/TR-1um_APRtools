@@ -750,11 +750,27 @@ def sweep_edge(a, vals, knob="edge"):
         else: D_HOLD = e
         v = run(build_read(a.netlist, 0, SLEWS[3], True), f"{knob}{e:g}")
         chk = v.get("chk")
-        ok = chk is not None and chk < VDD / 2
+        # ★ **`chk` だけでは足りない**（2026-09-18）。`chk` は読出し直前の
+        #   `Q[0]`（word0 = 0x00 なので 0V のはず）だけを見る。刺激が短すぎて
+        #   **何も書かれなかった**ときも、セルは 0V のまま居るので `chk` は通る。
+        #   実際に踏んだ: `--web-low` を 2〜9 ns まで下げても全部「保持する」と
+        #   出たが、ログを見ると**読出しの `.meas` が 16 本とも failed**
+        #   （word1 = 0xFF が書かれていないので `Q` が上がらない）。
+        #   → **「word0 が 0V」と「word1 が 0xFF」の両方**を見る。
+        #   `d0`（ADD[0] 立上り -> Q[0] 立上り）が取れていれば後者の証拠になる。
+        #   `--web-pre` と `--d-hold` は**短すぎると word0 に次のデータ（0xFF）が
+        #   入る**ので `chk` が 5V になり、こちらは `chk` だけでも捕まっていた。
+        #   **捕まる壊れ方と捕まらない壊れ方がある。両方見る。**
+        wrote0 = chk is not None and chk < VDD / 2
+        read1 = v.get("d0") is not None
+        ok = wrote0 and read1
         rows.append((e, chk, ok))
+        why = ("" if ok else
+               "  <- word0 に 0x00 が入っていない" if not wrote0 else
+               "  <- word1 の 0xFF が読めない（読出しの .meas が取れない）")
         print(f"  {label} {e:>6.2f} ns  読出し直前の Q[0] = "
               f"{'—' if chk is None else format(chk, '.3f')}  "
-              f"{'保持する' if ok else '保持しない'}")
+              f"{'保持する' if ok else '保持しない'}{why}")
     good = [e for e, _, ok in rows if ok]
     bad = [e for e, _, ok in rows if not ok]
     # ★ **境界を JSON に残す。** Liberty に載る数字が「端末の行を人が写した
