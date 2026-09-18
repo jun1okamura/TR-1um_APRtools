@@ -53,6 +53,7 @@ python3 $APRTOOLS/apr/cmp_gds.py HEAD:<path> <path>   # 再現の確認
 | `rules.py` |  | 179 | 14 | プロセス定数の単一ソース（レイヤ番号・DRC 値・グリッド・フレーム実測値・電源名の写像）。**数値を他所に書き写さない** |
 | `lib_query.py` |  | 130 |  | Liberty から値を引く（ピンの入力容量 / `min_pulse_width`）。`syn.sh` / `sta.sh` が **`set_load` を写さずに `.lib` から取る**ために使う（U99）。`rules.py` と同じ「数値を書き写さない」の系統 |
 | `check_copies.py` |  | 165 |  | 設計側に残る**同名の写し**を数えて分ける（同一 / 古いだけ / 設計固有 / CI）。**「古いだけ」が事故の形**（U89 / U14）。`# copy: ok <理由>` で残す理由を書ける。`check_no_home_paths.py` と同じ「数えて言う」系統（U94）|
+| `check_ledger.py` |  | 120 |  | 台帳（`docs/90_improvement_notes.md` + `92_closed.md`）の整合。**索引と本文が 1 対 1 か / 状態が索引にしかないか / 取り消し線が無いか / 置き場が状態と合うか**。状態を 2 箇所に書いていて 8 件ずれていたのを止めた（U94 の文書版）|
 
 ### B. 合成のあと — ネットリスト加工
 

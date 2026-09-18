@@ -114,7 +114,8 @@ TR-1um_APRtools/
 │   ├── 05_migration_log.md        データ移動の記録
 │   ├── 40_gotchas.md          ★ 踏んだ穴集（設計非依存）
 │   ├── 50_char.md
-│   ├── 90_improvement_notes.md ★ 技術的負債の台帳（U1–U82。残りは §7-2）
+│   ├── 90_improvement_notes.md ★ 技術的負債の台帳（U1–U99。状態は §7-1 の索引）
+│   ├── 92_closed.md          決着した項目の記録（U 番号順。状態は書かない）
 │   └── 91_decisions.md        ★ 決定事項 1〜26（コードが引く「決定 N」の出典）
 │
 └── legacy/                    ── 移植原本（read-only・履歴保存・★改名しない）
