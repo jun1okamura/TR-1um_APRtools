@@ -21,6 +21,7 @@ python3 char_seq.py        # CK->Q 7x7 と setup/hold 3x3
 # 3) Liberty 生成と検算
 python3 mklib.py -o tr1um_typ_5v0_25c.lib
 python3 verify_lib.py
+python3 regress_limits.py      # 書込みパスの境界（OpenSTA が見ない分。U73）
 ```
 
 ## 効いた落とし穴

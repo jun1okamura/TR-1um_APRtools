@@ -148,6 +148,20 @@ ngspice を回さず、**手順 3 と同じ実行の実測値**で検算しま�
 引数を省くと `char/` → `stdcell/<版>/` の順に探します。**見つからなければ
 「要確認」**で終わります（回らなかった検査を「OK」と言わないため。U74）。
 
+★ **`verify_lib.py` が見ていないものが 1 つあります。** `REG8x16` の
+書込みパスの境界（`min_pulse_width` ほか）は `json` と `.lib` の
+突き合わせまでしか見ません。**OpenSTA もこれを見ない**（U73）ので、
+実際の担保は ngspice 側にしかありません:
+
+```
+python3 regress_limits.py
+```
+
+3 つの境界（`webpre` / `weblow` / `dhold`）の **pass 側と fail 側の 2 点だけ**
+回し直して、動いていないことを見ます（6 デッキ、数秒）。`.lib` の
+`min_pulse_width` が `json` と一致するかも同時に見ます。
+**`.lib` を作り直したら、これも回してください。**
+
 1. **表の健全性** — 欠損なし、負荷を増やすと必ず遅くなる（単調）
 2. **格子の外での照合** — 入力遷移 1.0 ns / 負荷 150 fF（どちらも格子点では
    ない）での ngspice 実測と、`.lib` を線形補間した値のずれが 15% 未満
@@ -182,6 +196,7 @@ ngspice を回さず、**手順 3 と同じ実行の実測値**で検算しま�
 | `collect.py` | `results.txt` → `char/*.json` |
 | `mklib.py` | `char/*.json` → Liberty |
 | `verify_lib.py` | `.lib` の検算 |
+| `regress_limits.py` | 書込みパスの境界を ngspice で測り直す回帰（U73。OpenSTA は見ない）|
 | `check_comb.py` / `check_seq.py` / `check_pass.py` | 論理の確認（`.lib` とは独立） |
 
 ---

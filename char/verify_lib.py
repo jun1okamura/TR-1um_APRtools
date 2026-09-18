@@ -441,4 +441,11 @@ if __name__ == "__main__":
     n += check_macro(lib) + check_lib_syntax(lib)
     print("\n" + "=" * 72)
     print("判定: OK" if n == 0 else f"判定: 要確認 {n} 件")
+    # ★ **この道具が見ていないものを言う**（U73）。ここは `json` と `.lib` の
+    #   突き合わせまで。`min_pulse_width` と（`WEB` をクロック宣言しない
+    #   設計での）`hold_rising` は **OpenSTA が見ない**ので、実際の担保は
+    #   ngspice 側にしかない。**「判定: OK」だけ読んで全部守られていると
+    #   思わせない。**
+    print("  （書込みパスの境界そのものは ngspice 側の担保。"
+          "`python3 $APRTOOLS/char/regress_limits.py` で測り直す。U73）")
     sys.exit(1 if n else 0)
