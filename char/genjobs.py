@@ -150,7 +150,7 @@ def gen_verify(jobs, outdir, cells):
 def main():
     ap = argparse.ArgumentParser()
     # ★ 既定は **`runjobs.sh` と `collect.py` が読む場所と同じ** `char/pack`。
-    #   以前はクラウド側の作業場 `/home/claude/char/pack` が既定で、
+    #   以前はクラウド側の作業場 `/home/claude/char/pack` が既定で、  # path-ok
     #   そのコンテナでは偶然 `char/pack` と同じ場所だったので誰も気づかず、
     #   **他の機械では書く側と読む側が別の場所**になっていた（決定 21）。
     from charlib import HERE as _HERE

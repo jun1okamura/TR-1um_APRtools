@@ -408,7 +408,7 @@ python3 apr/lint.py -v       # warn も全部出す
 | `env-direct` | NG | 外部ツール以外の環境変数を直読み | — |
 | `env-knob` | warn | `APR_*` の直読み（`getenv()` へ） | 変数名の一覧が散る |
 | `rail-map` | warn | `VDD` と `GND`/`VSS` を鍵にする辞書で `rules.` を参照していない | `POWER_NETS = {"VDD","GND"}` / `KeyError: 'GND'` |
-| `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている | `genjobs.py` の `-o` 既定が `/home/claude/char/pack`（U35 の続き）|
+| `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている | `genjobs.py` の `-o` 既定が `/home/claude/char/pack`（U35 の続き）|  <!-- path-ok -->
 
 ### ★ ノイズを出すリンタは 2 回目に誰も回さない
 

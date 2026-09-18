@@ -46,7 +46,7 @@
 | `file-table` | NG | `apr/*.py` と `apr/README.md` の分類表が食い違っている |
 | `design-knob` | NG | **設計が上書きできる値**（`ENV_KNOBS` ∩ `rules`）を `rules.` から直読み → `cfg.` から取る |
 | `drc-const` | NG | プロセス定数の写し。(a) `M1_*` / `M2_*` / `V1_*` … への**数値リテラル代入** (b) **argparse の既定**に書かれた同じもの |
-| `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている（`/home/…` `/Users/…` `/sessions/…` `/var/folders/…` `/opt/homebrew/…`）|
+| `foreign-path` | NG | **別の機械の絶対パス**が文字列リテラルに入っている（`/home/…` `/Users/…` `/sessions/…` `/var/folders/…` `/opt/homebrew/…`）|  # path-ok
 | `set-iter` | NG | **集合を `for` で回している**。反復順は `PYTHONHASHSEED` で変わるので、書き出す順・差し込む順が実行ごとに違いうる → `sorted()` で包む（U1）|
 
 `--constants` を付けると、**`rules.py` の「まるくない」値と一致する数値リテラル**を
@@ -132,9 +132,9 @@ DESIGN_KNOBS = _design_knobs()
 
 # ★ **自分のホーム以外の機械のパス**。仮名化の作業（U35）は `/Users/<自分>` と
 #   同期フォルダ名だけを探したので、**回した機械が別だった時期のパス**が残った:
-#     char/genjobs.py      -o の既定が `/home/claude/char/pack`（クラウド側の作業場）
-#     I2C の TB 2 本       `.include '/home/claude/work/.../ip62_models'`（= U24）
-#     旧世代のスクリプト群  `/sessions/<セッション名>/mnt/...` を直書き
+#     char/genjobs.py      -o の既定が `/home/claude/char/pack`（クラウド側の作業場）  # path-ok
+#     I2C の TB 2 本       `.include '/home/claude/work/.../ip62_models'`（= U24）  # path-ok
+#     旧世代のスクリプト群  `/sessions/<セッション名>/mnt/...` を直書き  # path-ok
 #   どれも**その機械以外では存在しないパス**で、既定値に入っていると
 #   「回したら落ちる」までは気づかない（決定 21 と同じ届かなさ）。
 #   凍結した `legacy/` は対象外（SKIP_DIRS）。記録としての言及はコメントに書く。
