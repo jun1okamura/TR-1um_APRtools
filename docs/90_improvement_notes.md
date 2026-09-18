@@ -555,7 +555,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U43 | 59.4 の抽出ネットリストが ngspice の既定の許容差で進まない | 一部残 | なぜ 64.8 版では ngspice の既定で通ったのかを調べる |
 | U73 | Liberty に書いた制約のうち STA が見るのは一部だった | 一部残 | `min_pulse_width` 11 ns を ngspice の回帰として自動化する |
 | U94 | 同名の写しが 68 本残っている | 一部残 | 2026-09-18 に **23 本消した**（TD4 13 / I2C 10）。★ 「小さい差＝古いだけ」は早合点で、30 行以下でも設計固有が半分以上あった（読んで決める）。残りは **CI が呼ぶ上流テンプレート 6 本**（`pre_check.py` / `read_info.py`。CI に `$APRTOOLS` は無い）、**import されるもの**（`netlist_util` / `lef_parser` / `netlist_parser` / `klayout_extract` ほか。U98 と同じ形なので同じ直し方を入れてから）、**本当に設計固有なもの**（`place.py` / `route_chip.py` ほか。SPI の 3 本は凍結物 `reference/v64_8/` 専用）|
-| U99 | `set_load 36.2` が `.lib` から写した直書きで、古くなった | **直した 2026-09-18**（回し直し待ち）| `apr/lib_pin_cap.py` を足し、`syn.sh` が `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**ようにした。`sta.sh` も同じ値を `setup.tcl` に渡す。**静的な `syn/abc.constr` は消した**（写しを残さない。U94）。どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の 1 箇所。**36.2 → 45.923 fF に変わるので 3 設計とも合成と STA の回し直しが要る** |
+| U99 | `set_load 36.2` が `.lib` から写した直書きで、古くなった | **決着 2026-09-18**（I2C 回し直し済み）| `apr/lib_pin_cap.py` を足し、`syn.sh` が `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**ようにした。`sta.sh` も同じ値を `setup.tcl` に渡す。**静的な `syn/abc.constr` は消した**（写しを残さない。U94）。どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の 1 箇所。**36.2 → 45.923 fF に変わるので 3 設計とも合成と STA の回し直しが要る** |
 | U93 | 追跡ファイルにホームパスが残っている | 一部残 | 残り 31 件は移植した写し（`scripts/i2c_ref/` `scripts/pnr/from_async_i2c/` `lef_parser.py`）とTD4 の配線ログ 1 本。**U94（写しをどうするか）と同じ判断**になる |
 
 ### 7-3. 記録（U 番号順）
@@ -3189,6 +3189,34 @@ macOS の `sed` は不正な UTF-8 を含むファイルを**バイナリとみ�
 ★ **「失敗したら元のまま」は安全側に見えて危ない。**
 このケースでは「何もしない」が「個人のパスを公開物に焼き付ける」だった。
 **黙って何もしない道を残さない。**
+
+##### 回し直した結果（I2C、2026-09-18）— **ネットリストは 1 バイトも変わらない**
+
+ABC が実際に新しい負荷を受け取っていることをログで確かめた:
+
+```
+ABC: + read_constr -v out/abc.constr
+ABC: Setting output load to be 45.923000.        （旧 36.200001）
+ABC: ... Cap =108.2 ff（旧 104.1） Delay = 15717.04 ps（旧 15673.29）
+ABC: Path 5 ... Cout = 45.9 ff（旧 36.2） S = 715.4 ps（旧 678.6）
+```
+
+動いたのは**出力までのパスだけ**:
+
+| | 旧 | 新 |
+|---|---:|---:|
+| `reg->out` slack | 742.049 ns | **741.906 ns**（−0.143）|
+| 経路の実遅延 | 24.266 ns | 24.267 ns |
+| `reg->reg` / `in->reg` / `hold r->r` | — | **不変** |
+
+**`out/i2c_slave_async_pnr.v` は 1 バイトも変わらない。**
+負荷が 27 % 増えても ABC は同じマッピングを選んだ。
+ログのホームパスは **0 件**（仮名化の直しも効いている）。
+
+★ **残り: TD4 と SPI の STA。** 合成は TD4 が決定 17（再合成しない）、
+SPI は U32 で回したばかり。**STA だけは新しい `.lib` と `set_load` で
+回し直す必要がある**（SPI は `.lib` の作り直し前に 36.35 MHz を出している）。
+
 
 
 #### U95 — `BUFTH` のしきい値が測り直せない直書き定数だった
