@@ -27,6 +27,8 @@
 from __future__ import annotations
 
 import argparse
+import json
+import os
 
 import cellspec
 from charlib import (CELLDIR, CELLEXT, HERE, TEMP, VDD, all_ports_of,
@@ -42,6 +44,10 @@ LOAD_FF = 10.0           # 出力負荷。しきい値は DC の性質なので�
 #   TR-1um は 1 µm・5 V で利得が高くないので、遷移域は入力電圧で数百 mV ある。
 #   10 / 50 / 90 % の 3 点を出して**遷移域の広さごと**見せる。
 OUT_PCT = (10, 50, 90)
+
+# 測定結果の置き場。**`mklib.py` はここから読む。**
+#   U95 で踏んだとおり、手で定数に写すと**測り直せない数字**になる。
+JSON_DEFAULT = os.path.join(HERE, "schmitt.json")
 
 
 def one_in_one_out(cell):
@@ -114,6 +120,11 @@ def main():
                     help="傾斜を 4 通り回して収束を見る（否定対照）")
     ap.add_argument("--netlist", metavar="PATH",
                     help="セルのネットリストを明示する（既定は TR1UM_CELLDIR の抽出ネットリスト）")
+    ap.add_argument("-o", "--json", metavar="PATH", default=None,
+                    help=f"測定結果をここへ書く（既定 {JSON_DEFAULT} を更新）。"
+                         "`mklib.py` がここから読むので、**手で定数に写さない**")
+    ap.add_argument("--no-write", action="store_true",
+                    help="測るだけで書かない")
     a = ap.parse_args()
 
     ipin, opin = one_in_one_out(a.cell)
@@ -166,6 +177,26 @@ def main():
           f" / 立下り {abs(last[f'vf{OUT_PCT[0]}'] - last[f'vf{OUT_PCT[-1]}']):.3f} V")
     print("  ★ 遷移域が広いほど「何 % で測るか」で値が動く。"
           "50 % 以外の定義で測られた数字と比べるときはここを見ること。")
+
+    if not a.no_write and not a.deck_only:
+        path = a.json or JSON_DEFAULT
+        db = {}
+        if os.path.exists(path):
+            db = json.load(open(path, encoding="utf-8"))
+        db[a.cell] = {
+            "vt_rise": round(vr, 4), "vt_fall": round(vf, 4),
+            "hysteresis": round(vr - vf, 4),
+            "vdd": VDD, "temp_c": TEMP, "ramp_us": ramps[-1],
+            "netlist": "char/" + os.path.relpath(src, HERE),
+            "method": ("準 DC の三角波で往復させ、出力が 50 % を横切った瞬間の"
+                       "入力電圧。char/char_schmitt.py"),
+            "measured": __import__("datetime").date.today().isoformat(),
+        }
+        json.dump(db, open(path, "w", encoding="utf-8"),
+                  ensure_ascii=False, indent=1, sort_keys=True)
+        print()
+        print(f"  -> char/{os.path.relpath(path, HERE)} に書いた"
+              f"（mklib.py がここから読む）")
 
     import mklib
     frozen = mklib.SCHMITT.get(a.cell)

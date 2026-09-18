@@ -85,8 +85,29 @@ def tmpl_of(cell, data):
             else f"delay_template_{cell}")
 
 
-# シュミットトリガの入出力レベル。DC で往復させて測った実測値。
-SCHMITT = {"BUFTH": {"vt_rise": 3.709, "vt_fall": 1.201}}
+# シュミットトリガの入出力レベル。
+# ★ **正本は `char/schmitt.json`**（`char_schmitt.py` が書く実測値）。
+#   下の辞書は **json が無いときの保険**で、2026-09-18 に測り直したら
+#   VT+ が 0.27 V も違っていた（U95）。「DC で往復させて測った実測値」と
+#   名乗ってはいたが、デッキもログも条件も無く**測り直せなかった**。
+#   手で写すとまた同じことになるので、**json から読む**。
+SCHMITT_FALLBACK = {"BUFTH": {"vt_rise": 3.709, "vt_fall": 1.201}}
+SCHMITT_JSON = os.path.join(HERE, "schmitt.json")
+
+
+def _schmitt():
+    """`char/schmitt.json` があればそれを使う。無ければ保険 + 作り方の案内。"""
+    if os.path.exists(SCHMITT_JSON):
+        db = json.load(open(SCHMITT_JSON, encoding="utf-8"))
+        return {c: v for c, v in db.items()
+                if "vt_rise" in v and "vt_fall" in v}
+    print(f"** char/{os.path.relpath(SCHMITT_JSON, HERE)} が無いので"
+          f"保険の定数を使う（測り直せない数字）。\n"
+          f"   測るには: python3 char/char_schmitt.py BUFTH --sweep", flush=True)
+    return SCHMITT_FALLBACK
+
+
+SCHMITT = _schmitt()
 
 
 def emit_comb(cell, data, o):
