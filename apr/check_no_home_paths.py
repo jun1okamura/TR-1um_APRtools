@@ -18,7 +18,7 @@
 
     /Users/<誰か>/   … macOS のホーム
     /home/<誰か>/    … Linux のホーム（`/home/runner` のような CI は除く）
-    /sessions/       … このクラウドの作業場
+    /sessions/       … このクラウドの作業場（この行は path-ok）
 
   ★ **凍結物は対象外**（`legacy/` と `reference/`）。当時の記録なので
     書き換えない（U35 の決着）。

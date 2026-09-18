@@ -53,11 +53,24 @@ def convert(path):
 
 
 def ports_of_lines(lines):
+    """`.subckt` のポート並び。**継続行（`+`）も拾う。**
+
+    ★ 拾っていなかった（2026-09-18）。`--flat` で起こした `REG8x16` は
+      ポートが 23 本あって 1 行に収まらず、**先頭 11 本だけ**返していた。
+      本番の並びは `check_comb.subckt_ports_of()` が読むので数字は無事
+      だったが、ここは表示に使うので**黙って短い並びを見せる**ことになる。
+    """
+    out, seen = [], False
     for s in lines:
         t = s.split()
-        if t and t[0].lower() == ".subckt":
-            return t[2:]
-    return []
+        if not seen and t and t[0].lower() == ".subckt":
+            out, seen = t[2:], True
+        elif seen:
+            if s.startswith("+"):
+                out += s[1:].split()
+            else:
+                break
+    return out
 
 
 def main():

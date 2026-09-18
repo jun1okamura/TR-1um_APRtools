@@ -931,6 +931,25 @@ def main():
     global PORTS, RUNTAG, PROBE
     PROBE = a.probe
     RUNTAG = ("ext" if a.ext else "src") + ("" if a.strip == "none" else f"_{a.strip}")
+    # ★ `-n` を明示したら、**行き先も明示させる**（2026-09-18）。
+    #   `-n` は既定の道（`--ext` / 設計由来）から外れる実験なのに、`-o` の
+    #   既定は `RUNTAG == "src"` を見て**正本の `char/REG8x16.json`**を
+    #   指していた。別のネットリストで測った数字が、黙って正本を上書きする。
+    #   `char_latch.py collect` の `-o` が効かなかったのと同じ形（U96）。
+    #   デッキとログの置き場もネットリスト名で分ける（混ざらないように）。
+    if a.netlist is not None:
+        # 置き場も名前に入れる。`cells_gds/REG8x16.spi` と
+        # `cells_mem/REG8x16.spi` は同じ名前なので、基底名だけでは混ざる。
+        d = os.path.basename(os.path.dirname(os.path.abspath(a.netlist)))
+        RUNTAG = (re.sub(r"[^A-Za-z0-9]+", "_",
+                         f"{d}_{os.path.splitext(os.path.basename(a.netlist))[0]}")
+                  + ("" if a.strip == "none" else f"_{a.strip}"))
+        if a.out is None:
+            raise SystemExit(
+                f"** `-n` を使うときは `-o` も指定すること。\n"
+                f"   既定の行き先は正本の {HERE}/char/{CELL}.json で、"
+                f"別のネットリストの数字で**黙って上書き**してしまう。\n"
+                f"   例: -o {HERE}/char/{CELL}_{RUNTAG}.json")
     if a.out is None:
         a.out = (f"{HERE}/char/{CELL}.json" if RUNTAG == "src"
                  else f"{HERE}/char/{CELL}_{RUNTAG}.json")

@@ -82,7 +82,44 @@ def cells_of(ref):
 
 
 def ntr(path):
-    return sum(1 for s in open(path, encoding="utf-8") if re.match(r"^XM", s))
+    """素子数。**階層セルは平らにして数える**（トップの `XM` だけでは足りない）。
+
+    ★ 2026-09-18 まで `^XM` の本数を数えていた。`cells_ext/REG8x16.spi` は
+      下位回路を持つので **72**（トップの直下だけ）になり、`--flat` で
+      起こした 1876 と並べて「+1804」という意味の無い差が出ていた。
+    """
+    # ★ 継続行（`+`）をつないでから読む。つながないと、サブサーキット
+    #   呼び出しの**行末にある回路名**を取り損ねて、その下の素子が丸ごと
+    #   数から落ちる（`cells_ext/REG8x16.spi` が 1876 ではなく 1600 に出た）。
+    src = []
+    for ln in open(path, encoding="utf-8"):
+        t = ln.rstrip("\n").strip()
+        if t.startswith("+") and src:
+            src[-1] += " " + t[1:].strip()
+        else:
+            src.append(t)
+    subs, cur = {}, None
+    for t in src:
+        u = t.upper()
+        if u.startswith(".SUBCKT"):
+            cur = t.split()[1]
+            subs[cur] = {"n": 0, "kids": []}
+        elif u.startswith(".ENDS"):
+            cur = None
+        elif cur and re.match(r"^XM", t):
+            subs[cur]["n"] += 1
+        elif cur and re.match(r"^X(?!M)", t):
+            subs[cur]["kids"].append(t.split()[-1])
+    if not subs:
+        return 0
+    top = next(iter(subs))                      # 先頭の `.SUBCKT` がそのセル
+
+    def walk(name, depth=0):
+        if depth > 20 or name not in subs:      # 循環よけ
+            return 0
+        d = subs[name]
+        return d["n"] + sum(walk(k, depth + 1) for k in d["kids"])
+    return walk(top)
 
 
 def main():
@@ -110,7 +147,7 @@ def main():
     print(f"出力 : {a.out}" + ("  （--check なので書かない）" if a.check else ""))
     print()
     print(f"{'cell':<12}{'GDS(未combine)':>16}{'cells_ext':>12}{'差':>5}  ports")
-    diff, skipped = [], []
+    diff, flattened = [], []
     with tempfile.TemporaryDirectory() as tmp:
         for cell in cells:
             ext = os.path.join(tmp, f"{cell}.extracted")
@@ -122,18 +159,34 @@ def main():
                 print(f"{cell:<12}  ** 抽出できない: {r.stderr.strip().splitlines()[-1:]}")
                 continue
             lines = loadext.convert(ext)
-            # ★ 階層セル（マクロ）は飛ばす。並列まとめの話はリーフセルの問題で、
-            #   マクロは `char_mem.py` が `cells_mem/` の別ネットリストで測る。
-            #   ここで作り直すと**測っているネットリストが変わってしまう**ので触らない。
             # ★ 階層セル（マクロ）も**起こす**。2026-09-18 まで飛ばして
             #   `cells_ext` の写しを置いていたが、`char/char/REG8x16.json` の
             #   `netlist` を見たら **`REG8x16.spi`（= 抽出版）**で測ってあり、
-            #   まさに直したい方だった。`loadext.convert()` を通せば無名ネットも
-            #   `n6` / `vss_1` になり、そのまま ngspice に入る。
-            #   下位回路を持つので**素子数の比較は意味を持たない**（印だけ付ける）。
-            hier = any(re.match(r"^X(?!M)", s) for s in lines)
-            if hier:
-                skipped.append(cell)
+            #   まさに直したい方だった。
+            #
+            # ★ **階層のまま起こしてはいけない**（2026-09-18、U96）。
+            #   下位回路の内部ノードに名前が無いと、KLayout は
+            #   `.SUBCKT OSS_DRV OUT HIZ vdd n17 n18 gnd` のように**番号で**
+            #   ポートに昇格させる。**どれがどれかは意味を持たない**ので、
+            #   読む側（`char_mem.py` の `--probe` など）が名前で当てにいくと
+            #   黙って外れる。パッドで踏み、`REG8x16` では `webq`（書込みの
+            #   アーク）が空になった。
+            #   → **下位回路を持つセルは `--flat` で 1 つに落とす。**
+            #     トップのポート名は GDS のラベルから来るので消えない。
+            if any(re.match(r"^X(?!M)", s) for s in lines):
+                flat = os.path.join(tmp, f"{cell}.flat.extracted")
+                r = subprocess.run(
+                    [sys.executable, os.path.join(APR, "klayout_extract.py"),
+                     a.gds, cell, "--flat", "--no-combine", "-o", flat],
+                    capture_output=True, text=True)
+                if r.returncode != 0 or not os.path.exists(flat):
+                    print(f"{cell:<12}  ** --flat で抽出できない: "
+                          f"{r.stderr.strip().splitlines()[-1:]}")
+                    continue
+                lines = loadext.convert(flat)
+                if any(re.match(r"^X(?!M)", s) for s in lines):
+                    raise SystemExit(f"** {cell}: --flat でも階層が残っている")
+                flattened.append(cell)
             n_new = sum(1 for s in lines if re.match(r"^XM", s))
             refp = os.path.join(a.ref, f"{cell}.spi")
             n_ref = ntr(refp) if os.path.exists(refp) else None
@@ -146,10 +199,12 @@ def main():
                   f"{' '.join(loadext.ports_of_lines(lines))}")
 
     print()
-    if skipped:
-        print(f"階層セル {len(skipped)}: {', '.join(skipped)}")
-        print("  下位回路を持つので、**上の素子数の比較は意味が無い**"
-              "（`XM` の総数を数えているだけ）。中身は起こしてある。")
+    if flattened:
+        print(f"階層セル {len(flattened)} は `--flat` で 1 つに落とした: "
+              f"{', '.join(flattened)}")
+        print("  無名ネットが番号でポートに昇格するのを避けるため（U96）。")
+        print("  `cells_ext` 側は階層のままなので、**素子数の比較は"
+              "平らにした総数どうし**になる。")
         print()
     print(f"{len(cells)} セル。**素子数が変わるのは {len(diff)} セル**"
           f"（残りは元から並列が無いので同じネットリスト）:")
