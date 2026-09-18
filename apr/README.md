@@ -52,6 +52,7 @@ python3 $APRTOOLS/apr/cmp_gds.py HEAD:<path> <path>   # 再現の確認
 | `config_base.py` |  | 930 |  | 設計非依存の既定値と導出。設計の `config.py` が `from config_base import *` で読む。`ENV_KNOBS`（39 個の台帳）と `chip_stack()` もここ |
 | `rules.py` |  | 179 | 14 | プロセス定数の単一ソース（レイヤ番号・DRC 値・グリッド・フレーム実測値・電源名の写像）。**数値を他所に書き写さない** |
 | `lib_query.py` |  | 130 |  | Liberty から値を引く（ピンの入力容量 / `min_pulse_width`）。`syn.sh` / `sta.sh` が **`set_load` を写さずに `.lib` から取る**ために使う（U99）。`rules.py` と同じ「数値を書き写さない」の系統 |
+| `check_copies.py` |  | 165 |  | 設計側に残る**同名の写し**を数えて分ける（同一 / 古いだけ / 設計固有 / CI）。**「古いだけ」が事故の形**（U89 / U14）。`# copy: ok <理由>` で残す理由を書ける。`check_no_home_paths.py` と同じ「数えて言う」系統（U94）|
 
 ### B. 合成のあと — ネットリスト加工
 
