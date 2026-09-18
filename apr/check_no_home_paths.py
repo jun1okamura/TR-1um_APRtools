@@ -23,6 +23,16 @@
   ★ **凍結物は対象外**（`legacy/` と `reference/`）。当時の記録なので
     書き換えない（U35 の決着）。
 
+  ★ **リポジトリごとに凍結物を足せる**（`<リポジトリ>/.frozen-paths`）。
+    移植の島（`scripts/i2c_ref/` `scripts/pnr/from_async_i2c/`）のように、
+    **場所は動かせないが中身は当時の記録**というものがある（外の live な
+    スクリプトが名前で参照しているので移せない）。1 行 1 つ、**理由を
+    `#` のあとに必ず書く**（理由の無い行は読まない。`lint: ok` と同じ形）:
+
+        scripts/i2c_ref/   # 移植の島。当時の作業場の絶対パスを含む
+
+    ★ **凍結したことは黙らない。** 何本を何の理由で外したかを毎回出す。
+
   ★ **`path-ok` と書いた行は数えない。** 「この問題そのものを説明している
     文書やコード」— 検査の網の定義、台帳の経緯、`docs` の注意書き — は
     パスを**引用**する必要がある。`lint.py` の `lint: ok` と同じ逃がし方。
@@ -41,6 +51,27 @@ DEFAULT = (r"/Users/[A-Za-z0-9._-]+/", r"/home/(?!runner/)[A-Za-z0-9._-]+/",  # 
            # lint: ok この道具の検査対象そのもの
            r"/sessions/")  # path-ok
 FROZEN = ("legacy/", "reference/")
+
+
+def frozen_of(root):
+    """`<リポジトリ>/.frozen-paths` を読む。-> [(接頭辞, 理由)]
+
+    **理由（`#` のあと）が空の行は無視する。** 「なぜ外したか」を書かない
+    逃がし方は、次に読んだ人に何も伝えない（`lint: ok` と同じ考え方）。
+    """
+    p = os.path.join(root, ".frozen-paths")
+    out = []
+    if not os.path.exists(p):
+        return out
+    for ln in open(p, encoding="utf-8"):
+        ln = ln.strip()
+        if not ln or ln.startswith("#"):
+            continue
+        pre, _, why = ln.partition("#")
+        pre, why = pre.strip(), why.strip()
+        if pre and why:
+            out.append((pre, why))
+    return out
 
 
 def tracked(root):
@@ -68,10 +99,12 @@ def main():
     ng = 0
     for root in (a.repos or ["."]):
         files = tracked(root)
+        extra = [] if a.all else frozen_of(root)
         skipped = hit = 0
         rows = []
         for f in files:
-            if not a.all and f.startswith(FROZEN):
+            if not a.all and (f.startswith(FROZEN)
+                              or f.startswith(tuple(p for p, _ in extra))):
                 skipped += 1
                 continue
             p = os.path.join(root, f)
@@ -92,6 +125,9 @@ def main():
         name = os.path.basename(os.path.abspath(root))
         print(f"{name:<22} 追跡 {len(files):>6} 本 "
               f"（凍結 {skipped} 本を除く）  -> **{hit} 件**")
+        for pre, why in extra:                    # ★ 外したものは黙らない
+            k = sum(1 for f in files if f.startswith(pre))
+            print(f"    凍結 {k:>4} 本  {pre}  <- {why}")
         for n, f in sorted(rows, reverse=True)[:20 if a.verbose else 5]:
             print(f"    {n:>5} 箇所  {f}")
         if len(rows) > (20 if a.verbose else 5):
