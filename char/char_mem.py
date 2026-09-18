@@ -949,10 +949,12 @@ def main():
                 f"** `-n` を使うときは `-o` も指定すること。\n"
                 f"   既定の行き先は正本の {HERE}/char/{CELL}.json で、"
                 f"別のネットリストの数字で**黙って上書き**してしまう。\n"
-                f"   例: -o {HERE}/char/{CELL}_{RUNTAG}.json")
+                f"   例: -o {HERE}/char/exp/{CELL}_{RUNTAG}.json")
     if a.out is None:
+        # ★ 実験は `char/char/exp/` へ。正本の置き場に混ぜない（`mklib.py` と
+        #   `verify_lib.py` が `os.listdir` で拾う場所なので）。
         a.out = (f"{HERE}/char/{CELL}.json" if RUNTAG == "src"
-                 else f"{HERE}/char/{CELL}_{RUNTAG}.json")
+                 else f"{HERE}/char/exp/{CELL}_{RUNTAG}.json")
     if a.netlist is None:                       # -n が無いときだけこちらが決める
         a.netlist = (f"{HERE}/cells_mem/{CELL}.spi" if a.ext
                      else f"{HERE}/cells_mem/{CELL}_src.spi")
@@ -1075,8 +1077,14 @@ def main():
                         sp.append(abs(v["d7"] - v["d0"]) / v["d0"])
             res["bit_spread"][f"ADD[{b}]"] = max(sp) if sp else None
 
-    if a.only == "webq":
+    if a.only in (None, "webq"):
         # ★ WEB -> Q（書込み中に Q が追従する経路）。U7 の 4 項目目。
+        # ★ **素の実行でも回す**（2026-09-18）。`if a.only == "webq"` だったので、
+        #   引数無しで流すと `read` と `cap` は測るのに **`webq` だけ黙って
+        #   飛ばして `{}` を書いていた**。U96 で「`cells_gds` だと書込みの
+        #   アークが空になる」と読んだのはこれで、**ネットリストのせいでは
+        #   なかった**（`--flat` に替えても同じく空のままで気づいた）。
+        #   `read` / `cap` は `a.only in (None, ...)` なのに、ここだけ違った。
         sl = [SLEWS[3]] if a.quick else SLEWS
         fall = {"cell_fall": [], "fall_transition": []}
         rise = {"cell_rise": [], "rise_transition": []}

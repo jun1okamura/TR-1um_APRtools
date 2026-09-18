@@ -49,6 +49,22 @@ AREAS = _Areas()
 IND = "  "
 
 
+# ★ **置き場に落ちている .json を全部ライブラリに入れてはいけない**（2026-09-18）。
+#   実験の結果は `REG8x16_cells_gds.json` のように**別名で出す**のが決まり
+#   （`char_mem.py` / `char_latch.py` の `-o`）。ところがここは `os.listdir`
+#   で拾っていた。**何が起きるかは道具で違う**（否定対照で確かめた）:
+#     `mklib.py`    面積表を名前で引くので `KeyError: 'NAND2_zzz'` で**落ちる**
+#                   （落ちるだけ安全だが、実験のたびに正本作りが止まる）
+#     `verify_lib.py` **黙って実験ファイルを検算し、「要確認 4 件」を出す**。
+#                   本物の指摘に紛れるのでこちらの方が悪い。実際、パッドの
+#                   実験（`cell_rise` が全点 `None`）を正本の逸脱として数えた。
+#   不変条件はひとつ: **セル `X` の正本は `X.json` で、中の `cell` も `X`。**
+def is_production(fname, data):
+    """`<cell>.json` で、中の `cell` と名前が一致するものだけ正本とみなす。"""
+    return data.get("cell") == fname[:-len(".json")]
+
+
+
 def fmt_table(rows, scale=1e9, nan=None):
     """[[v,...],...] -> Liberty の values(...) 文字列。None は前後から埋める。"""
     out = []
@@ -618,6 +634,8 @@ def main():
         if not f.endswith(".json") or f.startswith("_"):
             continue
         dd = json.load(open(f"{HERE}/char/{f}"))
+        if not is_production(f, dd):
+            continue
         sl = dd.get("slews", SLEWS)
         if sl == SLEWS or dd.get("pad"):
             continue
@@ -687,12 +705,15 @@ def main():
     o.append("")
 
     ncell = 0
-    skipped = []
+    skipped, extra = [], []
     for cell in sorted(os.listdir(f"{HERE}/char")):
         if not cell.endswith(".json") or cell.startswith("_"):
             continue
         name = cell[:-5]
         d = json.load(open(f"{HERE}/char/{cell}"))
+        if not is_production(cell, d):
+            extra.append(f"{name}.json（実験の写し。中の cell は {d.get('cell')!r}）")
+            continue
         if d.get("macro"):
             if not any(v is not None for a in d.get("read", {}).values()
                        for t in a.values() for r in t for v in r):
@@ -720,6 +741,8 @@ def main():
     print(f"wrote {a.out}  ({ncell} cells, {len(o)} lines)")
     for n in skipped:
         print(f"  ! {n}: マクロなので飛ばした（Liberty への出力は未実装）")
+    for n in extra:
+        print(f"  - {n}: 正本ではないので入れない")
 
 
 if __name__ == "__main__":

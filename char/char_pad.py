@@ -30,16 +30,31 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "OSS_ESD_5V_DIO"
 # ★ U42: `XU` の並びは**ネットリストの `.subckt` から読む**。
-#   以前は "PAD VDD OUT HIZ VSS" を 3 箇所に直書きしていた。ngspice は
+#   以前は "PAD VDD OUT HIZ VSS" を 4 箇所に直書きしていた（U42 では
+#   3 箇所しか直せていなかった。残っていた 1 箇所が `build_delay`）。ngspice は
 #   数が合えば黙って繋ぐので、セル側が並べ替わっても落ちずに嘘の波形が出る。
 #   `main()` が `ports_for()` で決める。
 PORTS = None
 
 
+# フレーム側のピン名。パッドセルは大文字（`OSS_FRAME_GIO` の宣言そのまま）で、
+# lint: ok コアの小文字レールとは `frame_pins.py` が境界で写像する（U21）
+EXPECT_PINS = {"PAD", "VDD", "HIZ", "OUT", "VSS"}
+
+
 def ports_for(netlist):
     """`XU <PORTS> OSS_ESD_5V_DIO` の並び。節点名はピン名そのままなので、
-    `.subckt` の宣言順をそのまま使う（U42）。"""
-    return " ".join(subckt_ports_of(netlist, CELL))
+    `.subckt` の宣言順をそのまま使う（U42）。
+
+    ★ **顔ぶれも確かめる。** 並びだけ読んで名前を見ないと、ピンが増減した
+      ネットリストでも数が合えば黙って繋がる（U42 の別形）。
+    """
+    pins = subckt_ports_of(netlist, CELL)
+    if set(pins) != EXPECT_PINS:
+        raise SystemExit(
+            f"** {netlist} の .subckt {CELL} のピンが違う\n"
+            f"   期待 {sorted(EXPECT_PINS)}\n   実際 {sorted(pins)}")
+    return " ".join(pins)
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
 from check_comb import models_dir, need_ngspice, subckt_ports_of               # noqa: E402
 from charlib import FRAME_GDS                                                  # noqa: E402
@@ -140,7 +155,16 @@ def build_delay(netlist, slew, rise_in):
     L.append("Rin src OUT 0.001")      # 理想源を急峻に振るとソルバが落ちる
     L.append("Vhiz HIZ 0 0")           # 駆動モード
     for k, cl in enumerate(LOADS):
-        L.append(f"X{k} pad{k} VDD OUT HIZ VSS {CELL}")
+        # ★ **並びはネットリストから読む**（U42）。`PAD` だけ負荷ごとの節点に
+        #   差し替える。ここは U42 のとき**直し忘れていた 4 箇所目**で、
+        #   `PAD VDD OUT HIZ VSS` の直書きが残っていた。GDS から起こした
+        #   フレームは `.SUBCKT OSS_ESD_5V_DIO PAD VDD HIZ OUT VSS` なので
+        #   **`HIZ` と `OUT` が入れ替わり**、`HIZ` に定数 0 が、`OUT` に
+        #   入力波形が入る。ドライバは常に出力禁止の裏返しになり、
+        #   `PAD` が一度も立ち上がらない = `cell_rise` が全点 `None`。
+        #   ランセット由来のネットリストはたまたま直書きと同じ並びだった。
+        L.append(f"X{k} " + " ".join(f"pad{k}" if q == "PAD" else q
+                                     for q in PORTS.split()) + f" {CELL}")
         L.append(f"C{k} pad{k} 0 {cl}f")
     tend = T0 + full_ramp(slew) + SETTLE
     L.append(f".tran {max(min(slew, 0.5) / 20, 0.02):g}n {tend:g}n")

@@ -141,11 +141,24 @@ def all_ports_of(cell):
     インスタンス行は必ずこの順に合わせること（入れ替えると電源が逆になり、
     真理値表が壊れる）。
     """
+    out = None
     for s in open(f"{CELLDIR}/{cell}{CELLEXT}"):
         t = s.split()
-        if t and t[0].lower() == ".subckt":
-            return t[2:]
-    raise SystemExit(f"{cell}: .subckt 行が見つからない")
+        if out is None:
+            if t and t[0].lower() == ".subckt":
+                out = t[2:]
+            continue
+        # ★ 継続行（`+`）も拾う。標準セルは 6 本なので 1 行に収まるが、
+        #   `subckt_ports_of()` が拾っていて**こちらが拾っていない**のは
+        #   同じ役の関数で振る舞いが違うということ（U96 で `ports_of_lines`
+        #   が先頭 11 本しか返していなかったのと同じ形）。
+        if s.startswith("+"):
+            out += s[1:].split()
+        else:
+            break
+    if out is None:
+        raise SystemExit(f"{cell}: .subckt 行が見つからない")
+    return out
 
 
 def ports_of(cell):

@@ -34,12 +34,12 @@ char/decks/
 char/logs/
 char/models/
 
-# char_mem.py の**実験**の出力（RUNTAG 付き）。正本は char/char/<セル>.json。
-# ★ セル名自体にアンダースコアが入る（AND2_X1 など）ので、
-#   「_ が付くもの」ではなく実験の接尾辞を명示して外す。
-char/char/*_ext.json
-char/char/*_ext_*.json
-char/char/*_src_*.json
+# char_mem.py / char_pad.py / char_latch.py の**実験**の出力。
+# 正本は char/char/<セル>.json で、**実験は必ず char/char/exp/ に出す**。
+# ★ 以前は `char/char/*_ext.json` のような**名前のパターン**で無視していたが、
+#   RUNTAG の付け方を変えるたびに漏れる（`*_cells_gds.json` が漏れた）。
+#   **置き場で分ける**方が破れない。道具側は `is_production()` でも弾く。
+char/char/exp/
 
 # KLayout の DRC レポート（生成物）
 *_drc.lyrdb

@@ -40,6 +40,22 @@ import char_comb
 
 TOL = 0.15          # 補間との許容ずれ
 
+
+# ★ **置き場に落ちている .json を全部ライブラリに入れてはいけない**（2026-09-18）。
+#   実験の結果は `REG8x16_cells_gds.json` のように**別名で出す**のが決まり
+#   （`char_mem.py` / `char_latch.py` の `-o`）。ところがここは `os.listdir`
+#   で拾っていた。**何が起きるかは道具で違う**（否定対照で確かめた）:
+#     `mklib.py`    面積表を名前で引くので `KeyError: 'NAND2_zzz'` で**落ちる**
+#                   （落ちるだけ安全だが、実験のたびに正本作りが止まる）
+#     `verify_lib.py` **黙って実験ファイルを検算し、「要確認 4 件」を出す**。
+#                   本物の指摘に紛れるのでこちらの方が悪い。実際、パッドの
+#                   実験（`cell_rise` が全点 `None`）を正本の逸脱として数えた。
+#   不変条件はひとつ: **セル `X` の正本は `X.json` で、中の `cell` も `X`。**
+def is_production(fname, data):
+    """`<cell>.json` で、中の `cell` と名前が一致するものだけ正本とみなす。"""
+    return data.get("cell") == fname[:-len(".json")]
+
+
 # collect.py が置いていく実測値。**これがあれば ngspice は回さない**。
 # 特性化を手元の機械（18 コア）で流した場合、検算だけこちらで回すと
 # 測定条件がずれるので、同じ実行の結果を使う。
@@ -73,6 +89,8 @@ def check_tables():
         if not f.endswith(".json") or f.startswith("_"):
             continue
         d = json.load(open(f"{HERE}/char/{f}"))
+        if not is_production(f, d):
+            continue
         name = d["cell"]
         groups = []
         sl = d.get("slews", SLEWS)          # パッドセルは格子が違う
@@ -308,6 +326,8 @@ def check_macro(path):
         if not f.endswith(".json") or f.startswith("_"):
             continue
         d = json.load(open(f"{HERE}/char/{f}"))
+        if not is_production(f, d):
+            continue
         if not d.get("macro"):
             continue
         seen_any = True
