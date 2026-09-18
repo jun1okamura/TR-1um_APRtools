@@ -82,7 +82,7 @@ def emit(nl, top, gds):
          "* tech/lvs/01_Extract.lvs）に合わせてある。ESD 認識層 (63,2) の中の",
          "* NMOS は NMOSE、ゲートを持たない拡散はダイオード DN/DP として扱う。",
          "*",
-         "* 書き出したあと scripts/lvs_check.py で抽出ネットと照合して一致を確認済み",
+         "* 書き出したあと scripts/lvs_check.py で抽出ネットリストと照合して一致を確認済み",
          "* （ネットやピンを取り違えていないことの確認。レイアウトの正しさの証明ではない）。",
          "*",
          "* OSS_ESD_5V_DIO の動作（ngspice で確認）:",

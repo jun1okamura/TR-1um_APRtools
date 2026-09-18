@@ -83,9 +83,9 @@ def build(cell, ipin, opin, ramp_us=RAMP_US, netlist=None):
     L.append(f"Rin {ipin}_src {ipin} 0.001")
     L.append("")
     # ★ **ポート順はそのネットリスト自身から読む**（U42）。
-    #   `all_ports_of` は既定の置き場（抽出ネット）の順を返すので、`--netlist` で
-    #   別のネットを指すと**ずれる**。実際にずれた（2026-09-17）:
-    #     抽出ネット          .SUBCKT BUFTH A Y vss vdd
+    #   `all_ports_of` は既定の置き場（抽出ネットリスト）の順を返すので、`--netlist` で
+    #   別のネットリストを指すと**ずれる**。実際にずれた（2026-09-17）:
+    #     抽出ネットリスト          .SUBCKT BUFTH A Y vss vdd
     #     LVS ソース      .subckt BUFTH A Y vdd vss
     #   ngspice は数が合えば黙って繋ぐので、**電源と接地が入れ替わったまま
     #   落ちずに**中点に居座り、`.measure` だけが "out of interval" で失敗した。
@@ -113,7 +113,7 @@ def main():
     ap.add_argument("--sweep", action="store_true",
                     help="傾斜を 4 通り回して収束を見る（否定対照）")
     ap.add_argument("--netlist", metavar="PATH",
-                    help="セルのネットリストを明示する（既定は TR1UM_CELLDIR の抽出ネット）")
+                    help="セルのネットリストを明示する（既定は TR1UM_CELLDIR の抽出ネットリスト）")
     a = ap.parse_args()
 
     ipin, opin = one_in_one_out(a.cell)

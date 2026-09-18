@@ -175,7 +175,7 @@ def main():
     ap.add_argument("gds")
     ap.add_argument("top", nargs="?", default=cfg.TOP_CELL_NAME)
     ap.add_argument("src")
-    ap.add_argument("-o", "--out", default=None, help="抽出ネットをここへ書く")
+    ap.add_argument("-o", "--out", default=None, help="抽出ネットリストをここへ書く")
     ap.add_argument("--combine", action="store_true",
                     help="KLayout の combine_devices() を掛ける（この設計では落ちる）")
     ap.add_argument("--no-parallel", dest="parallel", action="store_false",
