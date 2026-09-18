@@ -28,18 +28,45 @@ python3 -V             # 3.9 以上
 
 ---
 
-## 1. 抽出ネットリストを取り込む
+## 1. セルのネットリストを用意する
 
-正本の `stdcell/v59_4/extracted/*.extracted` を ngspice が読める形に直します。
-ネット名の `\$6` や素子名の `XM$1` は `$` が ngspice のコメント文字なので、
-ここで `n6` / `XM1` に置き換えています。
+### ★ 2026-09-18 以降は `cells_gds/` を使う（U96）
+
+```sh
+python3 mkcells_gds.py          # -> cells_gds/ に 36 セル
+```
+
+正本のセル GDS から **`klayout_extract.py --no-combine` で直接**起こし、
+`loadext.convert()` で下と同じ形式に整えます。
+
+**なぜ `cells_ext/` ではいけないか** — あちらは PDK の LVS ランセット出力
+（`lef/extracted/*.extracted`）由来で、次の 2 つが**シミュレーションには
+合いません**:
+
+1. **並列 MOS がまとまっている。** ランセットは LVS のために並列をまとめる
+   （U92）ので、マルチフィンガのセルはフィンガが 1 個に潰れます。この
+   BSIM3 カードは狭幅のしきい値項を持つ（PMOS `k3 19.94` / `w0 3.12e-6`）ので
+   **W=5.1 の 2 並列と W=10.2 の 1 個は別物**です。`BUFTH` のトリップ点で
+   実測 0.15 V 違いました。食い違うのは 6 セル
+   （`BUFTH` / `BUF_X2` / `DEL1` / `DFFRB` / `DFFS` / `MUXDFFRB`）。
+2. **AS/AD が逆の端子に付いている。** ランセットと S/D の書き順が逆で、
+   MOS は S/D 対称なので回路は同じですが **AS/AD/PS/PD は入れ替わりません**。
+   `NAND2` なら内部節点に 9.52p、コンタクトを置く端に 2.04p が付きます
+   （逆）。**出力の接合容量を小さく見積もる = 遅延が楽に出る。**
+
+階層セル 3 つ（`DEC2` / `REG4x16` / `REG8x16`）は `cells_ext/` の写しを
+そのまま置き、ファイル先頭に由来を 1 行書きます（マクロは `char_mem.py` が
+`cells_mem/` のネットリストで測るので触りません）。
+
+### 旧: `cells_ext/`（LVS の照合用。`.lib` には使わない）
 
 ```sh
 python3 loadext.py ../stdcell/v59_4/extracted -o cells_ext
 ```
 
-→ `cells_ext/` に 36 セル。以降のスクリプトはすべてこれを見ます。
-**`cells_ext/` は生成物**（`.gitignore`）で、正本は `stdcell/v59_4/extracted/` です。
+→ `cells_ext/` に 36 セル。**`cells_ext/` も `cells_gds/` も生成物**
+（`.gitignore`）で、正本は `stdcell/v59_4/extracted/` と
+`stdcell/v59_4/TR-1um_STDCELL.gds` です。
 
 マクロとパッドを測るときは、入力もここで起こします:
 
@@ -53,10 +80,15 @@ python3 loadext.py <設計>/lef/extracted -o cells_pad
 ## 2. デッキを生成する
 
 ```sh
-export TR1UM_CELLDIR=$PWD/cells_ext
+export TR1UM_CELLDIR=$PWD/cells_gds
 export TR1UM_CELLEXT=.spi
 python3 genjobs.py -o pack
 ```
+
+★ **前の `pack/` が残っていると全部飛ばされます。** `runjobs.sh` は
+「結果のあるデッキは飛ばす」ので、入力を変えたときは**別の pack に出す**か
+古い方を退かしてください（`-o pack_gds` / `runjobs.sh -p pack_gds` /
+`collect.py -p pack_gds`）。
 
 → `pack/decks/` に 14,179 本（約 70 MB）、`pack/jobs.json` に対応表。
 
