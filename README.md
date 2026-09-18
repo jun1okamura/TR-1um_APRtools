@@ -136,6 +136,7 @@ docs/         下記
 | 文書 | 内容 |
 |---|---|
 | [`docs/92_closed.md`](docs/92_closed.md) | **決着した台帳項目の経緯**（U 番号順）。状態は書かない |
+| [`docs/93_release_v0.1.md`](docs/93_release_v0.1.md) | v0.1 のリリースノート |
 | [`docs/01_inventory.md`](docs/01_inventory.md) | 2026-09-14 の資産棚卸し |
 | [`docs/02_stdcell_diff.md`](docs/02_stdcell_diff.md) | STDCELL 2 世代の差分 → v59_4 を正本に決定 |
 | [`docs/05_migration_log.md`](docs/05_migration_log.md) | データ移動の記録 |
