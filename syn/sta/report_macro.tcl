@@ -60,8 +60,8 @@ foreach _m $MACROS {
         #   実測が 10.0 ns になったときに**写した側だけが古いまま**になった。
         #   `$MPW` は sta.sh が {セル ピン 値} で入れる（config が指定した設計だけ）。
         if {[llength $MPW] == 3 && [lindex $MPW 2] ne ""} {
-            puts "        `[lindex $MPW 1]` の最小低パルス幅 [lindex $MPW 2] ns（配線容量なし、\
-[lindex $MPW 0] の .lib の拘束）は ngspice 側で担保する。"
+            set _c [lindex $MPW 0]; set _p [lindex $MPW 1]; set _v [lindex $MPW 2]
+            puts "        `$_p` の最小低パルス幅 $_v ns（配線容量なし、$_c の .lib の拘束）は ngspice 側で担保する。"
         } else {
             puts "        担保は ngspice 側（値は .lib の min_pulse_width を見ること）。"
         }
