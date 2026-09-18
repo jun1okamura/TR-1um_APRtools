@@ -76,13 +76,26 @@ APRROOT=$(cd "$HERE/.." && pwd)
 #   それ以外のホーム配下 -> $HOME/...
 # 端末に出す間は絶対パスのまま（`show()` の側。人がそのまま開ける）。
 # **ファイルに落とし切ってから**書き換える。
+# ★ **黙って失敗させない**（2026-09-18）。以前は `sed ... > $t && cat $t > $1`
+#   だけで、`sed` が落ちると `&&` で止まり**元のファイルがそのまま残る**。
+#   実際に踏んだ: ログに不正な UTF-8 が 1 バイト混ざっただけで macOS の
+#   `sed` がそれを**バイナリとみなして拒否**し、**ホームパスが 11 箇所
+#   焼き付いたまま**のログが出来た（U93 の防壁がまるごと無効になった）。
+#   -> `LC_ALL=C` でバイト列として扱い、それでも落ちたら**声を上げる**。
 sanitize_file() {
   [ -f "$1" ] || return 0
   t=${TMPDIR:-/tmp}/tr1um_syn_san.$$
-  sed -e "s#$ROOTDIR/##g" -e "s#$ROOTDIR#.#g" \
+  if LC_ALL=C sed -e "s#$ROOTDIR/##g" -e "s#$ROOTDIR#.#g" \
       -e "s#$APRROOT#\$APRTOOLS#g" -e "s#$HOME/#\$HOME/#g" \
-      "$1" > "$t" && cat "$t" > "$1"
+      "$1" > "$t" 2>/dev/null; then
+    cat "$t" > "$1"
+  else
+    echo "** $1 の仮名化に失敗した（ホームパスが残る）。不正なバイトが混ざっていないか見ること" >&2
+  fi
   rm -f "$t"
+  # 残っていないことを**数えて**確かめる（U93。「0 件」と書くなら数える）
+  n=$(LC_ALL=C grep -c -e "$HOME/" "$1" 2>/dev/null || true)
+  [ "${n:-0}" -eq 0 ] || echo "** $1 にホームパスが $n 行残っている（U93）" >&2
 }
 [ -n "$CELLS_SYN" ] && SYN_CELLS=$CELLS || SYN_CELLS=""
 
@@ -154,8 +167,11 @@ echo "設計 : $TOP   ($(pwd))"
 echo "Yosys: $YS  ($($YS -V 2>&1 | head -1))"
 echo "Liberty: $LIB"
 command -v iverilog >/dev/null 2>&1 || echo "** iverilog が無いので段 1 と段 5 を飛ばします"
+# ★ 変数のすぐ後ろに全角文字を置かない。`$CONSTR。` は `。` の 1 バイト目まで
+#   変数名に食われて空に展開され、**壊れたバイト列がログに出た**（2026-09-18）。
+#   `${VAR}` で括る。
 [ -f "$CONSTR" ] && echo "ABC 制約: $(tr '\n' ' ' < "$CONSTR") \
-  （$CONSTR。set_load は $LIB の $LOADCELL / $LOADPIN から引いた値。U99）"
+  （${CONSTR} / set_load は ${LIB} の ${LOADCELL} / ${LOADPIN} から引いた値。U99）"
 
 echo
 echo "##################### 0. セルの Verilog モデルを生成"

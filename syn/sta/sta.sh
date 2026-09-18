@@ -26,22 +26,25 @@ import config as c
 print(c.SYN_LIB)
 print(getattr(c, "STA_CLK_PORT", "") or "")
 print(" ".join(getattr(c, "STA_FALSE_PATH_FROM", []) or []))
-print(" ".join(getattr(c, "STA_NON_SIGNAL_PORTS", []) or []))
-print(getattr(c, "OUT_LOAD_CELL", "") or "")
-print(getattr(c, "OUT_LOAD_PIN", "") or "")
-print(getattr(c, "DRIVING_CELL", "") or "")
-print(getattr(c, "DRIVING_PIN", "") or "")
-print(" ".join(getattr(c, "STA_MACRO_INSTS", []) or []))
-print(getattr(c, "NET_PATH", "") or "")
-print(getattr(c, "STA_EXTRA_TCL", "") or "")
+print(" ".join(getattr(c, "STA_NON_SIGNAL_PORTS", []) or []))   # 4
+print(" ".join(getattr(c, "STA_MACRO_INSTS", []) or []))        # 5
+print(getattr(c, "NET_PATH", "") or "")                         # 6
+print(getattr(c, "STA_EXTRA_TCL", "") or "")                    # 7
+# \u2605 **足すなら末尾**。下は `sed -n Np` で**位置**で読んでいるので、
+#   途中に挟むと以降が 1 つずつずれる（2026-09-18 に実際にずらして
+#   `STA_EXTRA_TCL が無い: BUF_X2` を出した）。
+print(getattr(c, "OUT_LOAD_CELL", "") or "")                    # 8
+print(getattr(c, "OUT_LOAD_PIN", "") or "")                     # 9
+print(getattr(c, "DRIVING_CELL", "") or "")                     # 10
+print(getattr(c, "DRIVING_PIN", "") or "")                      # 11
 PY
 ) || { echo "config.py が読めない（PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
 LIB=${LIB:-$(echo "$CFG" | sed -n 1p)}
 CLK=${CLK:-$(echo "$CFG" | sed -n 2p)}
 FALSEPATH=${FALSEPATH:-$(echo "$CFG" | sed -n 3p)}
 NONSIG=${NONSIG:-$(echo "$CFG" | sed -n 4p)}
-LOADCELL=$(echo "$CFG" | sed -n 5p); LOADPIN=$(echo "$CFG" | sed -n 6p)
-DRVCELL=$(echo "$CFG" | sed -n 7p);  DRVPIN=$(echo "$CFG" | sed -n 8p)
+LOADCELL=$(echo "$CFG" | sed -n 8p);  LOADPIN=$(echo "$CFG" | sed -n 9p)
+DRVCELL=$(echo "$CFG" | sed -n 10p); DRVPIN=$(echo "$CFG" | sed -n 11p)
 # ★ 出力ポートに掛ける負荷は **`.lib` から引く**（U99）。`setup.tcl` に
 #   `36.2` と直書きしてあり、U96 で `.lib` を作り直したら実測が 45.923 fF に
 #   なって**写した側だけが古いまま**になった（U65 と同じ形）。
