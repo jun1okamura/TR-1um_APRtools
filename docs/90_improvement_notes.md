@@ -1232,9 +1232,27 @@ PDK に**同名で中身の違うフレーム**が 2 つある（`TR-1um_frame_2
 （`route_chip.py` で近接まとめ、`f3a9cac`）。LVS の 45 個ずれ（→ **U92**）。
 合成ログに機械のパスが焼き付く（→ **U93**）。
 
-**残り**: Mac で **PDK の DRC / LVS**（KLayout は **0.29 以上**。64.8 版の
-サインオフは 0.28 + `--allow-old-klayout` だった）と **ngspice**。
-U15 はこの作り直しで直っているはずだが、TAP 間隔を測って確かめること。
+**PDK デッキ（2026-09-18、Mac）**
+
+| 対象 | DRC | LVS |
+|---|---|---|
+| コア `layout/step10/route_step_6_squeezed.gds` | **0 件** | **Match**（回路 19 / 19）|
+| チップ `layout/chip/step3_top_pins.gds` | **0 件** | **Match**（回路 29 / 29）|
+| 提出 `src/…3wire_spi.gds`（描画） | **0 件** | — |
+| 同 `--mdp`（マスク + IP62） | **0 件** | — |
+
+`.lvsdb` を `klayout.db.LayoutVsSchematic` で読み直して数えた
+（不一致・スキップ 0）。
+
+**U15 も確かめた** — TAP 列の最大間隔は **534.6 µm**（行 0、x 0.0 → 534.6）。
+自前の慣習値ちょうどで、提出済み 64.8 版の 540.0 µm から詰まっている。
+
+**残り**: **ngspice**（`gen_chip_sim_ready.py` → `gen_chip_tb.py` → 実行 →
+`check_chip_sim.py`）。許容差の回避（U43）は `gen_chip_tb.py` に
+`.options itl4=200 abstol=1e-11 vntol=1e-5 gmin=1e-11` として入っている。
+
+★ **STA の数字は古い `.lib` で出したもの**（40 セル / 36.35 MHz）。
+U96 で `.lib` を作り直したので、ngspice が済んだら STA も回し直すこと。
 
 #### U33 — `cell_char.json` で Tr 数が拾えないセルが 12 個
 
