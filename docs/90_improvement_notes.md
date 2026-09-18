@@ -554,7 +554,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U22 | PDK に同名で中身の違うフレームが 2 つある | 上流待ち | 上流へ改名かリードミーを提案（PR 本文の末尾に書いてある） |
 | U43 | 59.4 の抽出ネットリストが ngspice の既定の許容差で進まない | 一部残 | なぜ 64.8 版では ngspice の既定で通ったのかを調べる |
 | U73 | Liberty に書いた制約のうち STA が見るのは一部だった | 一部残 | `min_pulse_width` 11 ns を ngspice の回帰として自動化する |
-| U94 | 同名の写しが 91 本残っている | 一部残 | 中身まで突き合わせて 4 つに分けた（2026-09-18）: **同一 17**（呼び先を向けて消すだけ・無リスク）／ **小さい差 37**（設計側が古いだけ＝「古い方を呼ぶ」が残っている）／ **大きい差 31**（本当に設計固有。うち SPI の 3 本は凍結物 `reference/v64_8/` 専用）／ README 6。**先に手が付くのは 54 本** |
+| U94 | 同名の写しが 68 本残っている | 一部残 | 2026-09-18 に **23 本消した**（TD4 13 / I2C 10）。★ 「小さい差＝古いだけ」は早合点で、30 行以下でも設計固有が半分以上あった（読んで決める）。残りは **CI が呼ぶ上流テンプレート 6 本**（`pre_check.py` / `read_info.py`。CI に `$APRTOOLS` は無い）、**import されるもの**（`netlist_util` / `lef_parser` / `netlist_parser` / `klayout_extract` ほか。U98 と同じ形なので同じ直し方を入れてから）、**本当に設計固有なもの**（`place.py` / `route_chip.py` ほか。SPI の 3 本は凍結物 `reference/v64_8/` 専用）|
 | U96 | 特性化が並列をまとめたネットリストで回っている（7 セル） | 未解決 | 1 セルで両方のネットの遅延を測って**影響の大きさを出す**。そのうえで再特性化するか決める |
 | U93 | 追跡ファイルにホームパスが残っている | 一部残 | 残り 31 件は移植した写し（`scripts/i2c_ref/` `scripts/pnr/from_async_i2c/` `lef_parser.py`）とTD4 の配線ログ 1 本。**U94（写しをどうするか）と同じ判断**になる |
 
@@ -3020,6 +3020,54 @@ read_info.py  設計: docstring 無し（-16 行）
 ★ **先に手が付くのは (a) と (b) の 54 本。** (a) は無リスク、(b) は
 「古い方を呼ぶ」がまだ残っている分なので、**直す動機がいちばん強い**。
 (c) は設計ごとに「流れを寄せるか」の判断が要る。
+
+##### やった（2026-09-18、設計者判断で (a)+(b)）
+
+★ **訂正が要る。** 上の (b)「小さい差 37 本は設計側が古いだけ」は、
+**3 本を見て決めた早合点**だった。1 本ずつ設計側にしか無い行を読んだら、
+30 行以下でも**設計固有**のものが半分以上あった:
+
+```
+設計固有（残す）  pnr/add_top_pins.py（td4_config / i2c_config を読む）
+                  syn_equiv.py（TD4 の RTL 一覧）  pnr/lvs_pdk.py
+                  pnr/gen_chip_sim_ready.py  pnr/frame_pins.py
+                  pnr/gen_placement_json.py  lef_parser.py / netlist_parser.py
+                  （SPI は `reference/v64_8/` を読む gate_count / gen_cell_spice /
+                    gen_liberty もここ＝**凍結物専用**）
+古いだけ（消す）  cellinfo.py  mklef.py  pin_grid_check.py
+                  frame2sim.py  spi2sim.py
+```
+
+★ **差分行数は「古いだけ」の代わりにならない。** 読んで決める。
+
+**消したのは 23 本**（TD4 13 / I2C 10 / SPI 0）:
+
+| | (a) 中身まで同一 | (b) 古いだけ | 計 |
+|---|---:|---:|---:|
+| `TR-1um_TD4` | 8 | 5 | 13 |
+| `TR-1um_I2C_2026` | 6 | 4 | 10 |
+| `TR-1um_SCLK_SPI` | 0 | 0 | 0 |
+
+**残した理由**:
+
+* **CI のもの** — `pre_check.py` / `read_info.py` は
+  `.github/workflows/check.yml` が呼ぶ。CI は**その設計リポジトリだけ**を
+  チェックアウトするので `$APRTOOLS` が無い。しかも**上流の MPW
+  テンプレート同梱物**（決定 10「直すなら上流へ PR」）。3 設計とも残す。
+* **import されるもの** — `netlist_util.py` / `lef_parser.py` /
+  `netlist_parser.py` / `klayout_extract.py` / `verify_port_connectivity.py`。
+  呼び出しなら道を書き換えれば済むが、`import` は `sys.path` の話になる。
+  **これは U98 で踏んだ穴と同じ形**なので、同じ直し方（名前ではなく
+  ファイルで読む）を入れてからにする。
+* **SPI は 1 本も消していない** — (a) の 1 本（`netlist_util.py`）が
+  import で、(b) に該当が無い。
+
+呼び先は `$APRTOOLS/apr/` に向けた。`.sh` には `syn.sh` と同じ前書き
+（`APRTOOLS` 未設定ならリポジトリの隣を見て、無ければ止まる）を入れた。
+`irsim/*.cmd` は生成物なので生成器から作り直し — **差はコメント行だけで、
+ベクタは 1 本も動いていない**。実行の形で消したものを参照している追跡
+ファイルは**両設計とも 0 件**。残る参照は**生成物のヘッダ**（作られた
+当時の記録なので書き換えない）。
 
 #### U98 — `import config` が仮想環境の別物を掴んでいた
 
