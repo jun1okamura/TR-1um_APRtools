@@ -285,7 +285,16 @@ def main():
     os.makedirs(os.path.dirname(a.out), exist_ok=True)
     n = len(LOADS)
     PAD_AREA = pad_area()
-    res = {"cell": CELL, "pad": True, "slews": SLEWS, "loads": LOADS,
+    # ★ **どのネットリストで測ったかを残す**（2026-09-18）。
+    #   いままで `netlist` を書いていなかったので、出来上がった json を見ても
+    #   ランセット由来かフレーム GDS 由来か分からなかった。置き場まで書く
+    #   （`cells_pad/OSS_FRAME_GIO_sim.spi`）。**人が読んで辿れないものは
+    #   根拠にならない**（U45）。
+    _nl = os.path.abspath(a.netlist)
+    res = {"cell": CELL, "pad": True,
+           "netlist": os.path.join(os.path.basename(os.path.dirname(_nl)),
+                                   os.path.basename(_nl)),
+           "slews": SLEWS, "loads": LOADS,
            "slews_t": SLEWS_T, "dis_i": DIS_I,
            "arc": {"cell_rise": [], "cell_fall": [],
                    "rise_transition": [], "fall_transition": []},

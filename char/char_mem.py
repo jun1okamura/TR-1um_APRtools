@@ -117,6 +117,13 @@ from concurrent.futures import ThreadPoolExecutor
 HERE = os.path.dirname(os.path.abspath(__file__))
 VDD, TEMP = 5.0, 25
 CELL = "REG8x16"
+
+
+def netlist_name(path):
+    """json に残すネットリスト名。**置き場まで書く**（`cells_gds/REG8x16.spi`）。"""
+    path = os.path.abspath(path)
+    return os.path.join(os.path.basename(os.path.dirname(path)), os.path.basename(path))
+
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
 from check_comb import models_dir, need_ngspice, subckt_ports_of               # noqa: E402
 MODELS = models_dir()
@@ -789,7 +796,7 @@ def sweep_edge(a, vals, knob="edge"):
         cond.pop({"edge": "EDGE", "webpre": "WEB_PRE",
                   "weblow": "WEB_LOW", "dhold": "D_HOLD"}[knob], None)
         lim[knob] = {"pass": min(good), "fail": max(bad), "unit": "ns",
-                     "netlist": os.path.basename(a.netlist), "cond": cond}
+                     "netlist": netlist_name(a.netlist), "cond": cond}
         prev.setdefault("cell", CELL)
         json.dump(prev, open(a.out, "w"), indent=1)
         print(f"  -> {os.path.basename(a.out)} の limits.{knob} に記録した")
@@ -1013,7 +1020,13 @@ def main():
     if len(holds) > 1:
         sweep_edge(a, holds, "dhold")
         return
-    res = {"cell": CELL, "netlist": os.path.basename(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
+    # ★ **置き場まで書く**（2026-09-18）。基底名だけだと
+    #   `cells_mem/REG8x16.spi` と `cells_gds/REG8x16.spi` が**どちらも
+    #   `REG8x16.spi`** になり、出来上がった json を見ても**どちらで測ったか
+    #   分からない**。U71（取り違え）と U96（既定値だけ見て決めつけた）が
+    #   まさにこれ。`verify_lib.py` の突き合わせは相対比較なので通るが、
+    #   **人が読んで辿れないものは根拠にならない**（U45）。
+    res = {"cell": CELL, "netlist": netlist_name(a.netlist), "macro": True, "slews": SLEWS, "loads": LOADS,
            "read": {}, "cap": {}, "bit_spread": {}, "webq": {}}
     # ★ `--only` のときは**測らなかった部分を既存の JSON から引き継ぐ**。
     #   以前は測った部分だけの JSON で丸ごと上書きしていたので、
