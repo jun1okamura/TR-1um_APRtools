@@ -42,21 +42,38 @@ def ports_for(netlist):
     return " ".join(subckt_ports_of(netlist, CELL))
 # ★ 既定は PDK（`TR1UM_PDK`）。リポジトリにモデルを写さない（U65）。
 from check_comb import models_dir, need_ngspice, subckt_ports_of               # noqa: E402
+from charlib import FRAME_GDS                                                  # noqa: E402
 MODELS = models_dir()
-# パッドセルの面積。標準セルの cell_area.json（STDCELL の GDS 実測）には
-# 入っていないので、フレームの LEF の MACRO ... SIZE から読む。
-FRAME_LEF = os.environ.get("TR1UM_FRAME_LEF",
-                           os.path.join(HERE, "..", "..", "lef", "TR-1um_frame.lef"))
+# パッドセルの面積。
+# ★ **GDS を測る**（U45）。2026-09-18 まではフレームの LEF の `MACRO ... SIZE`
+#   を読んでいたが、その置き場が `{HERE}/../../lef/` — **道具が設計側に居た頃の
+#   相対パス**で、APRtools へ移したあとはリポジトリの外を指していた（U37 と同型）。
+#   LEF の `SIZE` は中間ファイルの数字で、成果物ではない。
+#   照合済み: `OSS_ESD_5V_DIO` は GDS 実測 400.000 x 240.000 = 96,000 µm² で、
+#   LEF の `SIZE 400.000 BY 240.000` と一致する。
+# `TR1UM_FRAME_LEF` を立てたときだけ従来どおり LEF から読む。
+FRAME_LEF = os.environ.get("TR1UM_FRAME_LEF")
 
 
 def pad_area(cell=None):
     cell = cell or CELL
-    m = re.search(rf"^MACRO {cell}\b(.*?)^END {cell}\b", open(FRAME_LEF).read(),
-                  re.S | re.M)
-    if not m:
-        raise SystemExit(f"{FRAME_LEF} に MACRO {cell} が無い")
-    w, h = re.search(r"SIZE\s+([\d.]+)\s+BY\s+([\d.]+)", m.group(1)).groups()
-    return float(w) * float(h)
+    if FRAME_LEF:
+        m = re.search(rf"^MACRO {cell}\b(.*?)^END {cell}\b", open(FRAME_LEF).read(),
+                      re.S | re.M)
+        if not m:
+            raise SystemExit(f"{FRAME_LEF} に MACRO {cell} が無い")
+        w, h = re.search(r"SIZE\s+([\d.]+)\s+BY\s+([\d.]+)", m.group(1)).groups()
+        return float(w) * float(h)
+    import klayout.db as db
+    if not os.path.exists(FRAME_GDS):
+        raise SystemExit(f"** フレームの GDS が無い: {FRAME_GDS}\n"
+                         f"   LEF から読ませるなら TR1UM_FRAME_LEF=<...>/TR-1um_frame.lef")
+    ly = db.Layout(); ly.read(FRAME_GDS)
+    c = ly.cell(cell)
+    if c is None:
+        raise SystemExit(f"{FRAME_GDS} に {cell} が無い")
+    b = c.dbbox()
+    return b.width() * b.height()
 
 # 入力遷移 [ns]（20-80%）— 標準セルと同じ
 SLEWS = [0.1, 0.25, 0.6, 1.5, 4.0, 8.0, 16.0]

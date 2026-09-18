@@ -37,7 +37,7 @@
 
 | id | 重さ | 何を見るか |
 |---|---|---|
-| `escape-apr` | NG | `apr/` の外を見ている。(a) `os.path.dirname(HERE)` (b) **APRtools のルート + 設計側にしか無いディレクトリ**（`out/` `layout/` `src/` `lef/` …）|
+| `escape-apr` | NG | `apr/` の外を見ている。(a) `os.path.dirname(HERE)` (b) **APRtools のルート + 設計側にしか無いディレクトリ**（`out/` `layout/` `src/` `lef/` …）(c) `os.path.join(…, "..", "..")` — 道具が設計側に居た頃の相対パスの残り |
 | `moved-dir` | NG | `cfg.ROOT` + APRtools へ移したディレクトリ名 |
 | `baked-path` | NG | `os.path.relpath(x, cfg.ROOT)` — **場所を問わず**。生成物なら `cfg.disp()`、画面なら `cfg.show()` |
 | `env-direct` | NG | `os.environ` で**外部ツール以外**を読む |
@@ -395,6 +395,14 @@ def check_file(path):
             if s.startswith("os.path.dirname(HERE)"):
                 add("NG", "escape-apr", nd, s,
                     "apr/ の外を見ている。同じ apr/ の中なら os.path.join(HERE, …)")
+            # (c) `os.path.join(HERE, "..", "..")` — **上の (a) をすり抜けていた形**。
+            #     道具が設計側に居た頃の相対パスがそのまま残り、APRtools へ
+            #     移したあとはリポジトリの外を指す（2026-09-18、`char_pad.py` が
+            #     `{HERE}/../../lef/` を読んでいて FileNotFoundError。U37 と同型）。
+            if s.startswith("os.path.join") and s.count('".."') >= 2:
+                add("NG", "escape-apr", nd, s,
+                    "`\"..\"` を 2 つ以上たどってリポジトリの外へ出ている。"
+                    "**道具が設計側に居た頃の相対パス**が残っていないか見ること")
             # (b) APRtools の根 + 設計側にしか無いディレクトリ（os.path 形）
             if s.startswith("os.path.join") and nd.args:
                 first = seg(src, nd.args[0])

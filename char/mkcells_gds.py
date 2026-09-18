@@ -48,10 +48,7 @@ REF = os.path.join(HERE, "cells_ext")
 # `char_pad.py` は `cells_pad/OSS_FRAME_GIO_sim.spi` を読む。これも
 # `frame2sim.py` が **PDK の LVS ランセット出力**から起こしていたので、
 # 標準セルと同じ 2 つの不具合を持つ（U96）。GDS から起こし直す。
-# lint: ok char/ から APRtools の根を取る（同梱のフレーム GDS を読むため）
-FRAME_GDS = os.path.join(os.path.dirname(HERE), "pdk", "pending-upstream",
-                         "TR-1um_frame_25x25_GIO.gds")
-FRAME_TOP = "OSS_FRAME_GIO"
+from charlib import FRAME_GDS, FRAME_TOP  # noqa: E402  正本は charlib（決定 21）
 FRAME_OUT = os.path.join(HERE, "cells_pad", "OSS_FRAME_GIO_sim.spi")
 
 

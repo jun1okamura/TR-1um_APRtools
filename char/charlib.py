@@ -83,6 +83,16 @@ TH_SLEW_LO, TH_SLEW_HI = 20, 80
 SLEW_FRAC = (TH_SLEW_HI - TH_SLEW_LO) / 100      # = 0.6
 
 
+# --- フレーム（パッドセル）の正本 ------------------------------------------
+# ★ **1 箇所だけに置く**（決定 21）。`mkcells_gds.py --frame` と
+#   `char_pad.py` の両方が使う。APRtools 同梱のフレーム GDS
+#   （PDK 版とは別物。U19 / 上流 PR 待ち）。
+# lint: ok char/ から APRtools の根を取る（同梱のフレーム GDS を読むため）
+FRAME_GDS = os.path.join(os.path.dirname(HERE), "pdk", "pending-upstream",
+                         "TR-1um_frame_25x25_GIO.gds")
+FRAME_TOP = "OSS_FRAME_GIO"
+
+
 def full_ramp(slew_ns):
     """20-80% の遷移時間 -> フルスイングの傾斜時間"""
     return slew_ns / SLEW_FRAC
