@@ -70,33 +70,9 @@ CELLS_GEN=$(f 16); CELLS_SYN=$(f 17); INCDIR=$(f 18); ROOTDIR=$(f 19)
 LOADCELL=$(f 20); LOADPIN=$(f 21); DRVCELL=$(f 22)
 APRROOT=$(cd "$HERE/.." && pwd)
 
-# 生成ログに**その機械の置き方を焼き付けない**（U35 / `config_base.disp()` と同じ規約）。
-#   設計の下   -> 相対パス
-#   APRtools の下 -> $APRTOOLS/...
-#   それ以外のホーム配下 -> $HOME/...
-# 端末に出す間は絶対パスのまま（`show()` の側。人がそのまま開ける）。
-# **ファイルに落とし切ってから**書き換える。
-# ★ **黙って失敗させない**（2026-09-18）。以前は `sed ... > $t && cat $t > $1`
-#   だけで、`sed` が落ちると `&&` で止まり**元のファイルがそのまま残る**。
-#   実際に踏んだ: ログに不正な UTF-8 が 1 バイト混ざっただけで macOS の
-#   `sed` がそれを**バイナリとみなして拒否**し、**ホームパスが 11 箇所
-#   焼き付いたまま**のログが出来た（U93 の防壁がまるごと無効になった）。
-#   -> `LC_ALL=C` でバイト列として扱い、それでも落ちたら**声を上げる**。
-sanitize_file() {
-  [ -f "$1" ] || return 0
-  t=${TMPDIR:-/tmp}/tr1um_syn_san.$$
-  if LC_ALL=C sed -e "s#$ROOTDIR/##g" -e "s#$ROOTDIR#.#g" \
-      -e "s#$APRROOT#\$APRTOOLS#g" -e "s#$HOME/#\$HOME/#g" \
-      "$1" > "$t" 2>/dev/null; then
-    cat "$t" > "$1"
-  else
-    echo "** $1 の仮名化に失敗した（ホームパスが残る）。不正なバイトが混ざっていないか見ること" >&2
-  fi
-  rm -f "$t"
-  # 残っていないことを**数えて**確かめる（U93。「0 件」と書くなら数える）
-  n=$(LC_ALL=C grep -c -e "$HOME/" "$1" 2>/dev/null || true)
-  [ "${n:-0}" -eq 0 ] || echo "** $1 にホームパスが $n 行残っている（U93）" >&2
-}
+# ログの仮名化は `syn/sanitize.sh` の 1 本（`sta.sh` も同じものを読む。U94）。
+# ROOTDIR / APRROOT を決めたあとで読むこと。
+. "$HERE/sanitize.sh"
 [ -n "$CELLS_SYN" ] && SYN_CELLS=$CELLS || SYN_CELLS=""
 
 [ -n "$TOP" ] || { echo "config.py の SYN_TOP / TOP_CELL_NAME が空" >&2; exit 1; }

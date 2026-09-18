@@ -114,8 +114,19 @@ T=$(mktemp "${TMPDIR:-/tmp}/sta_XXXXXX.tcl")
 # `.VDD(VDD), .GND(GND)` まで繋いである（V10 からの書式）が、`.lib` のセルには
 # 電源ピンが無いので読むたびに 2 行ずつ出る。19 インスタンスで 40 行になり、
 # **本物の「port not found」が埋もれる**。VDD/GND のものだけ数えて 1 行にする。
+# ★ **結果をファイルにも残す**（2026-09-18）。`syn.sh` 経由なら
+#   `SYN_RESULTS.txt` に入るが、`sta.sh` を直に叩くと**端末にしか出ない**。
+#   あとから「その数字はどこから来たか」を辿れないのは根拠にならない（U45）。
+#   ネットリストの隣に置く。**仮名化も掛ける**（U93。`syn.sh` と同じ 1 本）。
+STALOG=$(dirname "$NET")/STA_$TOP.txt
 "$STA" -no_splash -exit "$T" 2>&1 | awk '
   /^Warning 201: .*port (VDD|GND) not found/ { n++; next }
   { print }
-  END { if (n) printf "  (電源ピン VDD/GND の Warning 201 を %d 行たたみました。.lib に\n   電源ピンが無いだけで、タイミングには影響しません)\n", n }'
+  END { if (n) printf "  (電源ピン VDD/GND の Warning 201 を %d 行たたみました。.lib に\n   電源ピンが無いだけで、タイミングには影響しません)\n", n }' \
+  | tee "$STALOG"
 rm -f "$T"
+
+ROOTDIR=$(cd "$(dirname "$NET")/.." && pwd); APRROOT=$(cd "$HERE/../.." && pwd)
+. "$HERE/../sanitize.sh"
+sanitize_file "$STALOG"
+echo "  -> $STALOG"
