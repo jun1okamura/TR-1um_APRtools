@@ -56,6 +56,9 @@ print("1" if getattr(c, "SYN_CELLS_GEN", False) else "")        # 16
 print("1" if getattr(c, "SYN_CELLS_IN_SYNTH", False) else "")   # 17
 print(" ".join("-I" + d for d in (getattr(c, "SYN_TB_INCDIR", []) or [])))  # 18
 print(one(c.ROOT))                                      # 19
+print(one(getattr(c, "OUT_LOAD_CELL", "")))             # 20
+print(one(getattr(c, "OUT_LOAD_PIN", "")))              # 21
+print(one(getattr(c, "DRIVING_CELL", "")))              # 22
 PY
 ) || { echo "config.py が読めない（設計のルートで、PYTHONPATH=\$APRTOOLS/apr）" >&2; exit 1; }
 f() { echo "$CFG" | sed -n "$1p"; }
@@ -64,6 +67,7 @@ CELLS=$(f 6); CELLS_ARGS=$(f 7); BLACKBOX=$(f 8)
 TB_RTL=$(f 9); TB_NET=$(f 10);  BUFTH=$(f 11);  REF=$(f 12);  NET=$(f 13)
 CLK=$(f 14);  PER=${PER:-$(f 15)}
 CELLS_GEN=$(f 16); CELLS_SYN=$(f 17); INCDIR=$(f 18); ROOTDIR=$(f 19)
+LOADCELL=$(f 20); LOADPIN=$(f 21); DRVCELL=$(f 22)
 APRROOT=$(cd "$HERE/.." && pwd)
 
 # 生成ログに**その機械の置き方を焼き付けない**（U35 / `config_base.disp()` と同じ規約）。
@@ -85,6 +89,22 @@ sanitize_file() {
 [ -n "$TOP" ] || { echo "config.py の SYN_TOP / TOP_CELL_NAME が空" >&2; exit 1; }
 [ -n "$RTL" ] || { echo "config.py に SYN_RTL が無い（合成する RTL を書くこと）" >&2; exit 1; }
 mkdir -p "$OUT"
+
+# --- ABC の制約は **`.lib` から起こす**（U99）------------------------------
+# ★ 以前は `syn/abc.constr` に `set_load 36.2` と**直書き**してあった。
+#   この 36.2 は「パッドセル `OSS_ESD_5V_DIO` の `OUT` ピンの入力容量」を
+#   `.lib` から**写した**数字で、U96 で `.lib` を作り直したら実測は
+#   45.923 fF になり、**写した側だけが古いまま**になった（U65 と同じ形）。
+#   毎回 `.lib` から引けば、特性化 -> `.lib` -> 合成 が 1 本に繋がる。
+#   `config.SYN_CONSTR` を設計が明示したときは、そちらをそのまま使う。
+if [ -z "$CONSTR" ]; then
+  CONSTR=$OUT/abc.constr
+  CAP=$(python3 "$APRROOT/apr/lib_pin_cap.py" "$LIB" "$LOADCELL" "$LOADPIN") || {
+    echo "** $LIB から $LOADCELL/$LOADPIN の capacitance が読めない" >&2; exit 1; }
+  printf 'set_driving_cell %s
+set_load %s
+' "$DRVCELL" "$CAP" > "$CONSTR"
+fi
 
 LOG=$OUT/SYN_RESULTS.txt
 if [ -z "${SYN_TEE:-}" ]; then
@@ -134,7 +154,8 @@ echo "設計 : $TOP   ($(pwd))"
 echo "Yosys: $YS  ($($YS -V 2>&1 | head -1))"
 echo "Liberty: $LIB"
 command -v iverilog >/dev/null 2>&1 || echo "** iverilog が無いので段 1 と段 5 を飛ばします"
-[ -f "$CONSTR" ] && echo "ABC 制約: $(tr '\n' ' ' < "$CONSTR")"
+[ -f "$CONSTR" ] && echo "ABC 制約: $(tr '\n' ' ' < "$CONSTR") \
+  （$CONSTR。set_load は $LIB の $LOADCELL / $LOADPIN から引いた値。U99）"
 
 echo
 echo "##################### 0. セルの Verilog モデルを生成"

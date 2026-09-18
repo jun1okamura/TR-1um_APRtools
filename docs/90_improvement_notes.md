@@ -555,7 +555,7 @@ import 時に弾く。詳細と導出は `docs/03_core_geometry.md`。
 | U43 | 59.4 の抽出ネットリストが ngspice の既定の許容差で進まない | 一部残 | なぜ 64.8 版では ngspice の既定で通ったのかを調べる |
 | U73 | Liberty に書いた制約のうち STA が見るのは一部だった | 一部残 | `min_pulse_width` 11 ns を ngspice の回帰として自動化する |
 | U94 | 同名の写しが 68 本残っている | 一部残 | 2026-09-18 に **23 本消した**（TD4 13 / I2C 10）。★ 「小さい差＝古いだけ」は早合点で、30 行以下でも設計固有が半分以上あった（読んで決める）。残りは **CI が呼ぶ上流テンプレート 6 本**（`pre_check.py` / `read_info.py`。CI に `$APRTOOLS` は無い）、**import されるもの**（`netlist_util` / `lef_parser` / `netlist_parser` / `klayout_extract` ほか。U98 と同じ形なので同じ直し方を入れてから）、**本当に設計固有なもの**（`place.py` / `route_chip.py` ほか。SPI の 3 本は凍結物 `reference/v64_8/` 専用）|
-| U99 | `set_load 36.2` が `.lib` から写した直書きで、古くなった | 未解決 | `syn/abc.constr` と `syn/sta/setup.tcl` の 2 箇所。U96 で `OSS_ESD_5V_DIO` の `OUT` ピン容量が **36.192 → 45.923 fF（+27 %）**に動いたので、**合成（ABC）も STA も古い負荷で回っている**。`.lib` から引く形にするのが筋（U65 と同じ「正本が 1 箇所に無い」）。**合成結果が動くので設計者判断待ち** |
+| U99 | `set_load 36.2` が `.lib` から写した直書きで、古くなった | **直した 2026-09-18**（回し直し待ち）| `apr/lib_pin_cap.py` を足し、`syn.sh` が `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**ようにした。`sta.sh` も同じ値を `setup.tcl` に渡す。**静的な `syn/abc.constr` は消した**（写しを残さない。U94）。どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の 1 箇所。**36.2 → 45.923 fF に変わるので 3 設計とも合成と STA の回し直しが要る** |
 | U93 | 追跡ファイルにホームパスが残っている | 一部残 | 残り 31 件は移植した写し（`scripts/i2c_ref/` `scripts/pnr/from_async_i2c/` `lef_parser.py`）とTD4 の配線ログ 1 本。**U94（写しをどうするか）と同じ判断**になる |
 
 ### 7-3. 記録（U 番号順）
@@ -3108,6 +3108,52 @@ apr_path あり  -> config.__file__ = <設計>/config.py          SYN_TOP = i2c_
 ★ **名前で解決するものは、名前が衝突する。** `config` / `rules` / `utils` の
 ような一般名を `sys.path` 任せで import していると、**環境が変わった日に
 別物を掴む**。**正本の場所が分かっているなら、名前ではなくファイルで読む。**
+
+#### U99 — `set_load 36.2` が `.lib` から写した直書きで、古くなった
+
+**状態**: 直した 2026-09-18（回し直し待ち）／ **出典**: 2026-09-18（U96 で `.lib` を作り直して気づいた）
+
+合成（ABC）と STA が**出力ポートに掛ける負荷**は、「パッドセル
+`OSS_ESD_5V_DIO` の `OUT` ピンの入力容量」という意味の数字。ところが
+**2 箇所に直書き**してあった:
+
+```
+syn/abc.constr      set_load 36.2
+syn/sta/setup.tcl   foreach p [all_outputs] { set_load 36.2 $p }
+                    # 出力は OSS_ESD_5V_DIO の OUT ピン容量 36.2 fF を負荷にする
+```
+
+U96 で `.lib` を作り直したら実測は **45.923 fF（+27 %）**。
+**写した側だけが古いまま**になった — U65 と同じ「正本が 1 箇所に無い」。
+コメントに「`OSS_ESD_5V_DIO` の `OUT` ピン容量」と**正しく書いてあった**のに、
+それを引いてくる仕掛けが無かった。
+
+**直した** — `apr/lib_pin_cap.py`（Liberty からピンの `capacitance` を引く）
+を足し、
+
+* `syn.sh` は `$SYN_OUT_DIR/abc.constr` を**毎回 `.lib` から起こす**
+  （`config.SYN_CONSTR` を設計が明示したときはそちらを使う）
+* `sta.sh` は同じ値を計算して `setup.tcl` に `$OUTLOAD` として渡す
+* **静的な `syn/abc.constr` は消した**（写しを残さない。U94 の決着と同じ）。
+  I2C に転がっていた `scripts/abc.constr` も消した（誰も読んでいなかった）
+* どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の
+  **1 箇所**。駆動セルも `DRIVING_CELL` / `DRIVING_PIN` に寄せた
+
+これで **特性化 → `.lib` → 合成 / STA が 1 本に繋がる**。
+
+★ **否定対照**（`lib_pin_cap.py` が名前で引けているか）:
+
+```
+OSS_ESD_5V_DIO OUT -> 45.923      OSS_ESD_5V_DIO HIZ -> 89.702
+INV_X1 A           -> 60.311（`verify_lib.py` の「capacitance(A) = 60.3 fF」と一致）
+INV_X1 ZZZ         -> 「capacitance が無い」で exit 1
+```
+
+★ **効くところ** — ABC のバッファ挿入とサイジング、STA の出力パス。
+**3 設計とも合成と STA の回し直しが要る。**
+
+★ **コメントが正しくても、数字が写しなら古くなる。**
+「どこから来たか」を書くだけでは足りない。**引いてくる。**
 
 #### U95 — `BUFTH` のしきい値が測り直せない直書き定数だった
 

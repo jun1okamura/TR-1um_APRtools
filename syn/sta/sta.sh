@@ -27,6 +27,10 @@ print(c.SYN_LIB)
 print(getattr(c, "STA_CLK_PORT", "") or "")
 print(" ".join(getattr(c, "STA_FALSE_PATH_FROM", []) or []))
 print(" ".join(getattr(c, "STA_NON_SIGNAL_PORTS", []) or []))
+print(getattr(c, "OUT_LOAD_CELL", "") or "")
+print(getattr(c, "OUT_LOAD_PIN", "") or "")
+print(getattr(c, "DRIVING_CELL", "") or "")
+print(getattr(c, "DRIVING_PIN", "") or "")
 print(" ".join(getattr(c, "STA_MACRO_INSTS", []) or []))
 print(getattr(c, "NET_PATH", "") or "")
 print(getattr(c, "STA_EXTRA_TCL", "") or "")
@@ -36,6 +40,14 @@ LIB=${LIB:-$(echo "$CFG" | sed -n 1p)}
 CLK=${CLK:-$(echo "$CFG" | sed -n 2p)}
 FALSEPATH=${FALSEPATH:-$(echo "$CFG" | sed -n 3p)}
 NONSIG=${NONSIG:-$(echo "$CFG" | sed -n 4p)}
+LOADCELL=$(echo "$CFG" | sed -n 5p); LOADPIN=$(echo "$CFG" | sed -n 6p)
+DRVCELL=$(echo "$CFG" | sed -n 7p);  DRVPIN=$(echo "$CFG" | sed -n 8p)
+# ★ 出力ポートに掛ける負荷は **`.lib` から引く**（U99）。`setup.tcl` に
+#   `36.2` と直書きしてあり、U96 で `.lib` を作り直したら実測が 45.923 fF に
+#   なって**写した側だけが古いまま**になった（U65 と同じ形）。
+HERE_APR=$(cd "$(dirname "$0")/../../apr" && pwd)
+OUTLOAD=${OUTLOAD:-$(python3 "$HERE_APR/lib_pin_cap.py" "$LIB" "$LOADCELL" "$LOADPIN")} || {
+  echo "** $LIB から $LOADCELL/$LOADPIN の capacitance が読めない" >&2; exit 1; }
 MACROS=${MACROS:-$(echo "$CFG" | sed -n 5p)}
 FINAL=$(echo "$CFG" | sed -n 6p)
 EXTRA=${EXTRA:-$(echo "$CFG" | sed -n 7p)}
@@ -83,6 +95,8 @@ PY
 T=$(mktemp "${TMPDIR:-/tmp}/sta_XXXXXX.tcl")
 { echo "set NET $NET"; echo "set TOP $TOP"; echo "set PER $PER"
   echo "set LIB $LIB"; echo "set CLK $CLK"
+  echo "set OUTLOAD $OUTLOAD"
+  echo "set DRVCELL $DRVCELL"; echo "set DRVPIN $DRVPIN"
   echo "set FALSEPATH [list $FALSEPATH]"; echo "set NONSIG [list $NONSIG]"
   echo "set MACROS [list $MACROS]"
   echo "set HERE $HERE"; cat "$HERE/setup.tcl"

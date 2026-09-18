@@ -60,7 +60,7 @@ TR-1um_APRtools/
 ├── syn/                       ── 合成・STA（設計非依存部）
 │   ├── syn.sh                 段構成を環境変数で受ける版
 │   ├── synth.ys.in            @TOP@ / @LIB@ / @SRC@ 置換テンプレート
-│   ├── abc.constr  tr1um.genlib
+│   ├── tr1um.genlib
 │   ├── syn_report.py  cmp_cells.py  area_estimate.py  area_custom.py
 │   │                  cellinfo.py  gate_count.py  block_report.py
 │   └── sta/                   setup.tcl / report.tcl / path.tcl / sta.sh

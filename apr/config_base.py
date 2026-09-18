@@ -318,7 +318,16 @@ SYN_LIB = None                  # None なら stdcell_file("tr1um_typ_5v0_25c.li
 SYN_TOP = None                  # None なら TOP_CELL_NAME
 SYN_RTL = []                    # 合成に読ませる RTL。設計が与える
 SYN_OUT_DIR = None              # None なら <設計>/out
-SYN_CONSTR = None               # None なら $APRTOOLS/syn/abc.constr
+SYN_CONSTR = None               # None なら syn.sh が `.lib` から起こす（U99）
+# ABC と STA が出力ポートに掛ける負荷は「**パッドセルの入力容量**」という意味の数字。
+# ★ **写さずに `.lib` から引く**（U99、2026-09-18）。`syn/abc.constr` と
+#   `syn/sta/setup.tcl` に `36.2` と直書きしてあり、U96 で `.lib` を作り直したら
+#   実測は 45.923 fF になって**写した側だけが古いまま**になった（U65 と同じ形）。
+#   どのセルのどのピンかはここ 1 箇所で決める。
+OUT_LOAD_CELL = "OSS_ESD_5V_DIO"
+OUT_LOAD_PIN = "OUT"
+# 駆動セル（入力ポートに置く仮想のドライバ）。こちらは名前なので写しではない。
+DRIVING_CELL, DRIVING_PIN = "BUF_X2", "Y"
 # セルの振る舞いモデル（Verilog）。iverilog の TB が要る設計だけ。
 #   SYN_CELLS_GEN      char/mkcellverilog.py で起こす（I2C）。False なら既存を使う
 #   SYN_CELLS_IN_SYNTH RTL がセルを直接インスタンス化しているので yosys にも読ませる
@@ -713,7 +722,6 @@ def finalize(ns):
     # ★ setdefault は使わない。`from config_base import *` で既定値が設計の
     #   名前空間に入っているので必ず空振りする（docs/08_migration_td4.md #3）。
     ns["SYN_OUT_DIR"] = ns.get("SYN_OUT_DIR") or os.path.join(ns["ROOT"], "out")
-    ns["SYN_CONSTR"] = ns.get("SYN_CONSTR") or os.path.join(APR_ROOT, "syn", "abc.constr")
     ns["NET_PATH"] = ns.get("NET_PATH") or os.path.join(
         ns["SYN_OUT_DIR"], ns["SYN_TOP"] + "_pnr.v")
     ns.setdefault("SQUEEZED_GDS", os.path.join(lay, "step10", "route_step_6_squeezed.gds"))

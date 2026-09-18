@@ -66,7 +66,7 @@ blackbox RSLATCH
 hierarchy -check -top <TOP>
 synth -top <TOP> -flatten
 dfflibmap -liberty <lib>
-abc -liberty <lib> -constr syn/abc.constr
+abc -liberty <lib> -constr $OUT/abc.constr
 opt_clean
 ```
 
@@ -84,7 +84,15 @@ Python ラッパ生成。
 
 ### `abc.constr`
 
-`set_driving_cell BUF_X2` / `set_load 36.2`（= `OSS_ESD_5V_DIO` の `OUT` 入力容量）。
+`syn.sh` が**毎回 `.lib` から起こす**（`$SYN_OUT_DIR/abc.constr`）。中身は
+`set_driving_cell BUF_X2` / `set_load <パッドセルの OUT 入力容量>`。
+
+★ **写さない**（U99）。以前は `syn/abc.constr` に `set_load 36.2` と直書き
+してあったが、U96 で `.lib` を作り直したら実測は **45.923 fF** になり、
+写した側だけが古いまま残った（U65 と同じ「正本が 1 箇所に無い」）。
+どのセルのどのピンかは `config_base.OUT_LOAD_CELL` / `OUT_LOAD_PIN` の
+1 箇所で決め、値は `apr/lib_pin_cap.py` が `.lib` から引く。
+`config.SYN_CONSTR` を設計が明示したときは、そちらをそのまま使う。
 
 ## 3. Liberty
 
@@ -252,7 +260,7 @@ GDS の比較はしない（U32）。`sh $APRTOOLS/syn/syn.sh` を引数なし�
 
 | | |
 |---|---|
-| 合成 | yosys 0.33 + `stdcell/v59_4/tr1um_typ_5v0_25c.lib` + `syn/abc.constr` |
+| 合成 | yosys 0.33 + `stdcell/v59_4/tr1um_typ_5v0_25c.lib` + `abc.constr`（`.lib` から生成）|
 | セル | 52 → dedup 52 → 畳み込み 37（MUX2+DFFRB を 15 組）→ BUFTH 3 本 = **40 個** |
 | 面積 | **132,795 µm²**（旧 64.8 版の提出 134,078 から −1.0%） |
 | RTL の TB | iverilog 11 本 **11/11 PASS** |

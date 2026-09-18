@@ -25,10 +25,14 @@ link_design $TOP
 foreach p [all_inputs] {
   set n [get_full_name $p]
   if {$n eq $CLK || [lsearch -exact $NONSIG $n] >= 0} continue
-  set_driving_cell -lib_cell BUF_X2 -pin Y $p
+  set_driving_cell -lib_cell $DRVCELL -pin $DRVPIN $p
 }
-# 出力は OSS_ESD_5V_DIO の OUT ピン容量 36.2 fF を負荷にする
-foreach p [all_outputs] { set_load 36.2 $p }
+# 出力にはパッドセルの入力ピン容量を負荷として掛ける。
+# ★ **値は `.lib` から引く**（U99、2026-09-18）。以前は `36.2` と直書きで、
+#   U96 で `.lib` を作り直したら実測が 45.923 fF になり、**写した側だけが
+#   古いまま**になった（U65 と同じ「正本が 1 箇所に無い」）。
+#   `$OUTLOAD` / `$DRVCELL` / `$DRVPIN` は sta.sh が `.lib` と config から入れる。
+foreach p [all_outputs] { set_load $OUTLOAD $p }
 
 # rst_n は非同期リセット。DFFRB の RSTB に組合せ回路経由で入る。
 # **recovery / removal は特性化していない**（scripts/char/ が測っていない）ので、

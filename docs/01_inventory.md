@@ -92,7 +92,7 @@ APR_2026 では `scripts/pnr/` ではなく `scripts/` 直下にあるため「S
 | `INV3D.{sch,sym,extracted}` | あり | — | — | `macro/ringosc/` |
 | `BUF_X2.{sch,sym,extracted}` | — | — | あり | `stdcell/v64_8/`（※`.sch` が BUF_X1 の回路だった既知バグ） |
 | `scripts/char/` 一式 | あり | あり（+ mem/pad） | — | `char/`（**TD4 版が上位: cells_mem / cells_pad あり**） |
-| `abc.constr` `tr1um.genlib` | あり | 同一 | — | `syn/` |
+| `tr1um.genlib` | あり | 同一 | — | `syn/` |（`abc.constr` は 2026-09-18 に廃止。`.lib` から生成する。U99）
 
 **フレーム GDS の版**（確認済み）: セル構成は 3 リポジトリとも同一 29 セルだが、内容は 2 版ある。
 
