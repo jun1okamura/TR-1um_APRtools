@@ -55,6 +55,14 @@ $TR1UM_PDK
 
 生成先は**各設計リポジトリの作業ディレクトリ**。APRtools には置かない。
 
+> **★ フレームのネットリスト 2 本だけは例外**（2026-09-19）。
+> `OSS_FRAME_GIO.spice` / `OSS_FRAME_GIO_nocombine.spice` の**正本を
+> [`frame/`](frame/README.md) に 1 本ずつ置いた**。設計ごとに同じものを
+> 作り直す理由が無く、しかも**どのフレーム GDS から作ったかで中身が変わる**
+> （上流版と `pending-upstream` の修正版では `OSS_DRV` が別物。`frame/README.md`）
+> ので、出どころを 1 箇所に書いて凍結する方が安全だと判断した。
+> `pending-upstream/` と同じく、**上流にマージされたら作り直す**。
+
 ## 3-b. ★ 同名で中身の違うフレームが 2 つある
 
 | ファイル | サイズ | セル | `OSS_FRAME_GIO` |

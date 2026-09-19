@@ -86,8 +86,11 @@ TR-1um_APRtools/
 │   ├── calib_cap genjobs runjobs.sh collect mklib verify_lib mkcellverilog mkmemsrc
 │   └── models/  decks/  pack/
 │
-├── pdk/                       ── ★ データは置かない。参照方針だけ
-│   └── README.md              TR1UM_PDK の解決順、コピー禁止対象、派生物の再生成コマンド
+├── pdk/                       ── ★ データは置かない。参照方針だけ（例外 2 つ）
+│   ├── README.md              TR1UM_PDK の解決順、コピー禁止対象、派生物の再生成コマンド
+│   ├── PR-TR-1um-OSS_DRV.md   PDK へ出した PR の本文
+│   ├── pending-upstream/      上流にまだ入っていないフレーム GDS
+│   └── frame/                 フレームのネットリスト正本（LVS 用 / ngspice 用）
 │
 ├── art/                       ── 自作の図版
 │   └── opensusi_logo.txt      317 × 63 セル / 5,785 ドット（コメント文字は %）
